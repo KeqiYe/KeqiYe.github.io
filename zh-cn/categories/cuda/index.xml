@@ -304,4 +304,759 @@
 &lt;p>关于这两个问题，我各自有一些设想和初步实现，接下来将逐一介绍，并进行测试和分析。&lt;/p>
 &lt;hr>
 &lt;h4 id="a2按网格顺序遍历粒子">A2：按网格顺序遍历粒子
-&lt;/h4>&lt;p>（此处补充 A2 的实现简介和性能特点。）&lt;/p></description></item></channel></rss>
+&lt;/h4>&lt;p>（此处补充 A2 的实现简介和性能特点。）
+更多关于树搜索的内容可以参见[树搜索]更多关于树搜索的内容可以参见&lt;a class="link" href="https://keqiye.github.io/posts/SPH_neighbor_search/tree_search/" >树搜索&lt;/a>.&lt;/p></description></item><item><title>7 Step Optimization of Parallel Reduction with CUDA</title><link>https://keqiye.github.io/zh-cn/posts/parallel-reduction-with-cuda/blog-parallel-reduction-with-cuda/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://keqiye.github.io/zh-cn/posts/parallel-reduction-with-cuda/blog-parallel-reduction-with-cuda/</guid><description>&lt;h2 id="写在前面">写在前面
+&lt;/h2>&lt;blockquote>
+&lt;p>📚 &lt;strong>版权声明 | Copyright Notice&lt;/strong>&lt;/p>
+&lt;p>本文内容参考并部分翻译自以下两篇资料：&lt;/p>
+&lt;ul>
+&lt;li>&lt;a class="link" href="https://developer.download.nvidia.com/assets/cuda/files/reduction.pdf" target="_blank" rel="noopener"
+>NVIDIA 官方 PPT（reduction.pdf）&lt;/a>&lt;/li>
+&lt;li>&lt;a class="link" href="https://medium.com/@rimikadhara/7-step-optimization-of-parallel-reduction-with-cuda-33a3b2feafd8" target="_blank" rel="noopener"
+>Medium 博客：7 Step Optimization of Parallel Reduction with CUDA&lt;/a>&lt;/li>
+&lt;/ul>
+&lt;p>上述资料版权归原作者所有。本文旨在学习和技术传播，仅供个人和学术使用。如有侵权，请联系删除。&lt;/p>
+&lt;p>This article is a study and partial translation based on the works above. All rights belong to the original authors. The content is shared for learning and research purposes only. Please contact for removal if there is any infringement.&lt;/p>
+&lt;/blockquote>
+&lt;p>⚠️ &lt;strong>若上述链接失效&lt;/strong>，读者可以在 Google 中使用关键词查找：&lt;br>
+&lt;code>7 Step Optimization of Parallel Reduction with CUDA&lt;/code>&lt;/p>
+&lt;p>本文将介绍如何优化 CUDA 中的并行规约算法 (Parallel Reduction)，并通过七个步骤逐步提升性能。尽管上述链接中作者已经说明的十分清楚。我这里还是会使用中文再走一边流程，一来为中文互联网提供参考资料，二来为我自己学习。&lt;/p>
+&lt;p>CUDA并行代码与串行代码的整体设计思路相差很大，虽然是按照线程来编写，但是要从Block层面去思考和设计。&lt;/p>
+&lt;h2 id="什么是-parallel-reduction-算法">什么是 Parallel Reduction 算法？
+&lt;/h2>&lt;p>让我们首先了解一下 Parallel Reduction 算法的基本概念。它是一种 &lt;strong>数据并行原语&lt;/strong>，在 CUDA 中实现相对直接。简单来说，Parallel Reduction 的目标是通过 GPU 的线程层级结构并行地对向量、矩阵或张量进行归约操作。&lt;/p>
+&lt;p>这种归约是通过如 &lt;code>sum()&lt;/code>、&lt;code>min()&lt;/code>、&lt;code>max()&lt;/code> 或 &lt;code>avg()&lt;/code> 等操作来实现的，用于对数据进行聚合与简化。事实上，对一个数组求上述操作是十分简单的，如果想实现 CUDA 并行，核心难度在于访存设计。若处理不当，即使是这些“看似简单”的计算也可能变得耗时。&lt;/p>
+&lt;p>高效实现 Parallel Reduction 的一个原因是它们非常通用，并在许多应用中起着关键作用。我主要使用SPH研究小行星撞击，每一步SPH求解过程中，都需要进行包围盒计算，对应着 &lt;code>min()&lt;/code>、&lt;code>max()&lt;/code> 操作。&lt;/p>
+&lt;h3 id="树形归约模型tree-based-reduction">树形归约模型（Tree-based Reduction）
+&lt;/h3>&lt;p>并行归约可以被类比为一种“树状归约”（tree-based reduction）过程：数据在各线程块（thread block）之间逐层归约。&lt;/p>
+&lt;p>但这里出现了一个关键问题：&lt;/p>
+&lt;blockquote>
+&lt;p>&lt;strong>我们如何在不同线程块之间传递中间结果？&lt;/strong>&lt;/p>
+&lt;/blockquote>
+&lt;p>最直接的想法是使用“全局同步（global synchronization）” —— 先让每个线程块完成一部分计算，然后进行全局同步并继续递归处理。&lt;/p>
+&lt;p>然而，CUDA &lt;strong>并不支持全局同步&lt;/strong>，因为这在硬件上开销极大，还可能导致死锁，只能使用少量线程块，限制性能提升。&lt;/p>
+&lt;p>📌 &lt;strong>更实用的方案是：Kernel 分解（Kernel Decomposition）&lt;/strong>&lt;/p>
+&lt;h3 id="kernel-分解kernel-decomposition">Kernel 分解（Kernel Decomposition）
+&lt;/h3>&lt;p>为了更高效地传递线程块间的中间结果，我们可以将一个大的 kernel 拆分为多个小 kernel。这种做法被称为 &lt;strong>Kernel 分解&lt;/strong>。&lt;/p>
+&lt;p>&lt;img src="https://keqiye.github.io/images/tree-reduction.png"
+loading="lazy"
+alt="Tree-based Reduction"
+>&lt;/p>
+&lt;p>Kernel 分解的优势包括：&lt;/p>
+&lt;ul>
+&lt;li>减少硬件与软件开销&lt;/li>
+&lt;li>提高资源利用率&lt;/li>
+&lt;li>避免线程块间同步&lt;/li>
+&lt;li>提升整体执行效率&lt;/li>
+&lt;/ul>
+&lt;hr>
+&lt;h3 id="注意">注意！
+&lt;/h3>&lt;p>本文重点讲解规约（reduction）的基本思想，而非完整的最终实现。因此，每个 kernel 的执行结果并不是一个全局单一值，而是 &lt;strong>每个 block 内部的规约结果&lt;/strong>。&lt;/p>
+&lt;p>具体来说：&lt;/p>
+&lt;ul>
+&lt;li>每个 block 负责处理若干个线程的(&lt;code>blockDim&lt;/code>)数据，并在 block 内完成一次局部规约；&lt;/li>
+&lt;li>每个 block 的结果会被写入输出数组的 &lt;code>blockIdx.x&lt;/code> 位置；&lt;/li>
+&lt;li>因此，最终输出数组的长度等于 &lt;code>gridDim.x&lt;/code>（即 block 数量），而不是单个元素。&lt;/li>
+&lt;/ul>
+&lt;hr>
+&lt;h3 id="性能衡量指标our-metrics">性能衡量指标（Our Metrics）
+&lt;/h3>&lt;p>我们衡量并行归约算法性能的两个关键指标是：&lt;/p>
+&lt;ul>
+&lt;li>&lt;strong>时间（Time）&lt;/strong>&lt;/li>
+&lt;li>&lt;strong>带宽（Bandwidth）&lt;/strong>&lt;/li>
+&lt;/ul>
+&lt;p>这两个指标反映了 GPU 是否达到了峰值性能。我们希望在以下两方面进行优化：&lt;/p>
+&lt;ol>
+&lt;li>&lt;strong>提高数据读写效率&lt;/strong>&lt;/li>
+&lt;li>&lt;strong>加快计算速度、提升线程利用率&lt;/strong>&lt;/li>
+&lt;/ol>
+&lt;p>一段理想的 GPU 程序，不仅运行快速，还能使大多数线程都在工作。&lt;/p>
+&lt;h2 id="reduce-0交错寻址法interleaved-addressing">REDUCE-0：交错寻址法（Interleaved Addressing）
+&lt;/h2>&lt;h3 id="思路介绍">思路介绍
+&lt;/h3>&lt;p>最朴素的一种并行归约方法是采用“交错寻址（Interleaved Addressing）”，作为我们优化过程的基础版本。在这种方法中：&lt;/p>
+&lt;ul>
+&lt;li>每个线程处理一组元素；&lt;/li>
+&lt;li>每轮归约时，线程将其当前值与一段距离内的另一个元素值相加；&lt;/li>
+&lt;li>每轮步长加倍，直到最终得出该 block 的归约结果。&lt;/li>
+&lt;/ul>
+&lt;p>📘 例如，对于一个 1024 元素数组，使用 256 线程块，每个线程处理四个间隔为 256 的数据点。&lt;/p>
+&lt;p>这种方式可以确保：&lt;/p>
+&lt;ul>
+&lt;li>各线程并行工作，负载均衡；&lt;/li>
+&lt;li>线程间同步更简单；&lt;/li>
+&lt;li>便于 GPU 高效执行。&lt;/li>
+&lt;/ul>
+&lt;h3 id="cuda-代码实现">CUDA 代码实现
+&lt;/h3>&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;span class="lnt">11
+&lt;/span>&lt;span class="lnt">12
+&lt;/span>&lt;span class="lnt">13
+&lt;/span>&lt;span class="lnt">14
+&lt;/span>&lt;span class="lnt">15
+&lt;/span>&lt;span class="lnt">16
+&lt;/span>&lt;span class="lnt">17
+&lt;/span>&lt;span class="lnt">18
+&lt;/span>&lt;span class="lnt">19
+&lt;/span>&lt;span class="lnt">20
+&lt;/span>&lt;span class="lnt">21
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-gdscript3" data-lang="gdscript3">&lt;span class="line">&lt;span class="cl">&lt;span class="o">//&lt;/span> &lt;span class="n">REDUCTION&lt;/span> &lt;span class="mi">0&lt;/span> &lt;span class="err">–&lt;/span> &lt;span class="n">Interleaved&lt;/span> &lt;span class="n">Addressing&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">__global__&lt;/span> &lt;span class="n">void&lt;/span> &lt;span class="n">reduce0&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="ne">int&lt;/span> &lt;span class="o">*&lt;/span>&lt;span class="n">g_in_data&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="ne">int&lt;/span> &lt;span class="o">*&lt;/span>&lt;span class="n">g_out_data&lt;/span>&lt;span class="p">){&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">extern&lt;/span> &lt;span class="n">__shared__&lt;/span> &lt;span class="ne">int&lt;/span> &lt;span class="n">sdata&lt;/span>&lt;span class="p">[];&lt;/span> &lt;span class="o">//&lt;/span> &lt;span class="n">stored&lt;/span> &lt;span class="ow">in&lt;/span> &lt;span class="n">the&lt;/span> &lt;span class="n">shared&lt;/span> &lt;span class="n">memory&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">//&lt;/span> &lt;span class="n">Each&lt;/span> &lt;span class="n">thread&lt;/span> &lt;span class="n">loading&lt;/span> &lt;span class="n">one&lt;/span> &lt;span class="n">element&lt;/span> &lt;span class="n">from&lt;/span> &lt;span class="n">global&lt;/span> &lt;span class="n">onto&lt;/span> &lt;span class="n">shared&lt;/span> &lt;span class="n">memory&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">unsigned&lt;/span> &lt;span class="ne">int&lt;/span> &lt;span class="n">tid&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">threadIdx&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">x&lt;/span>&lt;span class="p">;&lt;/span> &lt;span class="o">//&lt;/span>&lt;span class="n">tid表示当前线程在所在&lt;/span> &lt;span class="n">block&lt;/span> &lt;span class="err">中的局部索引&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">unsigned&lt;/span> &lt;span class="ne">int&lt;/span> &lt;span class="n">i&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">blockIdx&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">x&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">blockDim&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">x&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">threadIdx&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">x&lt;/span>&lt;span class="p">;&lt;/span>&lt;span class="o">//&lt;/span>&lt;span class="n">i表示当前线程在整个&lt;/span> &lt;span class="n">grid&lt;/span> &lt;span class="err">中的全局线程编号&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">sdata&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">tid&lt;/span>&lt;span class="p">]&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">g_in_data&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">i&lt;/span>&lt;span class="p">];&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">__syncthreads&lt;/span>&lt;span class="p">();&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">//&lt;/span> &lt;span class="n">Reduction&lt;/span> &lt;span class="n">method&lt;/span> &lt;span class="o">--&lt;/span> &lt;span class="n">occurs&lt;/span> &lt;span class="ow">in&lt;/span> &lt;span class="n">shared&lt;/span> &lt;span class="n">memory&lt;/span> &lt;span class="n">because&lt;/span> &lt;span class="n">that&lt;/span>&lt;span class="s1">&amp;#39;s where sdata is stored&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">for&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">unsigned&lt;/span> &lt;span class="ne">int&lt;/span> &lt;span class="n">s&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="mi">1&lt;/span>&lt;span class="p">;&lt;/span> &lt;span class="n">s&lt;/span> &lt;span class="o">&amp;lt;&lt;/span> &lt;span class="n">blockDim&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">x&lt;/span>&lt;span class="p">;&lt;/span> &lt;span class="n">s&lt;/span> &lt;span class="o">*=&lt;/span> &lt;span class="mi">2&lt;/span>&lt;span class="p">){&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">if&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">tid&lt;/span> &lt;span class="o">%&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="mi">2&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">s&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">==&lt;/span> &lt;span class="mi">0&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">sdata&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">tid&lt;/span>&lt;span class="p">]&lt;/span> &lt;span class="o">+=&lt;/span> &lt;span class="n">sdata&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">tid&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">s&lt;/span>&lt;span class="p">];&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">__syncthreads&lt;/span>&lt;span class="p">();&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">if&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">tid&lt;/span> &lt;span class="o">==&lt;/span> &lt;span class="mi">0&lt;/span>&lt;span class="p">){&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">g_out_data&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">blockIdx&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">x&lt;/span>&lt;span class="p">]&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">sdata&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="mi">0&lt;/span>&lt;span class="p">];&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;h3 id="该方法存在的问题">该方法存在的问题
+&lt;/h3>&lt;p>虽然这种方法是并行编程的良好基础，但它仍存在一些问题。让我们回顾一下性能指标，分析代码在计算和内存方面可能存在的低效之处。&lt;/p>
+&lt;p>&lt;strong>计算方面：&lt;/strong> 一个主要的计算低效是 &lt;code>%&lt;/code> 操作符的使用。由于 &lt;code>%&lt;/code> 涉及除法操作，而除法在底层是非常慢的操作，这会严重影响性能，特别是在大量线程频繁执行该操作的内核中。此外，交错寻址模式导致了严重的 warp 发散（divergence），因为同一个 warp 中的线程需要执行不同的分支路径（基于当前的 &lt;code>if&lt;/code> 条件）。这种路径发散导致 warp 需要等待较慢的线程完成，造成阻塞，从而严重降低性能。&lt;/p>
+&lt;p>&lt;strong>内存方面：&lt;/strong> 由于 warp 发散，该方法的内存访问模式不佳。每个线程访问的数据元素分布在整个数组中，导致内存访问分散而非合并访问（coalesced），从而造成带宽利用率低下和较高的内存延迟。这种分散访问会引起多次缓慢的内存事务，而非一次快速事务，未能充分利用 GPU 的内存带宽能力。不过，这个问题我们会在后续的优化中开始解决。&lt;/p>
+&lt;p>首先，我们先关注计算相关的问题，并进行下一步优化。&lt;/p>
+&lt;h2 id="reduce-1交错寻址法-20interleaved-addressing-20">REDUCE-1：交错寻址法 2.0（Interleaved Addressing 2.0）
+&lt;/h2></description></item><item><title>基于树结构的 SPH 粒子领域搜索</title><link>https://keqiye.github.io/zh-cn/posts/cudatreecode/blog-post-treecode/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://keqiye.github.io/zh-cn/posts/cudatreecode/blog-post-treecode/</guid><description>&lt;h1 id="树结构基于根据-burtscher-和-pingali-的研究">树结构（基于根据 Burtscher 和 Pingali 的研究）
+&lt;/h1>&lt;p>本文将介绍广泛用于 SPH 代码和 N 体模拟中的树结构（Tree Structure）。这种数据结构主要应用于以下两个核心问题：&lt;/p>
+&lt;h3 id="1-粒子领域搜索neighbor-search">1. 粒子领域搜索（Neighbor Search）
+&lt;/h3>&lt;p>在 SPH（光滑粒子流体力学）模拟中，每个粒子需要在核尺度 \( h \) 范围内查找邻居粒子，以便计算密度、压强梯度、粘性等物理量。树结构能够加速邻域搜索，尤其适用于粒子分布高度非均匀的情形。&lt;/p>
+&lt;h3 id="2-自引力计算self-gravity-computation">2. 自引力计算（Self-Gravity Computation）
+&lt;/h3>&lt;p>在引力主导的粒子系统（如星系模拟、星体碰撞）中，粒子间存在万有引力作用。直接计算所有粒子对的引力开销为 \( \mathcal{O}(N^2) \)，不可接受。基于树的近似方法（如 Barnes-Hut 算法）可将计算复杂度降至 \( \mathcal{O}(N \log N) \)，同时保持较高精度。&lt;/p>
+&lt;hr>
+&lt;p>接下来的章节将分别介绍树结构在上述两个问题中的构建方法、搜索策略和性能优化。&lt;/p>
+&lt;p>关于传统的 &lt;strong>链表法（Linked-List）&lt;/strong> 粒子领域搜索，请参考我另一篇博文： 👉 &lt;a class="link" href="https://keqiye.github.io/posts/SPH_neighbor_search/" >使用链表进行 SPH 邻域搜索&lt;/a>&lt;/p>
+&lt;h1 id="实现步骤">实现步骤
+&lt;/h1>&lt;p>根据相关文献，每次执行自引力计算或粒子邻域搜索时，通常需要以下四个步骤：&lt;/p>
+&lt;ol>
+&lt;li>
+&lt;p>&lt;strong>确定粒子空间范围&lt;/strong>&lt;br>
+统计所有粒子的空间边界，获取 \( x_{\min}, x_{\max}, y_{\min}, y_{\max}, z_{\min}, z_{\max} \)，用于初始化树结构的根节点或空间划分范围。&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;strong>构建树结构&lt;/strong>&lt;br>
+将粒子递归划分到空间树节点中，常用的数据结构包括八叉树（Octree）或 KD 树。每个叶子节点包含若干粒子或达到最小划分条件。&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;strong>粒子空间排序&lt;/strong>&lt;br>
+对粒子进行 Morton 编码（Z-order curve）或 Hilbert 曲线编码，并按照空间位置排序，便于缓存一致性和后续并行处理。&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;strong>树遍历计算&lt;/strong>&lt;br>
+遍历树结构：&lt;/p>
+&lt;ul>
+&lt;li>若执行 &lt;strong>自引力计算&lt;/strong>，使用 Barnes-Hut 近似规则判断是否聚合节点质量；&lt;/li>
+&lt;li>若执行 &lt;strong>邻域搜索&lt;/strong>，在每个节点中判断与查询粒子的距离是否小于核尺度 \( h \)，从而筛选可能邻居。&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;/ol>
+&lt;h2 id="确定粒子空间范围">确定粒子空间范围
+&lt;/h2>&lt;p>直接使用规约算法求最大最小值&lt;/p>
+&lt;h2 id="构建树结构">构建树结构
+&lt;/h2>&lt;p>由于 GPU 上无法高效实现指针式链表结构，我们使用数组来模拟树的链接关系（例如子节点指针）。假设有一个整型数组 &lt;code>child&lt;/code>，其长度远大于粒子总数 &lt;code>numParticles&lt;/code>，并初始化为 &lt;code>-1&lt;/code>，表示所有节点尚未使用。&lt;/p>
+&lt;h3 id="区分叶子节点与根节点">区分叶子节点与根节点
+&lt;/h3>&lt;p>在树结构中，如何区分整型数组 &lt;code>child&lt;/code> 的某一个位置存储的是 &lt;strong>叶子节点（粒子）&lt;/strong> 还是 &lt;strong>根节点&lt;/strong> 是一个关键问题。&lt;/p>
+&lt;h4 id="标识方法">标识方法：
+&lt;/h4>&lt;ul>
+&lt;li>&lt;strong>&lt;code>-1&lt;/code>&lt;/strong>：表示该位置为空，未被占用。&lt;/li>
+&lt;li>&lt;strong>&lt;code>-2&lt;/code>&lt;/strong>：表示该位置已被锁定，当前线程正在使用该位置（通常用于进行原子操作）。&lt;/li>
+&lt;li>&lt;strong>&lt;code>0&lt;/code> 到 &lt;code>numParticles - 1&lt;/code>&lt;/strong>：表示 &lt;strong>粒子&lt;/strong>，每个位置对应一个粒子。&lt;/li>
+&lt;li>&lt;strong>&lt;code>numParticles&lt;/code> 或更大&lt;/strong>：表示 &lt;strong>根节点&lt;/strong>，用于标识树结构中的根节点。&lt;/li>
+&lt;/ul>
+&lt;h4 id="锁定位置的特殊说明">锁定位置的特殊说明：
+&lt;/h4>&lt;p>根据 Burtscher 和 Pingali 的研究，树结构中的位置锁定采用如下方式：&lt;/p>
+&lt;ul>
+&lt;li>&lt;strong>&lt;code>-1&lt;/code>&lt;/strong> 代表该位置为空。&lt;/li>
+&lt;li>&lt;strong>&lt;code>-2&lt;/code>&lt;/strong> 代表该位置被锁定。&lt;/li>
+&lt;/ul>
+&lt;p>如果第 &lt;code>i&lt;/code> 个位置被锁定，那么：&lt;/p>
+&lt;ul>
+&lt;li>在 &lt;strong>三维&lt;/strong> 情况下，&lt;code>8*i+0&lt;/code> 到 &lt;code>7&lt;/code>（即一个八岔树及其子树等）都被锁定；&lt;/li>
+&lt;li>在 &lt;strong>二维&lt;/strong> 情况下，&lt;code>4*i+0&lt;/code> 到 &lt;code>3&lt;/code>（即一个四岔树及其子树等）都被锁定；&lt;/li>
+&lt;li>在 &lt;strong>一维&lt;/strong> 情况下，&lt;code>i&lt;/code> 及其相邻部分也会被锁定。&lt;/li>
+&lt;/ul>
+&lt;p>这意味着，如果一个位置被锁定，&lt;strong>其他线程将无法访问该位置的子树或其子树的子树&lt;/strong>，确保了并行计算中节点及其相关子节点的安全。&lt;/p>
+&lt;h3 id="使用原子操作同步线程">使用原子操作同步线程
+&lt;/h3>&lt;p>当多个线程并发地尝试访问同一个子节点槽位时，可以使用 CUDA 提供的原子操作 &lt;code>atomicCAS&lt;/code>（Compare And Swap）来进行线程间同步。&lt;/p>
+&lt;p>以下是原子操作的代码示例：&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-fallback" data-lang="fallback">&lt;span class="line">&lt;span class="cl">int re = atomicCAS(&amp;amp;child[p], -1, -2); // 尝试占用 child[p]
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>该操作的含义是：&lt;/p>
+&lt;ul>
+&lt;li>&lt;strong>若 &lt;code>child[p] == -1&lt;/code>&lt;/strong>：表示该槽位尚未被占用，当前线程成功将其原子地设置为 &lt;code>-2&lt;/code>，表示“锁定中”或“准备插入”；&lt;/li>
+&lt;li>&lt;strong>若 &lt;code>child[p] != -1&lt;/code>&lt;/strong>：说明该槽位已被其他线程占用或已被插入，当前线程需退出或重试；&lt;/li>
+&lt;li>&lt;strong>返回值 &lt;code>re&lt;/code>&lt;/strong>：表示操作前的旧值。如果 &lt;code>re == -1&lt;/code>，则说明当前线程成功锁定了该节点。如果 &lt;code>re != -1&lt;/code> ，则 &lt;code>atomicCAS&lt;/code> 函数发现比较不成立，直接返回了旧值，也不会替换&lt;code>-2&lt;/code>而打乱&lt;code>child&lt;/code>数组内容。&lt;/li>
+&lt;/ul>
+&lt;p>写到这里，树结构数组&lt;code>child&lt;/code>的构建就很容易了。下面是代码&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt"> 10
+&lt;/span>&lt;span class="lnt"> 11
+&lt;/span>&lt;span class="lnt"> 12
+&lt;/span>&lt;span class="lnt"> 13
+&lt;/span>&lt;span class="lnt"> 14
+&lt;/span>&lt;span class="lnt"> 15
+&lt;/span>&lt;span class="lnt"> 16
+&lt;/span>&lt;span class="lnt"> 17
+&lt;/span>&lt;span class="lnt"> 18
+&lt;/span>&lt;span class="lnt"> 19
+&lt;/span>&lt;span class="lnt"> 20
+&lt;/span>&lt;span class="lnt"> 21
+&lt;/span>&lt;span class="lnt"> 22
+&lt;/span>&lt;span class="lnt"> 23
+&lt;/span>&lt;span class="lnt"> 24
+&lt;/span>&lt;span class="lnt"> 25
+&lt;/span>&lt;span class="lnt"> 26
+&lt;/span>&lt;span class="lnt"> 27
+&lt;/span>&lt;span class="lnt"> 28
+&lt;/span>&lt;span class="lnt"> 29
+&lt;/span>&lt;span class="lnt"> 30
+&lt;/span>&lt;span class="lnt"> 31
+&lt;/span>&lt;span class="lnt"> 32
+&lt;/span>&lt;span class="lnt"> 33
+&lt;/span>&lt;span class="lnt"> 34
+&lt;/span>&lt;span class="lnt"> 35
+&lt;/span>&lt;span class="lnt"> 36
+&lt;/span>&lt;span class="lnt"> 37
+&lt;/span>&lt;span class="lnt"> 38
+&lt;/span>&lt;span class="lnt"> 39
+&lt;/span>&lt;span class="lnt"> 40
+&lt;/span>&lt;span class="lnt"> 41
+&lt;/span>&lt;span class="lnt"> 42
+&lt;/span>&lt;span class="lnt"> 43
+&lt;/span>&lt;span class="lnt"> 44
+&lt;/span>&lt;span class="lnt"> 45
+&lt;/span>&lt;span class="lnt"> 46
+&lt;/span>&lt;span class="lnt"> 47
+&lt;/span>&lt;span class="lnt"> 48
+&lt;/span>&lt;span class="lnt"> 49
+&lt;/span>&lt;span class="lnt"> 50
+&lt;/span>&lt;span class="lnt"> 51
+&lt;/span>&lt;span class="lnt"> 52
+&lt;/span>&lt;span class="lnt"> 53
+&lt;/span>&lt;span class="lnt"> 54
+&lt;/span>&lt;span class="lnt"> 55
+&lt;/span>&lt;span class="lnt"> 56
+&lt;/span>&lt;span class="lnt"> 57
+&lt;/span>&lt;span class="lnt"> 58
+&lt;/span>&lt;span class="lnt"> 59
+&lt;/span>&lt;span class="lnt"> 60
+&lt;/span>&lt;span class="lnt"> 61
+&lt;/span>&lt;span class="lnt"> 62
+&lt;/span>&lt;span class="lnt"> 63
+&lt;/span>&lt;span class="lnt"> 64
+&lt;/span>&lt;span class="lnt"> 65
+&lt;/span>&lt;span class="lnt"> 66
+&lt;/span>&lt;span class="lnt"> 67
+&lt;/span>&lt;span class="lnt"> 68
+&lt;/span>&lt;span class="lnt"> 69
+&lt;/span>&lt;span class="lnt"> 70
+&lt;/span>&lt;span class="lnt"> 71
+&lt;/span>&lt;span class="lnt"> 72
+&lt;/span>&lt;span class="lnt"> 73
+&lt;/span>&lt;span class="lnt"> 74
+&lt;/span>&lt;span class="lnt"> 75
+&lt;/span>&lt;span class="lnt"> 76
+&lt;/span>&lt;span class="lnt"> 77
+&lt;/span>&lt;span class="lnt"> 78
+&lt;/span>&lt;span class="lnt"> 79
+&lt;/span>&lt;span class="lnt"> 80
+&lt;/span>&lt;span class="lnt"> 81
+&lt;/span>&lt;span class="lnt"> 82
+&lt;/span>&lt;span class="lnt"> 83
+&lt;/span>&lt;span class="lnt"> 84
+&lt;/span>&lt;span class="lnt"> 85
+&lt;/span>&lt;span class="lnt"> 86
+&lt;/span>&lt;span class="lnt"> 87
+&lt;/span>&lt;span class="lnt"> 88
+&lt;/span>&lt;span class="lnt"> 89
+&lt;/span>&lt;span class="lnt"> 90
+&lt;/span>&lt;span class="lnt"> 91
+&lt;/span>&lt;span class="lnt"> 92
+&lt;/span>&lt;span class="lnt"> 93
+&lt;/span>&lt;span class="lnt"> 94
+&lt;/span>&lt;span class="lnt"> 95
+&lt;/span>&lt;span class="lnt"> 96
+&lt;/span>&lt;span class="lnt"> 97
+&lt;/span>&lt;span class="lnt"> 98
+&lt;/span>&lt;span class="lnt"> 99
+&lt;/span>&lt;span class="lnt">100
+&lt;/span>&lt;span class="lnt">101
+&lt;/span>&lt;span class="lnt">102
+&lt;/span>&lt;span class="lnt">103
+&lt;/span>&lt;span class="lnt">104
+&lt;/span>&lt;span class="lnt">105
+&lt;/span>&lt;span class="lnt">106
+&lt;/span>&lt;span class="lnt">107
+&lt;/span>&lt;span class="lnt">108
+&lt;/span>&lt;span class="lnt">109
+&lt;/span>&lt;span class="lnt">110
+&lt;/span>&lt;span class="lnt">111
+&lt;/span>&lt;span class="lnt">112
+&lt;/span>&lt;span class="lnt">113
+&lt;/span>&lt;span class="lnt">114
+&lt;/span>&lt;span class="lnt">115
+&lt;/span>&lt;span class="lnt">116
+&lt;/span>&lt;span class="lnt">117
+&lt;/span>&lt;span class="lnt">118
+&lt;/span>&lt;span class="lnt">119
+&lt;/span>&lt;span class="lnt">120
+&lt;/span>&lt;span class="lnt">121
+&lt;/span>&lt;span class="lnt">122
+&lt;/span>&lt;span class="lnt">123
+&lt;/span>&lt;span class="lnt">124
+&lt;/span>&lt;span class="lnt">125
+&lt;/span>&lt;span class="lnt">126
+&lt;/span>&lt;span class="lnt">127
+&lt;/span>&lt;span class="lnt">128
+&lt;/span>&lt;span class="lnt">129
+&lt;/span>&lt;span class="lnt">130
+&lt;/span>&lt;span class="lnt">131
+&lt;/span>&lt;span class="lnt">132
+&lt;/span>&lt;span class="lnt">133
+&lt;/span>&lt;span class="lnt">134
+&lt;/span>&lt;span class="lnt">135
+&lt;/span>&lt;span class="lnt">136
+&lt;/span>&lt;span class="lnt">137
+&lt;/span>&lt;span class="lnt">138
+&lt;/span>&lt;span class="lnt">139
+&lt;/span>&lt;span class="lnt">140
+&lt;/span>&lt;span class="lnt">141
+&lt;/span>&lt;span class="lnt">142
+&lt;/span>&lt;span class="lnt">143
+&lt;/span>&lt;span class="lnt">144
+&lt;/span>&lt;span class="lnt">145
+&lt;/span>&lt;span class="lnt">146
+&lt;/span>&lt;span class="lnt">147
+&lt;/span>&lt;span class="lnt">148
+&lt;/span>&lt;span class="lnt">149
+&lt;/span>&lt;span class="lnt">150
+&lt;/span>&lt;span class="lnt">151
+&lt;/span>&lt;span class="lnt">152
+&lt;/span>&lt;span class="lnt">153
+&lt;/span>&lt;span class="lnt">154
+&lt;/span>&lt;span class="lnt">155
+&lt;/span>&lt;span class="lnt">156
+&lt;/span>&lt;span class="lnt">157
+&lt;/span>&lt;span class="lnt">158
+&lt;/span>&lt;span class="lnt">159
+&lt;/span>&lt;span class="lnt">160
+&lt;/span>&lt;span class="lnt">161
+&lt;/span>&lt;span class="lnt">162
+&lt;/span>&lt;span class="lnt">163
+&lt;/span>&lt;span class="lnt">164
+&lt;/span>&lt;span class="lnt">165
+&lt;/span>&lt;span class="lnt">166
+&lt;/span>&lt;span class="lnt">167
+&lt;/span>&lt;span class="lnt">168
+&lt;/span>&lt;span class="lnt">169
+&lt;/span>&lt;span class="lnt">170
+&lt;/span>&lt;span class="lnt">171
+&lt;/span>&lt;span class="lnt">172
+&lt;/span>&lt;span class="lnt">173
+&lt;/span>&lt;span class="lnt">174
+&lt;/span>&lt;span class="lnt">175
+&lt;/span>&lt;span class="lnt">176
+&lt;/span>&lt;span class="lnt">177
+&lt;/span>&lt;span class="lnt">178
+&lt;/span>&lt;span class="lnt">179
+&lt;/span>&lt;span class="lnt">180
+&lt;/span>&lt;span class="lnt">181
+&lt;/span>&lt;span class="lnt">182
+&lt;/span>&lt;span class="lnt">183
+&lt;/span>&lt;span class="lnt">184
+&lt;/span>&lt;span class="lnt">185
+&lt;/span>&lt;span class="lnt">186
+&lt;/span>&lt;span class="lnt">187
+&lt;/span>&lt;span class="lnt">188
+&lt;/span>&lt;span class="lnt">189
+&lt;/span>&lt;span class="lnt">190
+&lt;/span>&lt;span class="lnt">191
+&lt;/span>&lt;span class="lnt">192
+&lt;/span>&lt;span class="lnt">193
+&lt;/span>&lt;span class="lnt">194
+&lt;/span>&lt;span class="lnt">195
+&lt;/span>&lt;span class="lnt">196
+&lt;/span>&lt;span class="lnt">197
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-fallback" data-lang="fallback">&lt;span class="line">&lt;span class="cl">__global__ void buildTree()
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">{
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> register int inc = blockDim.x * gridDim.x;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> register int i = threadIdx.x + blockIdx.x * blockDim.x;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> register int k;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> register int childIndex, child;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> register int lockedIndex;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> register double x;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">#if DIM &amp;gt; 1
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> register double y;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">#endif
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> register double r;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> register double dx;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">#if DIM &amp;gt; 1
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> register double dy;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">#endif
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> register double rootRadius = radius;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> register double rootX = p.x[numNodes-1];
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">#if DIM &amp;gt; 1
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> register double rootY = p.y[numNodes-1];
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">#endif
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> register int depth = 0;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> register int isNewParticle = TRUE;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> register int currentNodeIndex;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> register int newNodeIndex;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> register int subtreeNodeIndex;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">#if DIM == 3
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> register double z;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> register double dz;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> register double rootZ = p.z[numNodes-1];
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">#endif
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> volatile double *px, *pm;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">#if DIM &amp;gt; 1
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> volatile double *py;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">#if DIM == 3
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> volatile double *pz;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">#endif
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">#endif
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> px = p.x;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> pm = p.m;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">#if DIM &amp;gt; 1
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> py = p.y;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">#if DIM == 3
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> pz = p.z;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">#endif
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">#endif
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> while (i &amp;lt; numParticles) {
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> depth = 0;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> if (isNewParticle) {
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> isNewParticle = FALSE;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> // cache particle data
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> x = px[i];
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> p.ax[i] = 0.0;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">#if DIM &amp;gt; 1
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> y = py[i];
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> p.ay[i] = 0.0;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">#if DIM == 3
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> z = pz[i];
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> p.az[i] = 0.0;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">#endif
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">#endif
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> // start at root
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> currentNodeIndex = numNodes-1;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> r = rootRadius;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> childIndex = 0;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> if (x &amp;gt; rootX) childIndex = 1;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">#if DIM &amp;gt; 1
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> if (y &amp;gt; rootY) childIndex += 2;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">#if DIM == 3
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> if (z &amp;gt; rootZ) childIndex += 4;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">#endif
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">#endif
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> }
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> // follow path to leaf
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> child = childList[childListIndex(currentNodeIndex, childIndex)];
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> /* leaves are 0 ... numParticles */
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> while (child &amp;gt;= numParticles) {
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> currentNodeIndex = child;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> depth++;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> r *= 0.5;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> // which child?
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> childIndex = 0;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> if (x &amp;gt; px[currentNodeIndex]) childIndex = 1;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">#if DIM &amp;gt; 1
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> if (y &amp;gt; py[currentNodeIndex]) childIndex += 2;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">#if DIM &amp;gt; 2
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> if (z &amp;gt; pz[currentNodeIndex]) childIndex += 4;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">#endif
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">#endif
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> child = childList[childListIndex(currentNodeIndex, childIndex)];
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> }
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> // we want to insert the current particle i into currentNodeIndex&amp;#39;s child at position childIndex
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> // where child is now empty, locked or a particle
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> // if empty -&amp;gt; simply insert, if particle -&amp;gt; create new subtree
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> if (child != LOCKED) {
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> // the position where we want to place the particle gets locked
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> lockedIndex = childListIndex(currentNodeIndex, childIndex);
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> // atomic compare and save: compare if child is still the current value of childlist at the index lockedIndex, if so, lock it
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> // atomicCAS returns the old value of child
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> if (child == atomicCAS((int *) &amp;amp;childList[lockedIndex], child, LOCKED)) {
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> // if the destination is empty, insert particle
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> if (child == EMPTY) {
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> // insert the particle into this leaf
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> childList[lockedIndex] = i;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> } else {
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> // there is already a particle, create new inner node
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> subtreeNodeIndex = -1;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> do {
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> // get the next free nodeIndex
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> newNodeIndex = atomicSub((int * ) &amp;amp;maxNodeIndex, 1) - 1;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> // throw error if there aren&amp;#39;t enough node indices available
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> if (newNodeIndex &amp;lt;= numParticles) {
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> printf(&amp;#34;(thread %d): error during tree creation: not enough nodes. newNodeIndex %d, maxNodeIndex %d, numParticles: %d\n&amp;#34;, threadIdx.x, newNodeIndex, maxNodeIndex, numParticles);
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> assert(0);
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> }
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> // the first available free nodeIndex will be the subtree node
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> subtreeNodeIndex = max(subtreeNodeIndex, newNodeIndex);
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> dx = (childIndex &amp;amp; 1) * r;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">#if DIM &amp;gt; 1
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> dy = ((childIndex &amp;gt;&amp;gt; 1) &amp;amp; 1) * r;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">#if DIM == 3
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> dz = ((childIndex &amp;gt;&amp;gt; 2) &amp;amp; 1) * r;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">#endif
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">#endif
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> depth++;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> r *= 0.5;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> // we save the radius here, so we can use it during neighboursearch. we have to set it to EMPTY after the neighboursearch
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> pm[newNodeIndex] = r;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> dx = px[newNodeIndex] = px[currentNodeIndex] - r + dx;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">#if DIM &amp;gt; 1
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> dy = py[newNodeIndex] = py[currentNodeIndex] - r + dy;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">#if DIM == 3
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> dz = pz[newNodeIndex] = pz[currentNodeIndex] - r + dz;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">#endif
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">#endif
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> for (k = 0; k &amp;lt; numChildren; k++) {
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> childList[childListIndex(newNodeIndex, k)] = EMPTY;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> }
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> if (subtreeNodeIndex != newNodeIndex) {
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> // this condition is true when the two particles are so close to each other, that they are
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> // again put into the same node, so we have to create another new inner node.
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> // in this case, currentNodeIndex is the previous newNodeIndex
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> // and childIndex is the place where the particle i belongs to, relative to the previous newNodeIndex
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> childList[childListIndex(currentNodeIndex, childIndex)] = newNodeIndex;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> }
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> childIndex = 0;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> if (px[child] &amp;gt; dx) childIndex = 1;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">#if DIM &amp;gt; 1
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> if (py[child] &amp;gt; dy) childIndex += 2;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">#if DIM == 3
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> if (pz[child] &amp;gt; dz) childIndex += 4;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">#endif
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">#endif
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> childList[childListIndex(newNodeIndex, childIndex)] = child;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> // compare positions of particle i to the new node
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> currentNodeIndex = newNodeIndex;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> childIndex = 0;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> if (x &amp;gt; dx) childIndex = 1;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">#if DIM &amp;gt; 1
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> if (y &amp;gt; dy) childIndex += 2;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">#if DIM == 3
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> if (z &amp;gt; dz) childIndex += 4;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">#endif
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">#endif
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> child = childList[childListIndex(currentNodeIndex, childIndex)];
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> // continue creating new nodes (with half radius each) until the other particle is not in the same spot in the tree
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> } while (child &amp;gt;= 0);
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> childList[childListIndex(currentNodeIndex, childIndex)] = i;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> __threadfence();
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> //__threadfence() is used to halt the current thread until all previous writes to shared and global memory are visible
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> // by other threads. It does not halt nor affect the position of other threads though!
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> childList[lockedIndex] = subtreeNodeIndex;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> }
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> p.depth[i] = depth;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> // continue with next particle
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> i += inc;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> isNewParticle = TRUE;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> }
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> }
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> __syncthreads(); // child was locked, wait for other threads to unlock
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> }
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">}
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>// 核函数：构建八叉树（或四叉树/二叉树，取决于 DIM）用于粒子邻域搜索或自引力计算
+// 输入：
+// p - 粒子数据结构，包括位置 px, py, pz 和质量 pm，以及加速度 ax, ay, az
+// numParticles - 粒子总数
+// numNodes - 总节点数（包括粒子和内部节点）
+// radius - 根节点大小
+// 输出：
+// childList - 树结构中每个节点的子节点数组
+// maxNodeIndex - 原子递减的全局变量，用于分配新内部节点索引&lt;/p>
+&lt;p>&lt;strong>global&lt;/strong> void buildTree(ParticleData p, int* childList, int numParticles, int numNodes, double radius, int* maxNodeIndex)
+{
+int inc = blockDim.x * gridDim.x;
+int i = threadIdx.x + blockIdx.x * blockDim.x;&lt;/p>
+&lt;pre>&lt;code>while (i &amp;lt; numParticles) {
+double x = p.x[i], y = 0.0, z = 0.0;
+&lt;/code>&lt;/pre>
+&lt;p>#if DIM &amp;gt; 1
+y = p.y[i];
+#if DIM == 3
+z = p.z[i];
+#endif
+#endif
+double ax = 0.0, ay = 0.0, az = 0.0;
+p.ax[i] = ax;
+#if DIM &amp;gt; 1
+p.ay[i] = ay;
+#if DIM == 3
+p.az[i] = az;
+#endif
+#endif&lt;/p>
+&lt;pre>&lt;code> // 从根节点开始
+int currentNodeIndex = numNodes - 1;
+double rootX = p.x[currentNodeIndex];
+double rootY = 0.0, rootZ = 0.0;
+&lt;/code>&lt;/pre>
+&lt;p>#if DIM &amp;gt; 1
+rootY = p.y[currentNodeIndex];
+#if DIM == 3
+rootZ = p.z[currentNodeIndex];
+#endif
+#endif
+double r = radius;
+int depth = 0;&lt;/p>
+&lt;pre>&lt;code> // 确定初始的子节点索引
+int childIndex = 0;
+if (x &amp;gt; rootX) childIndex |= 1;
+&lt;/code>&lt;/pre>
+&lt;p>#if DIM &amp;gt; 1
+if (y &amp;gt; rootY) childIndex |= 2;
+#if DIM == 3
+if (z &amp;gt; rootZ) childIndex |= 4;
+#endif
+#endif&lt;/p>
+&lt;pre>&lt;code> // 遍历树直到遇到叶子节点或空位
+int child = childList[childListIndex(currentNodeIndex, childIndex)];
+while (child &amp;gt;= numParticles) {
+currentNodeIndex = child;
+depth++;
+r *= 0.5;
+// 再次确定子节点索引
+childIndex = 0;
+if (x &amp;gt; p.x[currentNodeIndex]) childIndex |= 1;
+&lt;/code>&lt;/pre>
+&lt;p>#if DIM &amp;gt; 1
+if (y &amp;gt; p.y[currentNodeIndex]) childIndex |= 2;
+#if DIM == 3
+if (z &amp;gt; p.z[currentNodeIndex]) childIndex |= 4;
+#endif
+#endif
+child = childList[childListIndex(currentNodeIndex, childIndex)];
+}&lt;/p>
+&lt;pre>&lt;code> // 尝试锁定子节点槽位
+int lockedIndex = childListIndex(currentNodeIndex, childIndex);
+if (child != LOCKED &amp;amp;&amp;amp; child == atomicCAS(&amp;amp;childList[lockedIndex], child, LOCKED)) {
+if (child == EMPTY) {
+childList[lockedIndex] = i;
+} else {
+// 创建新子树
+int subtreeNodeIndex = -1;
+do {
+int newNodeIndex = atomicSub(maxNodeIndex, 1) - 1;
+if (newNodeIndex &amp;lt;= numParticles) {
+printf(&amp;quot;ERROR: Not enough nodes. newNodeIndex = %d\n&amp;quot;, newNodeIndex);
+return;
+}
+subtreeNodeIndex = max(subtreeNodeIndex, newNodeIndex);
+double dx = (childIndex &amp;amp; 1) * r;
+double dy = 0.0, dz = 0.0;
+&lt;/code>&lt;/pre>
+&lt;p>#if DIM &amp;gt; 1
+dy = ((childIndex &amp;raquo; 1) &amp;amp; 1) * r;
+#if DIM == 3
+dz = ((childIndex &amp;raquo; 2) &amp;amp; 1) * r;
+#endif
+#endif
+r *= 0.5;
+p.m[newNodeIndex] = r;
+p.x[newNodeIndex] = p.x[currentNodeIndex] - r + dx;
+#if DIM &amp;gt; 1
+p.y[newNodeIndex] = p.y[currentNodeIndex] - r + dy;
+#if DIM == 3
+p.z[newNodeIndex] = p.z[currentNodeIndex] - r + dz;
+#endif
+#endif&lt;/p>
+&lt;pre>&lt;code> for (int k = 0; k &amp;lt; numChildren; ++k)
+childList[childListIndex(newNodeIndex, k)] = EMPTY;
+if (subtreeNodeIndex != newNodeIndex)
+childList[childListIndex(currentNodeIndex, childIndex)] = newNodeIndex;
+// 再次寻找当前粒子与已有粒子应处位置
+childIndex = 0;
+if (p.x[child] &amp;gt; p.x[newNodeIndex]) childIndex |= 1;
+&lt;/code>&lt;/pre>
+&lt;p>#if DIM &amp;gt; 1
+if (p.y[child] &amp;gt; p.y[newNodeIndex]) childIndex |= 2;
+#if DIM == 3
+if (p.z[child] &amp;gt; p.z[newNodeIndex]) childIndex |= 4;
+#endif
+#endif
+childList[childListIndex(newNodeIndex, childIndex)] = child;&lt;/p>
+&lt;pre>&lt;code> currentNodeIndex = newNodeIndex;
+childIndex = 0;
+if (x &amp;gt; p.x[currentNodeIndex]) childIndex |= 1;
+&lt;/code>&lt;/pre>
+&lt;p>#if DIM &amp;gt; 1
+if (y &amp;gt; p.y[currentNodeIndex]) childIndex |= 2;
+#if DIM == 3
+if (z &amp;gt; p.z[currentNodeIndex]) childIndex |= 4;
+#endif
+#endif
+child = childList[childListIndex(currentNodeIndex, childIndex)];
+} while (child &amp;gt;= 0);&lt;/p>
+&lt;pre>&lt;code> childList[childListIndex(currentNodeIndex, childIndex)] = i;
+__threadfence();
+childList[lockedIndex] = subtreeNodeIndex;
+}
+p.depth[i] = depth;
+i += inc;
+}
+__syncthreads(); // 等待锁释放
+}
+&lt;/code>&lt;/pre>
+&lt;p>}&lt;/p>
+&lt;p>[1] Burtscher, Martin, and Keshav Pingali. &amp;ldquo;An efficient CUDA implementation of the tree-based barnes hut n-body algorithm.&amp;rdquo; &lt;em>GPU computing Gems Emerald edition&lt;/em>. Morgan Kaufmann, 2011. 75-92.&lt;/p></description></item></channel></rss>
