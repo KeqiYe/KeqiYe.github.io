@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>核支持域 on Keqi的博客</title><link>https://keqiye.github.io/zh-cn/tags/%E6%A0%B8%E6%94%AF%E6%8C%81%E5%9F%9F/</link><description>Recent content in 核支持域 on Keqi的博客</description><generator>Hugo -- gohugo.io</generator><language>zh-cn</language><managingEditor>plloningye@gmail.com (Keqi Ye)</managingEditor><webMaster>plloningye@gmail.com (Keqi Ye)</webMaster><copyright>Example Person</copyright><lastBuildDate>Sun, 25 May 2025 00:00:00 +0000</lastBuildDate><atom:link href="https://keqiye.github.io/zh-cn/tags/%E6%A0%B8%E6%94%AF%E6%8C%81%E5%9F%9F/index.xml" rel="self" type="application/rss+xml"/><item><title>SPH 核函数</title><link>https://keqiye.github.io/zh-cn/posts/sphseries/blog-post-sph2/</link><pubDate>Sun, 25 May 2025 00:00:00 +0000</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://keqiye.github.io/zh-cn/posts/sphseries/blog-post-sph2/</guid><description>&lt;p>在 SPH 方法中，**核函数（Kernel Function）**是核心组成部分之一，用于进行物理量的平滑逼近。换句话说，SPH核心功能就是将偏微分方程通过核函数近似
+转换为常微分方程，随后使用时间积分解决。&lt;/p>
+&lt;h1 id="数学定义与-sph-核插值">数学定义与 SPH 核插值
+&lt;/h1>&lt;p>根据狄拉克函数 \( \delta \) 的定义，任意函数 \( f(\mathbf{r}) \) 可表示为：&lt;/p>
+$$
+f(\mathbf{r}) = \int f(\mathbf{r}') \, \delta(\mathbf{r} - \mathbf{r}') \, d\mathbf{r}'
+$$
+&lt;p>当 \( f(\mathbf{r}) \) 在积分区域内连续时，该表达式严格成立。&lt;/p>
+&lt;hr>
+&lt;h2 id="sph-中的平滑逼近">SPH 中的平滑逼近
+&lt;/h2>&lt;p>在无网格方法 SPH（Smoothed Particle Hydrodynamics）中，我们用具有紧支撑的核函数 \( W(\mathbf{r} - \mathbf{r}', h) \) 替代狄拉克函数，其中 \( h \) 为平滑长度（支持半径），得到函数的平滑逼近：&lt;/p>
+$$
+f(\mathbf{r}) = \int f(\mathbf{r}') \, W(\mathbf{r} - \mathbf{r}', h) \, d\mathbf{r}'
+$$
+&lt;p>
+核函数 \( W(\mathbf{r} - \mathbf{r}', h) \) 一般会具有如下特点&lt;/p>
+&lt;h3 id="1-正则化条件归一性">1. 正则化条件（归一性）
+&lt;/h3>&lt;p>核函数在整个空间上的积分应为 1，以保证物理量守恒：&lt;/p>
+$$
+\int W(\mathbf{r} - \mathbf{r}', h) \, d\mathbf{r}' = 1
+$$
+&lt;p>这对应于狄拉克函数的归一化性质：&lt;/p>
+$$
+\int \delta(\mathbf{r} - \mathbf{r}') \, d\mathbf{r}' = 1
+$$
+&lt;hr>
+&lt;h3 id="2-收敛性delta-函数极限">2. 收敛性（Delta 函数极限）
+&lt;/h3>&lt;p>当平滑长度 \( h \to 0 \) 时，核函数应趋近于狄拉克函数：&lt;/p>
+$$
+\lim_{h \to 0} W(\mathbf{r} - \mathbf{r}', h) = \delta(\mathbf{r} - \mathbf{r}')
+$$
+&lt;p>这表示核函数的逼近在理论上是收敛的，且核插值在无限分辨率下是精确的。&lt;/p>
+&lt;hr>
+&lt;h3 id="3-紧支性有限支持域">3. 紧支性（有限支持域）
+&lt;/h3>&lt;p>核函数在距离超过某个范围 \( kh \) 后应为零：&lt;/p>
+$$
+W(\mathbf{r} - \mathbf{r}', h) = 0 \quad \text{当} \quad |\mathbf{r} - \mathbf{r}'| > kh
+$$
+&lt;p>其中常数 \( k \) 一般为 2 或 3，取决于核函数的类型。这一性质使得每个粒子的影响范围是有限的，便于高效实现邻域搜索和并行计算。&lt;/p>
+&lt;hr>
+&lt;p>将积分区域离散化为粒子系统，令体积元 \( d\mathbf{r}' \approx V_j = \frac{m_j}{\rho_j} \)，得：&lt;/p>
+$$
+f(\mathbf{r}_i) = \sum_j f(\mathbf{r}_j) \frac{m_j}{\rho_j} \, W(\mathbf{r}_i - \mathbf{r}_j, h)
+$$
+&lt;p>这就是 SPH 的&lt;strong>核插值公式&lt;/strong>。其本质是利用核函数在支持域内对邻近粒子的物理量进行加权平均，逼近连续场。&lt;/p>
+&lt;p>对散度算子进行粒子近似可得：&lt;/p>
+$$
+\langle \nabla \cdot f(x_i) \rangle = -\sum_{j=1}^{N} \frac{m_j}{\rho_j} f(x_j) \cdot \nabla W_{ij}, \tag{1}
+$$
+&lt;p>其中核函数梯度为：&lt;/p>
+$$
+\nabla_i W_{ij} = \frac{x_i - x_j}{r_{ij}} \frac{\partial W_{ij}}{\partial r_{ij}} = \frac{x_{ij}}{r_{ij}} \frac{\partial W_{ij}}{\partial r_{ij}}. \tag{2}
+$$
+&lt;p>注意，核函数 $W_{ij} = W(\mathbf{r_i} - \mathbf{r_j}, h)$ 是关于 $\mathbf{r_j}$ 的函数，因此式(1)中多了一个负号。&lt;/p>
+&lt;h2 id="常见核函数及其导数">常见核函数及其导数
+&lt;/h2>&lt;p>SPH 中常用的核函数包括以下几类：&lt;/p>
+&lt;h3 id="三次样条核函数-cubic-spline-kernel">三次样条核函数 (Cubic Spline Kernel)
+&lt;/h3>&lt;p>核函数定义：&lt;/p>
+$$
+\begin{align*}
+W(R,h) = \alpha_d \times
+\begin{cases}
+\frac{2}{3} - R^2 + \frac{1}{2}R^3, &amp; 0 \leq R &lt; 1; \\
+\frac{1}{6}(2-R)^3, &amp; 1 \leq R &lt; 2; \\
+0, &amp; R \geq 2.
+\end{cases}
+\end{align*}
+$$
+&lt;p>其中 $R = \frac{r}{h}$，$r$ 是粒子间距离，$h$ 是光滑长度，$\alpha_d$ 是维度归一化常数：&lt;/p>
+&lt;ul>
+&lt;li>一维：$\alpha_d = \frac{1}{h}$&lt;/li>
+&lt;li>二维：$\alpha_d = \frac{15}{7\pi h^2}$&lt;/li>
+&lt;li>三维：$\alpha_d = \frac{3}{2\pi h^3}$&lt;/li>
+&lt;/ul>
+&lt;p>核函数导数：&lt;/p>
+$$
+\frac{dW}{dR} = \alpha_d \times
+\begin{cases}
+-2R + \frac{3}{2}R^2, &amp; 0 \leq R &lt; 1; \\
+-\frac{1}{2}(2-R)^2, &amp; 1 \leq R &lt; 2; \\
+0, &amp; R \geq 2.
+\end{cases}
+$$</description></item></channel></rss>
