@@ -436,16 +436,26 @@ alt="Tree-based Reduction"
 &lt;/div>
 &lt;/div>&lt;h3 id="该方法存在的问题">该方法存在的问题
 &lt;/h3>&lt;p>虽然这种方法是并行编程的良好基础，但它仍存在一些问题。让我们回顾一下性能指标，分析代码在计算和内存方面可能存在的低效之处。&lt;/p>
-&lt;p>&lt;strong>计算方面：&lt;/strong> 一个主要的计算低效是 &lt;code>%&lt;/code> 操作符的使用。由于 &lt;code>%&lt;/code> 涉及除法操作，而除法在底层是非常慢的操作，这会严重影响性能，特别是在大量线程频繁执行该操作的内核中。此外，交错寻址模式导致了严重的 warp 发散（divergence），因为同一个 warp 中的线程需要执行不同的分支路径（基于当前的 &lt;code>if&lt;/code> 条件）。这种路径发散导致 warp 需要等待较慢的线程完成，造成阻塞，从而严重降低性能。具体而言，代码块：
-、、、CUDA
-for(unsigned int s = 1; s &amp;lt; blockDim.x; s *= 2){
-if (tid % (2 * s) == 0) {
-sdata[tid] += sdata[tid + s];&lt;br>
-}
-__syncthreads();
-}
-、、、
-第一个for，激活的线程为0，2，4&amp;hellip;；第二次执行for循环，激活的线程为0，4，8&amp;hellip; 显然，每个for循环中只有有50%，25%。。。的线程处于激活状态，这显然是我们不想看到了。我们希望尽可能多的线程都处于工作状态，至少在同一个warp中是如此。&lt;/p>
+&lt;p>&lt;strong>计算方面：&lt;/strong> 一个主要的计算低效是 &lt;code>%&lt;/code> 操作符的使用。由于 &lt;code>%&lt;/code> 涉及除法操作，而除法在底层是非常慢的操作，这会严重影响性能，特别是在大量线程频繁执行该操作的内核中。此外，交错寻址模式导致了严重的 warp 发散（divergence），因为同一个 warp 中的线程需要执行不同的分支路径（基于当前的 &lt;code>if&lt;/code> 条件）。这种路径发散导致 warp 需要等待较慢的线程完成，造成阻塞，从而严重降低性能。具体而言，代码块：&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;span class="lnt">2
+&lt;/span>&lt;span class="lnt">3
+&lt;/span>&lt;span class="lnt">4
+&lt;/span>&lt;span class="lnt">5
+&lt;/span>&lt;span class="lnt">6
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-fallback" data-lang="fallback">&lt;span class="line">&lt;span class="cl"> for(unsigned int s = 1; s &amp;lt; blockDim.x; s *= 2){
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> if (tid % (2 * s) == 0) {
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> sdata[tid] += sdata[tid + s];
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> }
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> __syncthreads();
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> }
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>第一个for，激活的线程为0，2，4&amp;hellip;；第二次执行for循环，激活的线程为0，4，8&amp;hellip; 显然，每个for循环中只有有50%，25%。。。的线程处于激活状态，这显然是我们不想看到了。我们希望尽可能多的线程都处于工作状态，至少在同一个warp中是如此。&lt;/p>
 &lt;p>&lt;strong>内存方面：&lt;/strong> 由于 warp 发散，该方法的内存访问模式不佳。每个线程访问的数据元素分布在整个数组中，导致内存访问分散而非合并访问（coalesced），从而造成带宽利用率低下和较高的内存延迟。这种分散访问会引起多次缓慢的内存事务，而非一次快速事务，未能充分利用 GPU 的内存带宽能力。不过，这个问题我们会在后续的优化中开始解决。具体来说
 轮次 5: s = 16
 if (tid % 32 == 0): 在Warp 0 (线程0-31)中，只有线程0在工作。
