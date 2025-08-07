@@ -305,7 +305,9 @@
 &lt;hr>
 &lt;h4 id="a2按网格顺序遍历粒子">A2：按网格顺序遍历粒子
 &lt;/h4>&lt;p>（此处补充 A2 的实现简介和性能特点。）
-更多关于树搜索的内容可以参见[树搜索]更多关于树搜索的内容可以参见&lt;a class="link" href="https://keqiye.github.io/posts/SPH_neighbor_search/tree_search/" >树搜索&lt;/a>.&lt;/p></description></item><item><title>基于树结构的 SPH 粒子领域搜索</title><link>https://keqiye.github.io/zh-cn/posts/cudatreecode/blog-post-treecode/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://keqiye.github.io/zh-cn/posts/cudatreecode/blog-post-treecode/</guid><description>&lt;h1 id="树结构基于根据-burtscher-和-pingali-的研究">树结构（基于根据 Burtscher 和 Pingali 的研究）
+更多关于树搜索的内容可以参见[树搜索]更多关于树搜索的内容可以参见&lt;a class="link" href="https://keqiye.github.io/posts/SPH_neighbor_search/tree_search/" >树搜索&lt;/a>.&lt;/p>
+&lt;h3 id="缺陷">缺陷
+&lt;/h3>&lt;p>网格搜索我个人感觉效率是比树搜索好的，尤其是当粒子的光滑长度都一致或者差不多的时候。缺点在于，如果粒子在空间中分散的非常广泛，比如撞击引起的dust喷发。这会导致网格数量激增，显存很快就会用光，导致计算失败。因此网格搜索还是适合模拟空间分布稳定的问题，比如溃坝。&lt;/p></description></item><item><title>基于树结构的 SPH 粒子领域搜索</title><link>https://keqiye.github.io/zh-cn/posts/cudatreecode/blog-post-treecode/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://keqiye.github.io/zh-cn/posts/cudatreecode/blog-post-treecode/</guid><description>&lt;h1 id="树结构基于根据-burtscher-和-pingali-的研究">树结构（基于根据 Burtscher 和 Pingali 的研究）
 &lt;/h1>&lt;p>本文将介绍广泛用于 SPH 代码和 N 体模拟中的树结构（Tree Structure）。这种数据结构主要应用于以下两个核心问题：&lt;/p>
 &lt;h3 id="1-粒子领域搜索neighbor-search">1. 粒子领域搜索（Neighbor Search）
 &lt;/h3>&lt;p>在 SPH（光滑粒子流体力学）模拟中，每个粒子需要在核尺度 \( h \) 范围内查找邻居粒子，以便计算密度、压强梯度、粘性等物理量。树结构能够加速邻域搜索，尤其适用于粒子分布高度非均匀的情形。&lt;/p>

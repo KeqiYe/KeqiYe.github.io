@@ -305,7 +305,9 @@
 &lt;hr>
 &lt;h4 id="a2按网格顺序遍历粒子">A2：按网格顺序遍历粒子
 &lt;/h4>&lt;p>（此处补充 A2 的实现简介和性能特点。）
-更多关于树搜索的内容可以参见[树搜索]更多关于树搜索的内容可以参见&lt;a class="link" href="https://keqiye.github.io/posts/SPH_neighbor_search/tree_search/" >树搜索&lt;/a>.&lt;/p></description></item><item><title>7 Step Optimization of Parallel Reduction with CUDA</title><link>https://keqiye.github.io/zh-cn/posts/parallel-reduction-with-cuda/blog-parallel-reduction-with-cuda/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://keqiye.github.io/zh-cn/posts/parallel-reduction-with-cuda/blog-parallel-reduction-with-cuda/</guid><description>&lt;h2 id="写在前面">写在前面
+更多关于树搜索的内容可以参见[树搜索]更多关于树搜索的内容可以参见&lt;a class="link" href="https://keqiye.github.io/posts/SPH_neighbor_search/tree_search/" >树搜索&lt;/a>.&lt;/p>
+&lt;h3 id="缺陷">缺陷
+&lt;/h3>&lt;p>网格搜索我个人感觉效率是比树搜索好的，尤其是当粒子的光滑长度都一致或者差不多的时候。缺点在于，如果粒子在空间中分散的非常广泛，比如撞击引起的dust喷发。这会导致网格数量激增，显存很快就会用光，导致计算失败。因此网格搜索还是适合模拟空间分布稳定的问题，比如溃坝。&lt;/p></description></item><item><title>7 Step Optimization of Parallel Reduction with CUDA</title><link>https://keqiye.github.io/zh-cn/posts/parallel-reduction-with-cuda/blog-parallel-reduction-with-cuda/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://keqiye.github.io/zh-cn/posts/parallel-reduction-with-cuda/blog-parallel-reduction-with-cuda/</guid><description>&lt;h2 id="写在前面">写在前面
 &lt;/h2>&lt;blockquote>
 &lt;p>📚 &lt;strong>版权声明 | Copyright Notice&lt;/strong>&lt;/p>
 &lt;p>本文内容参考并部分翻译自以下两篇资料：&lt;/p>
