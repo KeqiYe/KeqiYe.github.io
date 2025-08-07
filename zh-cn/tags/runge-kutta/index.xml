@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Runge-Kutta on Keqi的博客</title><link>https://keqiye.github.io/zh-cn/tags/runge-kutta/</link><description>Recent content in Runge-Kutta on Keqi的博客</description><generator>Hugo -- gohugo.io</generator><language>zh-cn</language><managingEditor>plloningye@gmail.com (Keqi Ye)</managingEditor><webMaster>plloningye@gmail.com (Keqi Ye)</webMaster><copyright>Example Person</copyright><lastBuildDate>Thu, 23 May 2024 10:30:00 +0800</lastBuildDate><atom:link href="https://keqiye.github.io/zh-cn/tags/runge-kutta/index.xml" rel="self" type="application/rss+xml"/><item><title>基于自适应步长 Runge-Kutta 方法的 SPH 计算流程</title><link>https://keqiye.github.io/zh-cn/posts/sph-adaptive-rk/</link><pubDate>Thu, 23 May 2024 10:30:00 +0800</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://keqiye.github.io/zh-cn/posts/sph-adaptive-rk/</guid><description>&lt;h2 id="1-引言">1. 引言
+&lt;/h2>&lt;p>在流体动力学的数值模拟中，光滑粒子流体动力学（Smoothed Particle Hydrodynamics, SPH）是一种广泛应用的无网格拉格朗日方法。SPH方法的核心之一是对控制方程组进行时间积分，以更新每个粒子的物理状态。&lt;/p>
+&lt;p>传统的时间积分方案（如简单的欧拉法或固定步长的龙格-库塔法）虽然实现简单，但在处理复杂动态过程时面临挑战：&lt;/p>
+&lt;ul>
+&lt;li>&lt;strong>步长过大&lt;/strong>可能导致数值不稳定，模拟发散。&lt;/li>
+&lt;li>&lt;strong>步长过小&lt;/strong>则会极大地增加计算成本，尤其是在模拟过程相对平稳的阶段。&lt;/li>
+&lt;/ul>
+&lt;p>为了在保证计算精度的同时提高效率，&lt;strong>自适应步长（Adaptive Time-Stepping）&lt;/strong> 的积分方法应运而生。本文将详细介绍如何将自适应步长的 Runge-Kutta (RK) 方法应用于 SPH 的计算流程中。&lt;/p>
+&lt;h2 id="2-sph-核心方程">2. SPH 核心方程
+&lt;/h2>&lt;p>在 SPH 中，流体被离散为一系列携带物理属性（质量、密度、速度等）的粒子。其状态演化由一组常微分方程（ODE）描述，主要包括：&lt;/p>
+&lt;ul>
+&lt;li>
+&lt;p>&lt;strong>连续性方程（密度演化）&lt;/strong>:
+&lt;/p>
+$$
+\frac{d\rho_i}{dt} = \sum_j m_j (\mathbf{v}_i - \mathbf{v}_j) \cdot \nabla_i W_{ij}
+$$
+&lt;/li>
+&lt;li>
+&lt;p>&lt;strong>动量方程（速度演化）&lt;/strong>:
+&lt;/p>
+$$
+\frac{d\mathbf{v}_i}{dt} = -\sum_j m_j \left( \frac{p_i}{\rho_i^2} + \frac{p_j}{\rho_j^2} + \Pi_{ij} \right) \nabla_i W_{ij} + \mathbf{g}
+$$
+&lt;/li>
+&lt;/ul>
+&lt;p>其中，&lt;code>i&lt;/code> 和 &lt;code>j&lt;/code> 是粒子索引，&lt;code>m&lt;/code> 是质量，&lt;code>ρ&lt;/code> 是密度，&lt;code>p&lt;/code> 是压力，&lt;code>v&lt;/code> 是速度，&lt;code>Π&lt;/code> 是人工粘性项，&lt;code>g&lt;/code> 是外力（如重力），&lt;code>W&lt;/code> 是核函数。&lt;/p>
+&lt;h2 id="3-自适应步长-runge-kutta-方法">3. 自适应步长 Runge-Kutta 方法
+&lt;/h2>&lt;p>自适应步长的核心思想是：在每个积分步中，通过比较两种不同精度的计算结果来估计局部截断误差（Local Truncation Error）。根据误差的大小，动态地调整下一步的时间步长 &lt;code>Δt&lt;/code>。&lt;/p>
+&lt;p>一个经典的例子是 &lt;strong>RK45&lt;/strong>（或称 Dormand-Prince、Cash-Karp 方法），它在一个步长内同时计算出一个四阶精度和一个五阶精度的解。&lt;/p>
+&lt;p>&lt;strong>基本逻辑如下&lt;/strong>:&lt;/p>
+&lt;ol>
+&lt;li>用一个 &lt;code>Δt&lt;/code> 计算出四阶解 &lt;code>y₄&lt;/code> 和五阶解 &lt;code>y₅&lt;/code>。&lt;/li>
+&lt;li>计算误差 &lt;code>ε = ||y₅ - y₄||&lt;/code>。&lt;/li>
+&lt;li>将误差 &lt;code>ε&lt;/code> 与预设的容忍度 &lt;code>tol&lt;/code> 比较。
+&lt;ul>
+&lt;li>如果 &lt;code>ε &amp;lt;= tol&lt;/code>：接受本次计算结果（通常使用更高阶的 &lt;code>y₅&lt;/code> 作为最终结果），并可以适当增大大下一轮的步长 &lt;code>Δt&lt;/code>。&lt;/li>
+&lt;li>如果 &lt;code>ε &amp;gt; tol&lt;/code>：拒绝本次计算，减小步长 &lt;code>Δt&lt;/code>，并用新的小步长重新计算当前步。&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;/ol>
+&lt;p>步长调整的常用公式为：
+&lt;/p>
+$$
+\Delta t_{\text{new}} = \Delta t_{\text{old}} \times \text{safe} \times \left( \frac{\text{tol}}{\epsilon} \right)^{p}
+$$
+&lt;p>
+其中 &lt;code>safe&lt;/code> 是一个安全因子（如0.9），&lt;code>p&lt;/code> 是一个与方法阶数相关的指数。&lt;/p>
+&lt;h2 id="4-完整的计算步骤伪代码">4. 完整的计算步骤（伪代码）
+&lt;/h2>&lt;p>下面是一个结合了自适应步长 RK 方法的 SPH 主循环伪代码。&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;span class="lnt">11
+&lt;/span>&lt;span class="lnt">12
+&lt;/span>&lt;span class="lnt">13
+&lt;/span>&lt;span class="lnt">14
+&lt;/span>&lt;span class="lnt">15
+&lt;/span>&lt;span class="lnt">16
+&lt;/span>&lt;span class="lnt">17
+&lt;/span>&lt;span class="lnt">18
+&lt;/span>&lt;span class="lnt">19
+&lt;/span>&lt;span class="lnt">20
+&lt;/span>&lt;span class="lnt">21
+&lt;/span>&lt;span class="lnt">22
+&lt;/span>&lt;span class="lnt">23
+&lt;/span>&lt;span class="lnt">24
+&lt;/span>&lt;span class="lnt">25
+&lt;/span>&lt;span class="lnt">26
+&lt;/span>&lt;span class="lnt">27
+&lt;/span>&lt;span class="lnt">28
+&lt;/span>&lt;span class="lnt">29
+&lt;/span>&lt;span class="lnt">30
+&lt;/span>&lt;span class="lnt">31
+&lt;/span>&lt;span class="lnt">32
+&lt;/span>&lt;span class="lnt">33
+&lt;/span>&lt;span class="lnt">34
+&lt;/span>&lt;span class="lnt">35
+&lt;/span>&lt;span class="lnt">36
+&lt;/span>&lt;span class="lnt">37
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-plaintext" data-lang="plaintext">&lt;span class="line">&lt;span class="cl">// 初始化粒子位置、速度、质量等
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">InitializeParticles();
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">t = 0.0;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">dt = dt_initial; // 设置一个初始步长
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">while (t &amp;lt; T_max) {
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> // 1. 邻域搜索
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> // 为每个粒子 i 找到其影响范围内的邻居粒子 j
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> FindNeighbors();
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> // 2. 计算密度和压力
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> // 通常先根据连续性方程的右半部分计算 dρ/dt
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> // 然后通过状态方程（如 Tait 方程）由密度计算压力
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> ComputeDensityAndPressure();
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> // 3. 计算加速度
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> // 根据动量方程右半部分计算 dv/dt
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> ComputeAccelerations();
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> // 4. 执行一步自适应 RK 积分
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> // 这一步会尝试用当前的 dt 更新粒子状态 (位置和速度)
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> // 如果误差过大，函数内部会减小 dt 并重试，直到成功
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> // 函数会返回一个被接受的、实际使用的 dt_accepted
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> dt_accepted = AdaptiveRKStep(dt);
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> // 5. 更新时间和下一步的建议步长
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> t = t + dt_accepted;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> dt = CalculateNextOptimal_dt(dt_accepted, error_from_rk); // 根据本次误差计算下一次的建议步长
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> // 6. (可选) 处理边界条件
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> HandleBoundaries();
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> // 7. (可选) 输出数据
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> SaveData(t);
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">}
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div></description></item></channel></rss>
