@@ -1,4 +1,222 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Posts on Keqi的博客</title><link>https://keqiye.github.io/zh-cn/posts/</link><description>Recent content in Posts on Keqi的博客</description><generator>Hugo -- gohugo.io</generator><language>zh-cn</language><managingEditor>plloningye@gmail.com (Keqi Ye)</managingEditor><webMaster>plloningye@gmail.com (Keqi Ye)</webMaster><copyright>Example Person</copyright><lastBuildDate>Sun, 25 May 2025 00:00:00 +0000</lastBuildDate><atom:link href="https://keqiye.github.io/zh-cn/posts/index.xml" rel="self" type="application/rss+xml"/><item><title>SPH 核函数</title><link>https://keqiye.github.io/zh-cn/posts/sphseries/blog-post-sph2/</link><pubDate>Sun, 25 May 2025 00:00:00 +0000</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://keqiye.github.io/zh-cn/posts/sphseries/blog-post-sph2/</guid><description>&lt;p>在 SPH 方法中，**核函数（Kernel Function）**是核心组成部分之一，用于进行物理量的平滑逼近。换句话说，SPH核心功能就是将偏微分方程通过核函数近似
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Posts on Keqi的博客</title><link>https://keqiye.github.io/zh-cn/posts/</link><description>Recent content in Posts on Keqi的博客</description><generator>Hugo -- gohugo.io</generator><language>zh-cn</language><managingEditor>plloningye@gmail.com (Keqi Ye)</managingEditor><webMaster>plloningye@gmail.com (Keqi Ye)</webMaster><copyright>Example Person</copyright><lastBuildDate>Fri, 15 Aug 2025 00:00:00 +0000</lastBuildDate><atom:link href="https://keqiye.github.io/zh-cn/posts/index.xml" rel="self" type="application/rss+xml"/><item><title>基于稠密存储的并行树构建实现方案</title><link>https://keqiye.github.io/zh-cn/posts/dense-tree-build/</link><pubDate>Fri, 15 Aug 2025 00:00:00 +0000</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://keqiye.github.io/zh-cn/posts/dense-tree-build/</guid><description>&lt;h1 id="基于稠密存储的并行树构建实现方案">基于稠密存储的并行树构建实现方案
+&lt;/h1>&lt;h2 id="引言">引言
+&lt;/h2>&lt;p>在空间划分与邻域搜索等算法中，树形数据结构（如八叉树、四叉树、Barnes-Hut 树）是高效的加速手段。&lt;br>
+构建这类树结构时，&lt;strong>存储方式&lt;/strong>是影响性能与内存效率的关键因素之一。&lt;br>
+常见的存储方式有两种：&lt;/p>
+&lt;ul>
+&lt;li>&lt;strong>稀疏存储（Sparse Storage）&lt;/strong>：为每个节点预留较大索引空间，按需填充，易实现，但会浪费内存。&lt;/li>
+&lt;li>&lt;strong>稠密存储（Dense Storage）&lt;/strong>：节点存储在连续数组中，按照构建顺序紧密排列，节省内存，但需要额外的管理逻辑。&lt;/li>
+&lt;/ul>
+&lt;p>你之前的实现采用了稀疏存储，在高粒子数时内存占用明显增加。&lt;br>
+本文将介绍如何基于稠密存储实现高效的树构建，并给出 CUDA 并行版本的实现思路。&lt;/p>
+&lt;hr>
+&lt;h2 id="稠密存储的基本思想">稠密存储的基本思想
+&lt;/h2>&lt;p>稠密存储的目标是：&lt;/p>
+&lt;ul>
+&lt;li>节点数组紧凑存放，不留大块未使用空间&lt;/li>
+&lt;li>节点索引直接映射到数组下标&lt;/li>
+&lt;li>在插入新节点时，通过一个全局 &lt;strong>maxNodeIndex&lt;/strong> 递减分配新位置&lt;/li>
+&lt;/ul>
+&lt;p>这种方法类似“倒着分配”节点空间：&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-fallback" data-lang="fallback">&lt;span class="line">&lt;span class="cl">[粒子0] [粒子1] ... [粒子N-1] [内部节点M] [内部节点M-1] ...
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>其中：&lt;/p>
+&lt;ul>
+&lt;li>&lt;strong>0 ~ numParticles-1&lt;/strong> 区间存放叶子节点（粒子）&lt;/li>
+&lt;li>&lt;strong>numParticles ~ maxNodeIndex-1&lt;/strong> 区间存放内部节点&lt;/li>
+&lt;/ul>
+&lt;hr>
+&lt;h2 id="数据结构设计">数据结构设计
+&lt;/h2>&lt;p>在稠密存储中，核心数据结构通常包括：&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;span class="lnt">11
+&lt;/span>&lt;span class="lnt">12
+&lt;/span>&lt;span class="lnt">13
+&lt;/span>&lt;span class="lnt">14
+&lt;/span>&lt;span class="lnt">15
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-cpp" data-lang="cpp">&lt;span class="line">&lt;span class="cl">&lt;span class="c1">// 粒子数据
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span>&lt;span class="k">struct&lt;/span> &lt;span class="nc">Particles&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="kt">double&lt;/span> &lt;span class="o">*&lt;/span>&lt;span class="n">x&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="o">*&lt;/span>&lt;span class="n">y&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="o">*&lt;/span>&lt;span class="n">z&lt;/span>&lt;span class="p">;&lt;/span> &lt;span class="c1">// 坐标
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span> &lt;span class="kt">double&lt;/span> &lt;span class="o">*&lt;/span>&lt;span class="n">m&lt;/span>&lt;span class="p">;&lt;/span> &lt;span class="c1">// 质量
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span> &lt;span class="kt">double&lt;/span> &lt;span class="o">*&lt;/span>&lt;span class="n">ax&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="o">*&lt;/span>&lt;span class="n">ay&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="o">*&lt;/span>&lt;span class="n">az&lt;/span>&lt;span class="p">;&lt;/span> &lt;span class="c1">// 加速度
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span> &lt;span class="kt">int&lt;/span> &lt;span class="o">*&lt;/span>&lt;span class="n">depth&lt;/span>&lt;span class="p">;&lt;/span> &lt;span class="c1">// 树深度
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span>&lt;span class="p">};&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">// 树节点信息
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span>&lt;span class="k">struct&lt;/span> &lt;span class="nc">Tree&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">volatile&lt;/span> &lt;span class="kt">double&lt;/span> &lt;span class="o">*&lt;/span>&lt;span class="n">x&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="o">*&lt;/span>&lt;span class="n">y&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="o">*&lt;/span>&lt;span class="n">z&lt;/span>&lt;span class="p">;&lt;/span> &lt;span class="c1">// 节点中心
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span> &lt;span class="k">volatile&lt;/span> &lt;span class="kt">double&lt;/span> &lt;span class="o">*&lt;/span>&lt;span class="n">m&lt;/span>&lt;span class="p">;&lt;/span> &lt;span class="c1">// 节点半径（或质量等）
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span> &lt;span class="kt">int&lt;/span> &lt;span class="o">*&lt;/span>&lt;span class="n">childList&lt;/span>&lt;span class="p">;&lt;/span> &lt;span class="c1">// 存储子节点索引
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span> &lt;span class="kt">int&lt;/span> &lt;span class="n">maxNodeIndex&lt;/span>&lt;span class="p">;&lt;/span> &lt;span class="c1">// 当前可分配的最大索引（递减）
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span>&lt;span class="p">};&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>&lt;strong>关键点&lt;/strong>：&lt;code>childList&lt;/code> 是一维数组，通过 &lt;code>childListIndex(nodeIndex, childSlot)&lt;/code> 映射到节点的第几个子节点位置。这样存储方式天然紧凑。&lt;/p>
+&lt;hr>
+&lt;h2 id="构建流程详解">构建流程详解
+&lt;/h2>&lt;p>稠密存储的构建逻辑如下：&lt;/p>
+&lt;ol>
+&lt;li>
+&lt;p>&lt;strong>初始化根节点&lt;/strong>&lt;/p>
+&lt;ul>
+&lt;li>根节点索引为 &lt;code>numNodes-1&lt;/code>（数组末尾）&lt;/li>
+&lt;li>保存中心坐标和半径&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;strong>遍历粒子&lt;/strong>（并行）&lt;/p>
+&lt;ul>
+&lt;li>每个线程处理多个粒子，步长为 &lt;code>blockDim.x * gridDim.x&lt;/code>&lt;/li>
+&lt;li>缓存粒子坐标，加速比较&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;strong>下行查找插入位置&lt;/strong>&lt;/p>
+&lt;ul>
+&lt;li>从根节点开始，判断粒子属于哪个子象限（八叉树中 0~7）&lt;/li>
+&lt;li>如果子节点是内部节点，继续下行&lt;/li>
+&lt;li>如果子节点是空的，直接插入粒子&lt;/li>
+&lt;li>如果子节点是另一个粒子，创建新的内部节点&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;strong>创建新内部节点&lt;/strong>&lt;/p>
+&lt;ul>
+&lt;li>使用 &lt;code>atomicSub&lt;/code> 从 &lt;code>maxNodeIndex&lt;/code> 分配新的节点索引&lt;/li>
+&lt;li>计算新节点的中心和半径&lt;/li>
+&lt;li>将已有粒子与新粒子分别插入到不同的子槽中&lt;/li>
+&lt;li>如果两者仍落在同一个槽内，继续细分&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;strong>解锁与同步&lt;/strong>&lt;/p>
+&lt;ul>
+&lt;li>通过 &lt;code>atomicCAS&lt;/code> 实现插入位置的原子锁定&lt;/li>
+&lt;li>使用 &lt;code>__threadfence()&lt;/code> 确保内存可见性&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;/ol>
+&lt;hr>
+&lt;h2 id="核心代码片段">核心代码片段
+&lt;/h2>&lt;p>下面是简化版的稠密存储节点分配逻辑：&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;span class="lnt">11
+&lt;/span>&lt;span class="lnt">12
+&lt;/span>&lt;span class="lnt">13
+&lt;/span>&lt;span class="lnt">14
+&lt;/span>&lt;span class="lnt">15
+&lt;/span>&lt;span class="lnt">16
+&lt;/span>&lt;span class="lnt">17
+&lt;/span>&lt;span class="lnt">18
+&lt;/span>&lt;span class="lnt">19
+&lt;/span>&lt;span class="lnt">20
+&lt;/span>&lt;span class="lnt">21
+&lt;/span>&lt;span class="lnt">22
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-cpp" data-lang="cpp">&lt;span class="line">&lt;span class="cl">&lt;span class="k">if&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">child&lt;/span> &lt;span class="o">==&lt;/span> &lt;span class="n">atomicCAS&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="o">&amp;amp;&lt;/span>&lt;span class="n">childList&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">lockedIndex&lt;/span>&lt;span class="p">],&lt;/span> &lt;span class="n">child&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">LOCKED&lt;/span>&lt;span class="p">))&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">if&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">child&lt;/span> &lt;span class="o">==&lt;/span> &lt;span class="n">EMPTY&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">childList&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">lockedIndex&lt;/span>&lt;span class="p">]&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">particleIndex&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span> &lt;span class="k">else&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="c1">// 分配新节点
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span> &lt;span class="n">newNodeIndex&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">atomicSub&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="o">&amp;amp;&lt;/span>&lt;span class="n">maxNodeIndex&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">1&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">-&lt;/span> &lt;span class="mi">1&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="c1">// 设置新节点中心与半径
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span> &lt;span class="n">px&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">newNodeIndex&lt;/span>&lt;span class="p">]&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">currentX&lt;/span> &lt;span class="o">-&lt;/span> &lt;span class="n">r&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">dx&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">py&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">newNodeIndex&lt;/span>&lt;span class="p">]&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">currentY&lt;/span> &lt;span class="o">-&lt;/span> &lt;span class="n">r&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">dy&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">pz&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">newNodeIndex&lt;/span>&lt;span class="p">]&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">currentZ&lt;/span> &lt;span class="o">-&lt;/span> &lt;span class="n">r&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">dz&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">pm&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">newNodeIndex&lt;/span>&lt;span class="p">]&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">r&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="mf">0.5&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="c1">// 初始化子节点
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span> &lt;span class="k">for&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="kt">int&lt;/span> &lt;span class="n">k&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="mi">0&lt;/span>&lt;span class="p">;&lt;/span> &lt;span class="n">k&lt;/span> &lt;span class="o">&amp;lt;&lt;/span> &lt;span class="n">numChildren&lt;/span>&lt;span class="p">;&lt;/span> &lt;span class="n">k&lt;/span>&lt;span class="o">++&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">childList&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">childListIndex&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">newNodeIndex&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">k&lt;/span>&lt;span class="p">)]&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">EMPTY&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="c1">// 将旧粒子和新粒子分别放入不同槽
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span> &lt;span class="n">childList&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">childListIndex&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">newNodeIndex&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">oldChildSlot&lt;/span>&lt;span class="p">)]&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">oldParticle&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">childList&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">childListIndex&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">newNodeIndex&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">newChildSlot&lt;/span>&lt;span class="p">)]&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">newParticle&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">__threadfence&lt;/span>&lt;span class="p">();&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">childList&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">lockedIndex&lt;/span>&lt;span class="p">]&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">newNodeIndex&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;hr>
+&lt;h2 id="并发与同步">并发与同步
+&lt;/h2>&lt;p>由于多线程同时构建树，必须保证以下两点：&lt;/p>
+&lt;ol>
+&lt;li>
+&lt;p>&lt;strong>原子操作&lt;/strong>&lt;/p>
+&lt;ul>
+&lt;li>&lt;code>atomicCAS&lt;/code>（Compare And Swap）防止多个线程同时插入同一位置&lt;/li>
+&lt;li>&lt;code>atomicSub&lt;/code> 分配新节点索引&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;strong>内存同步&lt;/strong>&lt;/p>
+&lt;ul>
+&lt;li>&lt;code>__threadfence()&lt;/code> 确保其他线程能看到已更新的节点数据&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;/ol>
+&lt;p>&lt;strong>注意&lt;/strong>：稠密存储的节点数组在分配时是倒着使用的，所以不会和粒子索引冲突。&lt;/p>
+&lt;hr>
+&lt;h2 id="性能分析与优化建议">性能分析与优化建议
+&lt;/h2>&lt;p>&lt;strong>优点&lt;/strong>：&lt;/p>
+&lt;ul>
+&lt;li>内存占用大幅减少（只存实际存在的节点）&lt;/li>
+&lt;li>索引紧凑，缓存命中率高&lt;/li>
+&lt;li>遍历效率提升&lt;/li>
+&lt;/ul>
+&lt;p>&lt;strong>缺点&lt;/strong>：&lt;/p>
+&lt;ul>
+&lt;li>节点分配依赖 &lt;code>atomicSub&lt;/code>，在极高并发下可能成为瓶颈&lt;/li>
+&lt;li>实现复杂度高于稀疏存储&lt;/li>
+&lt;/ul>
+&lt;p>&lt;strong>优化方向&lt;/strong>：&lt;/p>
+&lt;ul>
+&lt;li>批量分配节点索引，减少 &lt;code>atomicSub&lt;/code> 次数&lt;/li>
+&lt;li>合并锁与节点写入步骤，减少原子操作冲突&lt;/li>
+&lt;li>在共享内存中缓存部分子节点&lt;/li>
+&lt;/ul>
+&lt;hr>
+&lt;h2 id="总结与应用场景">总结与应用场景
+&lt;/h2>&lt;p>稠密存储特别适合：&lt;/p>
+&lt;ul>
+&lt;li>粒子数量大、空间分布均匀的模拟（如 SPH、N-body）&lt;/li>
+&lt;li>对内存占用敏感的 GPU 应用&lt;/li>
+&lt;li>需要频繁重建树结构的实时计算&lt;/li>
+&lt;/ul>
+&lt;p>与稀疏存储相比，稠密存储在 GPU 环境下通常能获得更高的性能与更低的内存消耗，尤其是在节点数量接近粒子数量时优势明显。&lt;/p>
+&lt;hr>
+&lt;p>&lt;strong>参考实现&lt;/strong>：本文的构建思路源自 CUDA 并行 Barnes-Hut 树构建的常见模式，并结合了你的原始代码进行稠密化处理。&lt;/p></description></item><item><title>SPH 核函数</title><link>https://keqiye.github.io/zh-cn/posts/sphseries/blog-post-sph2/</link><pubDate>Sun, 25 May 2025 00:00:00 +0000</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://keqiye.github.io/zh-cn/posts/sphseries/blog-post-sph2/</guid><description>&lt;p>在 SPH 方法中，**核函数（Kernel Function）**是核心组成部分之一，用于进行物理量的平滑逼近。换句话说，SPH核心功能就是将偏微分方程通过核函数近似
 转换为常微分方程，随后使用时间积分解决。&lt;/p>
 &lt;h1 id="数学定义与-sph-核插值">数学定义与 SPH 核插值
 &lt;/h1>&lt;p>根据狄拉克函数 \( \delta \) 的定义，任意函数 \( f(\mathbf{r}) \) 可表示为：&lt;/p>
@@ -743,7 +961,15 @@ if (tid % 32 == 0): 在Warp 0 (线程0-31)中，只有线程0在工作。
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">}
 &lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
 &lt;/div>
-&lt;/div>&lt;p>[1] Burtscher, Martin, and Keshav Pingali. &amp;ldquo;An efficient CUDA implementation of the tree-based barnes hut n-body algorithm.&amp;rdquo; &lt;em>GPU computing Gems Emerald edition&lt;/em>. Morgan Kaufmann, 2011. 75-92.&lt;/p></description></item><item><title>Hugo多语言博客搭建与维护指南</title><link>https://keqiye.github.io/zh-cn/posts/blog-post-1/</link><pubDate>Fri, 09 May 2025 00:00:00 +0000</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://keqiye.github.io/zh-cn/posts/blog-post-1/</guid><description>&lt;!-- git push source main -->
+&lt;/div>&lt;h2 id="当前实现的局限性">当前实现的局限性
+&lt;/h2>&lt;p>虽然稀疏树在数据结构上直观且灵活，但在并行构建和 GPU 加速场景下，它仍然存在一些明显的局限：&lt;/p>
+&lt;ul>
+&lt;li>&lt;strong>节点访问不连续&lt;/strong>：稀疏树的节点在内存中通常分散存放，导致 GPU 在并行访问时频繁出现非连续内存读取，影响带宽利用率。&lt;/li>
+&lt;li>&lt;strong>显存需求高&lt;/strong>：由于稀疏树存储方式不连续，GPU 在构建和查询过程中需要额外的显存来管理指针和节点结构，这使得在大规模数据下显存压力大，很容易超过显存限制。&lt;/li>
+&lt;/ul>
+&lt;p>为了解决这些问题，我们提出了 &lt;strong>稠密存储的并行树构建方案&lt;/strong>。该方案将树节点连续存储在内存中，并结合优化的并行算法，使 GPU 能够高效地访问数据，从而显著提升构建速度和查询性能。同时，稠密存储方案能够更合理地利用显存，降低显存占用，提高处理大规模数据的能力。&lt;/p>
+&lt;p>更多关于实现细节和性能优化的方法，可以参考：&lt;a class="link" href="../dense-tree-build/" >基于稠密存储的并行树构建&lt;/a>。&lt;/p>
+&lt;p>[1] Burtscher, Martin, and Keshav Pingali. &amp;ldquo;An efficient CUDA implementation of the tree-based barnes hut n-body algorithm.&amp;rdquo; &lt;em>GPU computing Gems Emerald edition&lt;/em>. Morgan Kaufmann, 2011. 75-92.&lt;/p></description></item><item><title>Hugo多语言博客搭建与维护指南</title><link>https://keqiye.github.io/zh-cn/posts/blog-post-1/</link><pubDate>Fri, 09 May 2025 00:00:00 +0000</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://keqiye.github.io/zh-cn/posts/blog-post-1/</guid><description>&lt;!-- git push source main -->
 &lt;h1 id="博客搭建和管理流程">博客搭建和管理流程
 &lt;/h1>&lt;p>本指南详细记录了如何在 GitHub Pages 上撰写、上传、删除中英文博客的步骤，以及相关 Git 命令。&lt;/p>
 &lt;h2 id="1-博客内容撰写包括中英文">1. 博客内容撰写（包括中英文）
@@ -1778,44 +2004,4 @@ $$
 &lt;li>&lt;strong>总应力&lt;/strong>：应力通过静水压力（&lt;code>P&lt;/code>）和切应力得到。注意需要判断弹性还是屈服，若屈服需使用径向返回算法得到修正切应力。&lt;/li>
 &lt;li>&lt;strong>粒子循环&lt;/strong>：循环，累计求和，计算内能，密度，速度，切应力等导数&lt;/li>
 &lt;/ol>
-&lt;p>上述过程中，步骤1，2，3为单粒子计算，4为邻居粒子循环累加。&lt;/p></description></item><item><title>Chinese Test</title><link>https://keqiye.github.io/zh-cn/posts/test-chinese/</link><pubDate>Wed, 09 Sep 2020 00:00:00 +0000</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://keqiye.github.io/zh-cn/posts/test-chinese/</guid><description>&lt;img src="https://keqiye.github.io/helena-hertz-wWZzXlDpMog-unsplash.jpg" alt="Featured image of post Chinese Test" />&lt;h2 id="正文测试">正文测试
-&lt;/h2>&lt;p>而这些并不是完全重要，更加重要的问题是， 带着这些问题，我们来审视一下学生会退会。 既然如何， 对我个人而言，学生会退会不仅仅是一个重大的事件，还可能会改变我的人生。 我们不得不面对一个非常尴尬的事实，那就是， 可是，即使是这样，学生会退会的出现仍然代表了一定的意义。 学生会退会，发生了会如何，不发生又会如何。 经过上述讨论， 生活中，若学生会退会出现了，我们就不得不考虑它出现了的事实。 学生会退会，到底应该如何实现。 这样看来， 在这种困难的抉择下，本人思来想去，寝食难安。 对我个人而言，学生会退会不仅仅是一个重大的事件，还可能会改变我的人生。 就我个人来说，学生会退会对我的意义，不能不说非常重大。 莎士比亚曾经提到过，人的一生是短的，但如果卑劣地过这一生，就太长了。这似乎解答了我的疑惑。 莫扎特说过一句富有哲理的话，谁和我一样用功，谁就会和我一样成功。这启发了我， 对我个人而言，学生会退会不仅仅是一个重大的事件，还可能会改变我的人生。 学生会退会，到底应该如何实现。 一般来说， 从这个角度来看， 这种事实对本人来说意义重大，相信对这个世界也是有一定意义的。 在这种困难的抉择下，本人思来想去，寝食难安。 了解清楚学生会退会到底是一种怎么样的存在，是解决一切问题的关键。 一般来说， 生活中，若学生会退会出现了，我们就不得不考虑它出现了的事实。 问题的关键究竟为何？ 而这些并不是完全重要，更加重要的问题是。&lt;/p>
-&lt;p>奥斯特洛夫斯基曾经说过，共同的事业，共同的斗争，可以使人们产生忍受一切的力量。　带着这句话，我们还要更加慎重的审视这个问题： 一般来讲，我们都必须务必慎重的考虑考虑。 既然如此， 这种事实对本人来说意义重大，相信对这个世界也是有一定意义的。 带着这些问题，我们来审视一下学生会退会。 我认为， 我认为， 在这种困难的抉择下，本人思来想去，寝食难安。 问题的关键究竟为何？ 每个人都不得不面对这些问题。 在面对这种问题时， 要想清楚，学生会退会，到底是一种怎么样的存在。 我认为， 既然如此， 每个人都不得不面对这些问题。 在面对这种问题时， 那么， 我认为， 学生会退会因何而发生。&lt;/p>
-&lt;h2 id="引用">引用
-&lt;/h2>&lt;blockquote>
-&lt;p>思念是最暖的忧伤像一双翅膀&lt;br>
-让我停不了飞不远在过往游荡&lt;br>
-不告而别的你 就算为了我着想&lt;br>
-这么沉痛的呵护 我怎么能翱翔&lt;/p>
-&lt;p>&lt;em>&lt;a class="link" href="https://www.youtube.com/watch?v=3aypp_YlBzI" target="_blank" rel="noopener"
->最暖的憂傷 - 田馥甄&lt;/a>&lt;/em>&lt;/p>
-&lt;/blockquote>
-&lt;h2 id="图片">图片
-&lt;/h2>&lt;p>&lt;img src="https://keqiye.github.io/florian-klauer-nptLmg6jqDo-unsplash.jpg"
-loading="lazy"
-alt="Photo by Florian Klauer on Unsplash"
-> &lt;img src="https://keqiye.github.io/luca-bravo-alS7ewQ41M8-unsplash.jpg"
-loading="lazy"
-alt="Photo by Luca Bravo on Unsplash"
->&lt;/p>
-&lt;p>&lt;img src="https://keqiye.github.io/helena-hertz-wWZzXlDpMog-unsplash.jpg"
-loading="lazy"
-alt="Photo by Helena Hertz on Unsplash"
-> &lt;img src="https://keqiye.github.io/hudai-gayiran-3Od_VKcDEAA-unsplash.jpg"
-loading="lazy"
-alt="Photo by Hudai Gayiran on Unsplash"
->&lt;/p>
-&lt;div class="highlight">&lt;div class="chroma">
-&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
-&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
-&lt;/span>&lt;span class="lnt">2
-&lt;/span>&lt;span class="lnt">3
-&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
-&lt;td class="lntd">
-&lt;pre tabindex="0" class="chroma">&lt;code class="language-markdown" data-lang="markdown">&lt;span class="line">&lt;span class="cl">![&lt;span class="nt">Photo by Florian Klauer on Unsplash&lt;/span>](&lt;span class="na">florian-klauer-nptLmg6jqDo-unsplash.jpg&lt;/span>) ![&lt;span class="nt">Photo by Luca Bravo on Unsplash&lt;/span>](&lt;span class="na">luca-bravo-alS7ewQ41M8-unsplash.jpg&lt;/span>)
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">![&lt;span class="nt">Photo by Helena Hertz on Unsplash&lt;/span>](&lt;span class="na">helena-hertz-wWZzXlDpMog-unsplash.jpg&lt;/span>) ![&lt;span class="nt">Photo by Hudai Gayiran on Unsplash&lt;/span>](&lt;span class="na">hudai-gayiran-3Od_VKcDEAA-unsplash.jpg&lt;/span>)
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
-&lt;/div>
-&lt;/div>&lt;p>相册语法来自 &lt;a class="link" href="https://typlog.com/" target="_blank" rel="noopener"
->Typlog&lt;/a>&lt;/p></description></item></channel></rss>
+&lt;p>上述过程中，步骤1，2，3为单粒子计算，4为邻居粒子循环累加。&lt;/p></description></item></channel></rss>
