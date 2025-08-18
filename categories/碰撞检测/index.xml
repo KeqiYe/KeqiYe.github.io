@@ -1,0 +1,746 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>碰撞检测 on Keqi的博客</title><link>https://keqiye.github.io/categories/%E7%A2%B0%E6%92%9E%E6%A3%80%E6%B5%8B/</link><description>Recent content in 碰撞检测 on Keqi的博客</description><generator>Hugo -- gohugo.io</generator><language>zh-cn</language><managingEditor>plloningye@gmail.com (Keqi Ye)</managingEditor><webMaster>plloningye@gmail.com (Keqi Ye)</webMaster><copyright>Example Person</copyright><lastBuildDate>Mon, 12 May 2025 00:00:00 +0000</lastBuildDate><atom:link href="https://keqiye.github.io/categories/%E7%A2%B0%E6%92%9E%E6%A3%80%E6%B5%8B/index.xml" rel="self" type="application/rss+xml"/><item><title>基于树结构的 SPH 粒子领域搜索</title><link>https://keqiye.github.io/posts/cudatreecode/blog-post-treecode/</link><pubDate>Mon, 12 May 2025 00:00:00 +0000</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://keqiye.github.io/posts/cudatreecode/blog-post-treecode/</guid><description>&lt;h1 id="树结构基于根据-burtscher-和-pingali-的研究">树结构（基于根据 Burtscher 和 Pingali 的研究）
+&lt;/h1>&lt;p>本文将介绍广泛用于 SPH 代码和 N 体模拟中的树结构（Tree Structure）。这种数据结构主要应用于以下两个核心问题：&lt;/p>
+&lt;h3 id="1-粒子领域搜索neighbor-search">1. 粒子领域搜索（Neighbor Search）
+&lt;/h3>&lt;p>在 SPH（光滑粒子流体力学）模拟中，每个粒子需要在核尺度 \( h \) 范围内查找邻居粒子，以便计算密度、压强梯度、粘性等物理量。树结构能够加速邻域搜索，尤其适用于粒子分布高度非均匀的情形。&lt;/p>
+&lt;h3 id="2-自引力计算self-gravity-computation">2. 自引力计算（Self-Gravity Computation）
+&lt;/h3>&lt;p>在引力主导的粒子系统（如星系模拟、星体碰撞）中，粒子间存在万有引力作用。直接计算所有粒子对的引力开销为 \( \mathcal{O}(N^2) \)，不可接受。基于树的近似方法（如 Barnes-Hut 算法）可将计算复杂度降至 \( \mathcal{O}(N \log N) \)，同时保持较高精度。&lt;/p>
+&lt;hr>
+&lt;p>接下来的章节将分别介绍树结构在上述两个问题中的构建方法、搜索策略和性能优化。&lt;/p>
+&lt;p>关于传统的 &lt;strong>链表法（Linked-List）&lt;/strong> 粒子领域搜索，请参考我另一篇博文： 👉 &lt;a class="link" href="https://keqiye.github.io/posts/SPH_neighbor_search/" >使用链表进行 SPH 邻域搜索&lt;/a>&lt;/p>
+&lt;h1 id="实现步骤">实现步骤
+&lt;/h1>&lt;p>根据相关文献，每次执行自引力计算或粒子邻域搜索时，通常需要以下四个步骤：&lt;/p>
+&lt;ol>
+&lt;li>
+&lt;p>&lt;strong>确定粒子空间范围&lt;/strong>&lt;br>
+统计所有粒子的空间边界，获取 \( x_{\min}, x_{\max}, y_{\min}, y_{\max}, z_{\min}, z_{\max} \)，用于初始化树结构的根节点或空间划分范围。&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;strong>构建树结构&lt;/strong>&lt;br>
+将粒子递归划分到空间树节点中，常用的数据结构包括八叉树（Octree）或 KD 树。每个叶子节点包含若干粒子或达到最小划分条件。&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;strong>粒子空间排序&lt;/strong>&lt;br>
+对粒子进行 Morton 编码（Z-order curve）或 Hilbert 曲线编码，并按照空间位置排序，便于缓存一致性和后续并行处理。&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;strong>树遍历计算&lt;/strong>&lt;br>
+遍历树结构：&lt;/p>
+&lt;ul>
+&lt;li>若执行 &lt;strong>自引力计算&lt;/strong>，使用 Barnes-Hut 近似规则判断是否聚合节点质量；&lt;/li>
+&lt;li>若执行 &lt;strong>邻域搜索&lt;/strong>，在每个节点中判断与查询粒子的距离是否小于核尺度 \( h \)，从而筛选可能邻居。&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;/ol>
+&lt;h2 id="确定粒子空间范围">确定粒子空间范围
+&lt;/h2>&lt;p>直接使用规约算法求最大最小值&lt;/p>
+&lt;h2 id="构建树结构">构建树结构
+&lt;/h2>&lt;p>由于 GPU 上无法高效实现指针式链表结构，我们使用数组来模拟树的链接关系（例如子节点指针）。假设有一个整型数组 &lt;code>child&lt;/code>，其长度远大于粒子总数 &lt;code>numParticles&lt;/code>，并初始化为 &lt;code>-1&lt;/code>，表示所有节点尚未使用。&lt;/p>
+&lt;h3 id="区分叶子节点与根节点">区分叶子节点与根节点
+&lt;/h3>&lt;p>在树结构中，如何区分整型数组 &lt;code>child&lt;/code> 的某一个位置存储的是 &lt;strong>叶子节点（粒子）&lt;/strong> 还是 &lt;strong>根节点&lt;/strong> 是一个关键问题。&lt;/p>
+&lt;h4 id="标识方法">标识方法：
+&lt;/h4>&lt;ul>
+&lt;li>&lt;strong>&lt;code>-1&lt;/code>&lt;/strong>：表示该位置为空，未被占用。&lt;/li>
+&lt;li>&lt;strong>&lt;code>-2&lt;/code>&lt;/strong>：表示该位置已被锁定，当前线程正在使用该位置（通常用于进行原子操作）。&lt;/li>
+&lt;li>&lt;strong>&lt;code>-3&lt;/code>&lt;/strong>：表示该位置是一个节点，每个节点一定会有子树（可能是子节点，也可能是粒子，粒子的子节点一定为空：-1）。&lt;/li>
+&lt;li>&lt;strong>&lt;code>0&lt;/code> 到 &lt;code>numParticles - 1&lt;/code>&lt;/strong>：表示 &lt;strong>粒子&lt;/strong>，每个位置对应一个粒子。&lt;/li>
+&lt;/ul>
+&lt;p>显然，如果第 &lt;code>i&lt;/code> 个位置被锁定，那么：&lt;/p>
+&lt;ul>
+&lt;li>在 &lt;strong>三维&lt;/strong> 情况下，&lt;code>8*i+1+0&lt;/code> 到 &lt;code>7&lt;/code>（即一个八岔树及其子树等）都被锁定；&lt;/li>
+&lt;li>在 &lt;strong>二维&lt;/strong> 情况下，&lt;code>4*i+1+0&lt;/code> 到 &lt;code>3&lt;/code>（即一个四岔树及其子树等）都被锁定；&lt;/li>
+&lt;li>在 &lt;strong>一维&lt;/strong> 情况下，&lt;code>i&lt;/code> 及其相邻部分也会被锁定。&lt;/li>
+&lt;/ul>
+&lt;p>注意，任意索引&lt;code>i&lt;/code>的子节点计算方法为：&lt;code>8*i+1+0&lt;/code>，与传统的八叉树计算方法不同，这是因为我的代码中，0节点保存的是最大的根节点信息。&lt;/p>
+&lt;p>&amp;ndash; 这意味着，如果一个位置被锁定，&lt;strong>其他线程将无法访问该位置的子树或其子树的子树&lt;/strong>，确保了并行计算中节点及其相关子节点的安全。&lt;/p>
+&lt;h3 id="使用原子操作同步线程">使用原子操作同步线程
+&lt;/h3>&lt;p>当多个线程并发地尝试访问同一个子节点槽位时，可以使用 CUDA 提供的原子操作 &lt;code>atomicCAS&lt;/code>（Compare And Swap）来进行线程间同步。&lt;/p>
+&lt;p>以下是原子操作的代码示例：&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-fallback" data-lang="fallback">&lt;span class="line">&lt;span class="cl">int re = atomicCAS(&amp;amp;child[p], -1, -2); // 尝试占用 child[p]
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>该操作的含义是：&lt;/p>
+&lt;ul>
+&lt;li>&lt;strong>若 &lt;code>child[p] == -1&lt;/code>&lt;/strong>：表示该槽位尚未被占用，当前线程成功将其原子地设置为 &lt;code>-2&lt;/code>，表示“锁定中”或“准备插入”；&lt;/li>
+&lt;li>&lt;strong>若 &lt;code>child[p] != -1&lt;/code>&lt;/strong>：说明该槽位已被其他线程占用或已被插入，当前线程需退出或重试；&lt;/li>
+&lt;li>&lt;strong>返回值 &lt;code>re&lt;/code>&lt;/strong>：表示操作前的旧值。如果 &lt;code>re == -1&lt;/code>，则说明当前线程成功锁定了该节点。如果 &lt;code>re != -1&lt;/code> ，则 &lt;code>atomicCAS&lt;/code> 函数发现比较不成立，直接返回了旧值，也不会替换&lt;code>-2&lt;/code>而打乱&lt;code>child&lt;/code>数组内容。&lt;/li>
+&lt;/ul>
+&lt;p>写到这里，树结构数组&lt;code>child&lt;/code>的构建就很容易了。下面是伪代码&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt"> 10
+&lt;/span>&lt;span class="lnt"> 11
+&lt;/span>&lt;span class="lnt"> 12
+&lt;/span>&lt;span class="lnt"> 13
+&lt;/span>&lt;span class="lnt"> 14
+&lt;/span>&lt;span class="lnt"> 15
+&lt;/span>&lt;span class="lnt"> 16
+&lt;/span>&lt;span class="lnt"> 17
+&lt;/span>&lt;span class="lnt"> 18
+&lt;/span>&lt;span class="lnt"> 19
+&lt;/span>&lt;span class="lnt"> 20
+&lt;/span>&lt;span class="lnt"> 21
+&lt;/span>&lt;span class="lnt"> 22
+&lt;/span>&lt;span class="lnt"> 23
+&lt;/span>&lt;span class="lnt"> 24
+&lt;/span>&lt;span class="lnt"> 25
+&lt;/span>&lt;span class="lnt"> 26
+&lt;/span>&lt;span class="lnt"> 27
+&lt;/span>&lt;span class="lnt"> 28
+&lt;/span>&lt;span class="lnt"> 29
+&lt;/span>&lt;span class="lnt"> 30
+&lt;/span>&lt;span class="lnt"> 31
+&lt;/span>&lt;span class="lnt"> 32
+&lt;/span>&lt;span class="lnt"> 33
+&lt;/span>&lt;span class="lnt"> 34
+&lt;/span>&lt;span class="lnt"> 35
+&lt;/span>&lt;span class="lnt"> 36
+&lt;/span>&lt;span class="lnt"> 37
+&lt;/span>&lt;span class="lnt"> 38
+&lt;/span>&lt;span class="lnt"> 39
+&lt;/span>&lt;span class="lnt"> 40
+&lt;/span>&lt;span class="lnt"> 41
+&lt;/span>&lt;span class="lnt"> 42
+&lt;/span>&lt;span class="lnt"> 43
+&lt;/span>&lt;span class="lnt"> 44
+&lt;/span>&lt;span class="lnt"> 45
+&lt;/span>&lt;span class="lnt"> 46
+&lt;/span>&lt;span class="lnt"> 47
+&lt;/span>&lt;span class="lnt"> 48
+&lt;/span>&lt;span class="lnt"> 49
+&lt;/span>&lt;span class="lnt"> 50
+&lt;/span>&lt;span class="lnt"> 51
+&lt;/span>&lt;span class="lnt"> 52
+&lt;/span>&lt;span class="lnt"> 53
+&lt;/span>&lt;span class="lnt"> 54
+&lt;/span>&lt;span class="lnt"> 55
+&lt;/span>&lt;span class="lnt"> 56
+&lt;/span>&lt;span class="lnt"> 57
+&lt;/span>&lt;span class="lnt"> 58
+&lt;/span>&lt;span class="lnt"> 59
+&lt;/span>&lt;span class="lnt"> 60
+&lt;/span>&lt;span class="lnt"> 61
+&lt;/span>&lt;span class="lnt"> 62
+&lt;/span>&lt;span class="lnt"> 63
+&lt;/span>&lt;span class="lnt"> 64
+&lt;/span>&lt;span class="lnt"> 65
+&lt;/span>&lt;span class="lnt"> 66
+&lt;/span>&lt;span class="lnt"> 67
+&lt;/span>&lt;span class="lnt"> 68
+&lt;/span>&lt;span class="lnt"> 69
+&lt;/span>&lt;span class="lnt"> 70
+&lt;/span>&lt;span class="lnt"> 71
+&lt;/span>&lt;span class="lnt"> 72
+&lt;/span>&lt;span class="lnt"> 73
+&lt;/span>&lt;span class="lnt"> 74
+&lt;/span>&lt;span class="lnt"> 75
+&lt;/span>&lt;span class="lnt"> 76
+&lt;/span>&lt;span class="lnt"> 77
+&lt;/span>&lt;span class="lnt"> 78
+&lt;/span>&lt;span class="lnt"> 79
+&lt;/span>&lt;span class="lnt"> 80
+&lt;/span>&lt;span class="lnt"> 81
+&lt;/span>&lt;span class="lnt"> 82
+&lt;/span>&lt;span class="lnt"> 83
+&lt;/span>&lt;span class="lnt"> 84
+&lt;/span>&lt;span class="lnt"> 85
+&lt;/span>&lt;span class="lnt"> 86
+&lt;/span>&lt;span class="lnt"> 87
+&lt;/span>&lt;span class="lnt"> 88
+&lt;/span>&lt;span class="lnt"> 89
+&lt;/span>&lt;span class="lnt"> 90
+&lt;/span>&lt;span class="lnt"> 91
+&lt;/span>&lt;span class="lnt"> 92
+&lt;/span>&lt;span class="lnt"> 93
+&lt;/span>&lt;span class="lnt"> 94
+&lt;/span>&lt;span class="lnt"> 95
+&lt;/span>&lt;span class="lnt"> 96
+&lt;/span>&lt;span class="lnt"> 97
+&lt;/span>&lt;span class="lnt"> 98
+&lt;/span>&lt;span class="lnt"> 99
+&lt;/span>&lt;span class="lnt">100
+&lt;/span>&lt;span class="lnt">101
+&lt;/span>&lt;span class="lnt">102
+&lt;/span>&lt;span class="lnt">103
+&lt;/span>&lt;span class="lnt">104
+&lt;/span>&lt;span class="lnt">105
+&lt;/span>&lt;span class="lnt">106
+&lt;/span>&lt;span class="lnt">107
+&lt;/span>&lt;span class="lnt">108
+&lt;/span>&lt;span class="lnt">109
+&lt;/span>&lt;span class="lnt">110
+&lt;/span>&lt;span class="lnt">111
+&lt;/span>&lt;span class="lnt">112
+&lt;/span>&lt;span class="lnt">113
+&lt;/span>&lt;span class="lnt">114
+&lt;/span>&lt;span class="lnt">115
+&lt;/span>&lt;span class="lnt">116
+&lt;/span>&lt;span class="lnt">117
+&lt;/span>&lt;span class="lnt">118
+&lt;/span>&lt;span class="lnt">119
+&lt;/span>&lt;span class="lnt">120
+&lt;/span>&lt;span class="lnt">121
+&lt;/span>&lt;span class="lnt">122
+&lt;/span>&lt;span class="lnt">123
+&lt;/span>&lt;span class="lnt">124
+&lt;/span>&lt;span class="lnt">125
+&lt;/span>&lt;span class="lnt">126
+&lt;/span>&lt;span class="lnt">127
+&lt;/span>&lt;span class="lnt">128
+&lt;/span>&lt;span class="lnt">129
+&lt;/span>&lt;span class="lnt">130
+&lt;/span>&lt;span class="lnt">131
+&lt;/span>&lt;span class="lnt">132
+&lt;/span>&lt;span class="lnt">133
+&lt;/span>&lt;span class="lnt">134
+&lt;/span>&lt;span class="lnt">135
+&lt;/span>&lt;span class="lnt">136
+&lt;/span>&lt;span class="lnt">137
+&lt;/span>&lt;span class="lnt">138
+&lt;/span>&lt;span class="lnt">139
+&lt;/span>&lt;span class="lnt">140
+&lt;/span>&lt;span class="lnt">141
+&lt;/span>&lt;span class="lnt">142
+&lt;/span>&lt;span class="lnt">143
+&lt;/span>&lt;span class="lnt">144
+&lt;/span>&lt;span class="lnt">145
+&lt;/span>&lt;span class="lnt">146
+&lt;/span>&lt;span class="lnt">147
+&lt;/span>&lt;span class="lnt">148
+&lt;/span>&lt;span class="lnt">149
+&lt;/span>&lt;span class="lnt">150
+&lt;/span>&lt;span class="lnt">151
+&lt;/span>&lt;span class="lnt">152
+&lt;/span>&lt;span class="lnt">153
+&lt;/span>&lt;span class="lnt">154
+&lt;/span>&lt;span class="lnt">155
+&lt;/span>&lt;span class="lnt">156
+&lt;/span>&lt;span class="lnt">157
+&lt;/span>&lt;span class="lnt">158
+&lt;/span>&lt;span class="lnt">159
+&lt;/span>&lt;span class="lnt">160
+&lt;/span>&lt;span class="lnt">161
+&lt;/span>&lt;span class="lnt">162
+&lt;/span>&lt;span class="lnt">163
+&lt;/span>&lt;span class="lnt">164
+&lt;/span>&lt;span class="lnt">165
+&lt;/span>&lt;span class="lnt">166
+&lt;/span>&lt;span class="lnt">167
+&lt;/span>&lt;span class="lnt">168
+&lt;/span>&lt;span class="lnt">169
+&lt;/span>&lt;span class="lnt">170
+&lt;/span>&lt;span class="lnt">171
+&lt;/span>&lt;span class="lnt">172
+&lt;/span>&lt;span class="lnt">173
+&lt;/span>&lt;span class="lnt">174
+&lt;/span>&lt;span class="lnt">175
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-fallback" data-lang="fallback">&lt;span class="line">&lt;span class="cl">#define childListIndex(nodeIdx, childNum) ((nodeIdx) * TREETYPE + 1 + (childNum))
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">#define EMPTY -1
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">#define LOCKED -2
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">#define TRUE 1
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">#define FALSE 0
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">#define NODE -3
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">//RealType4 是 float4 或 double4 的别名，我这样写是为了区分单双精度计算，众所周知，消费级显卡的双精度计算能力比较差。。
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">//粒子的w分量存放了质量，节点的w分量存放了节点半径（正方体的边长的一半）。
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">//目前还没有添加节点质心的计算逻辑，后续会加，用于计算粒子的引力，参考：
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">//A hierarchical O(N log N) force-calculation algorithm 本文发表在nature上，顶礼膜拜
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">__global__ void buildTreeKernel(SPHState *deviceP, treeData *tree)
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">{
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> // 为避免混淆，明确区分粒子和节点的位置数组
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> RealType4 *particlePositions = deviceP-&amp;gt;positions;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> volatile RealType4 *nodePositions = tree-&amp;gt;positions;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> RealType4 *nodeRoot = tree-&amp;gt;nodeRoot;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> volatile int *childList = tree-&amp;gt;childList;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> int childListLength = tree-&amp;gt;childListLength;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> int numParticles = tree-&amp;gt;numParticles;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> int inc = blockDim.x * gridDim.x;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> int i = threadIdx.x + blockIdx.x * blockDim.x;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> int k;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> int childIndex, child;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> int lockedIndex;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> RealType x, y, z;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> RealType rootRadius = nodeRoot-&amp;gt;w;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> RealType rootX = nodeRoot-&amp;gt;x;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> RealType rootY = nodeRoot-&amp;gt;y;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> RealType rootZ = nodeRoot-&amp;gt;z;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> // 添加跟踪当前节点位置的变量
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> RealType currentX, currentY, currentZ, currentR;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> int depth = 0;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> int isNewParticle = TRUE;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> int currentNodeIndex;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> bool isInsert;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> while (i &amp;lt; numParticles)
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> {
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> isInsert = false;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> while (!isInsert)
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> {
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> RealType4 pos = particlePositions[i];
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> depth = 0;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> x = pos.x;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> y = pos.y;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> z = pos.z;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> // 开始于根节点（索引0）
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> currentNodeIndex = 0;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> currentX = rootX;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> currentY = rootY;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> currentZ = rootZ;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> currentR = rootRadius;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> childIndex = 0;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> if (x &amp;gt; currentX)
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> childIndex = 1;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> if (y &amp;gt; currentY)
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> childIndex += 2;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> if (z &amp;gt; currentZ)
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> childIndex += 4;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> // 跟随路径到叶节点
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> currentNodeIndex = childListIndex(currentNodeIndex, childIndex);
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> currentR *= 0.5;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> currentX += ((childIndex &amp;amp; 1) ? currentR : -currentR);
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> currentY += ((childIndex &amp;amp; 2) ? currentR : -currentR);
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> currentZ += ((childIndex &amp;amp; 4) ? currentR : -currentR);
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> child = childList[currentNodeIndex];
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> depth++;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> //下面这个while循环是为了寻找叶子节点
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> while (child == NODE)
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> {
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> // 确定在新节点中的子节点索引
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> childIndex = 0;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> if (x &amp;gt; currentX)
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> childIndex = 1;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> if (y &amp;gt; currentY)
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> childIndex += 2;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> if (z &amp;gt; currentZ)
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> childIndex += 4;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> // 跟随路径到叶节点
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> currentNodeIndex = childListIndex(currentNodeIndex, childIndex);
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> currentR *= 0.5;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> currentX += ((childIndex &amp;amp; 1) ? currentR : -currentR);
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> currentY += ((childIndex &amp;amp; 2) ? currentR : -currentR);
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> currentZ += ((childIndex &amp;amp; 4) ? currentR : -currentR);
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> child = childList[currentNodeIndex];
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> depth++;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> }
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> // 插入粒子到当前节点的子节点
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> //三种情况：
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> //1.当前叶子节点被占用，那么重试
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> //2.当前叶子节点为空，这是最简单的情况，直接插入即可
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> //3.当前叶子节点被粒子占用，本线程读取old节点信息，对他们两个节点进行细分，直到他们被分属到不同的象限
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> if (child != LOCKED)
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> {
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> lockedIndex = currentNodeIndex;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> if (child == atomicCAS((int *)&amp;amp;childList[lockedIndex], child, LOCKED))
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> {
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> if (child == EMPTY)
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> {
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> // 直接插入粒子
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> childList[lockedIndex] = i;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> isInsert = true;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> }
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> else
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> {
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> //此处处理两个节点细分的情形
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> 。。。。。。
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> //这个循环尝试细分，直到他们俩被分开到不同的象限
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> do
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> {
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> // 确定已存在粒子在新节点中的位置
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> int childNewIndex = 0;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> if (oldParPos.x &amp;gt; currentX)
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> childNewIndex = 1;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> if (oldParPos.y &amp;gt; currentY)
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> childNewIndex += 2;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> if (oldParPos.z &amp;gt; currentZ)
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> childNewIndex += 4;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> // 确定当前粒子在新节点中的位置
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> int currentNewIndex = 0;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> if (x &amp;gt; currentX)
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> currentNewIndex = 1;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> if (y &amp;gt; currentY)
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> currentNewIndex += 2;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> if (z &amp;gt; currentZ)
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> currentNewIndex += 4;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> if (childNewIndex != currentNewIndex)
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> {
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> // 两个粒子在不同子节点，可以插入
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> childList[childListIndex(currentNodeIndex, childNewIndex)] = child;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> childList[childListIndex(currentNodeIndex, currentNewIndex)] = i;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> isInsert = true;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> break; // 退出循环
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> }
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> else
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> {
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> // 仍在同一子节点，需要继续细分
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> // 注意每次细分都会创建新节点，需要保存节点的包围盒信息 用于领域搜索
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> // // 写入新节点的中心和半径
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> nodePositions[currentNodeIndex].x = currentX;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> nodePositions[currentNodeIndex].y = currentY;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> nodePositions[currentNodeIndex].z = currentZ;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> nodePositions[currentNodeIndex].w = currentR;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> childList[currentNodeIndex] = NODE;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> // 内存同步，保证所有线程都可以看到有新的节点被写入了
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> __threadfence();
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> }
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> } while (true);
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> // 确保所有子树的写入完成
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> __threadfence();
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> //释放锁
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> childList[lockedIndex] = NODE;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> }
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> i += inc;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> }
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> }
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> }
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> }
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">}
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;h2 id="当前实现的局限性">当前实现的局限性
+&lt;/h2>&lt;p>虽然稀疏树在数据结构上直观且灵活，但在并行构建和 GPU 加速场景下，它仍然存在一些明显的局限：&lt;/p>
+&lt;ul>
+&lt;li>&lt;strong>节点访问不连续&lt;/strong>：稀疏树的节点在内存中通常分散存放，导致 GPU 在并行访问时频繁出现非连续内存读取，影响带宽利用率。&lt;/li>
+&lt;li>&lt;strong>显存需求高&lt;/strong>：由于稀疏树存储方式不连续，GPU 在构建和查询过程中需要额外的显存来管理指针和节点结构，这使得在大规模数据下显存压力大，很容易超过显存限制。&lt;/li>
+&lt;/ul>
+&lt;p>为了解决这些问题，我们提出了 &lt;strong>稠密存储的并行树构建方案&lt;/strong>。该方案将树节点连续存储在内存中，并结合优化的并行算法，使 GPU 能够高效地访问数据，从而显著提升构建速度和查询性能。同时，稠密存储方案能够更合理地利用显存，降低显存占用，提高处理大规模数据的能力。&lt;/p>
+&lt;p>更多关于实现细节和性能优化的方法，可以参考：&lt;a class="link" href="../dense-tree-build/" >基于稠密存储的并行树构建&lt;/a>。&lt;/p>
+&lt;p>[1] Burtscher, Martin, and Keshav Pingali. &amp;ldquo;An efficient CUDA implementation of the tree-based barnes hut n-body algorithm.&amp;rdquo; &lt;em>GPU computing Gems Emerald edition&lt;/em>. Morgan Kaufmann, 2011. 75-92.&lt;/p></description></item><item><title>SPH 粒子领域搜索</title><link>https://keqiye.github.io/posts/blog-post-2/</link><pubDate>Fri, 09 May 2025 00:00:00 +0000</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://keqiye.github.io/posts/blog-post-2/</guid><description>&lt;h1 id="sph-粒子领域搜索">SPH 粒子领域搜索
+&lt;/h1>&lt;h2 id="问题描述">问题描述
+&lt;/h2>&lt;p>在光滑粒子流体动力学（Smoothed Particle Hydrodynamics，简称 SPH）方法中，“邻居搜索”（Neighbor Search）是一个至关重要的计算任务。它直接影响到模拟的效率与精度，尤其在涉及上百万粒子的三维问题中，计算瓶颈往往出现在如何高效查找每个粒子周围的邻居上。&lt;/p>
+&lt;p>由于 SPH 是一种无网格方法，天然适合处理自由表面、大变形和断裂等复杂物理现象，因此被广泛应用于天体物理、流体力学、固体力学等领域。我主要从事小行星撞击问题的数值模拟研究，并开发了一套针对该问题的 SPH 代码。虽然不同领域在实现细节上存在差异，但“邻居搜索”作为核心模块，其数学模型相对简单，却几乎在所有 SPH 实现中都不可或缺。&lt;/p>
+&lt;p>本文旨在系统介绍 SPH 中邻居搜索的常见算法、性能优化方法，以及在 CUDA 等并行计算平台上的实现，作为我个人学习与研究的记录，同时希望对同领域的研究者提供参考。&lt;/p>
+&lt;p>首先给出 SPH 粒子邻居搜索的抽象数学问题：设在三维空间中存在 \( N \) 个粒子，每个粒子的位置已知，记为 \( \mathbf{x}_i \)，每个粒子有一个核长度（smoothing length）\( h_i \)。我们需要找到每个粒子 \( i \) 的邻居粒子集合 \( j \)，使得满足以下条件：&lt;/p>
+\[
+\|\mathbf{x}_i - \mathbf{x}_j\| &lt; f(h_i, h_j)
+\]
+&lt;p>其中，函数 \( f(h_i, h_j) \) 用于定义粒子间的交互距离，其常见定义包括：&lt;/p>
+&lt;ul>
+&lt;li>\( f(h_i, h_j) = \eta \cdot \frac{1}{2}(h_i + h_j) \)&lt;/li>
+&lt;li>\( f(h_i, h_j) = \eta \cdot \min(h_i, h_j) \)&lt;/li>
+&lt;li>\( f(h_i, h_j) = \eta \cdot \max(h_i, h_j) \)&lt;/li>
+&lt;/ul>
+&lt;p>这里，\( \eta \) 是一个无量纲系数，称为&lt;strong>核支持半径因子（kernel support radius factor）&lt;/strong>，通常取值在 \( [1.2, 2.5] \) 之间，用于控制粒子的影响范围（本文取2）。&lt;/p>
+&lt;p>在邻居搜索中，常见的方法包括：&lt;/p>
+&lt;ol>
+&lt;li>&lt;strong>暴力搜索（Brute Force）&lt;/strong>：简单可靠，但时间复杂度高（$O(N^2)$），在大规模问题中效率低下；&lt;/li>
+&lt;li>&lt;strong>链表搜索（Linked-Cell/Grid-based）&lt;/strong>：通过空间划分显著减少搜索粒子数，是实际中常用的高效方法；&lt;/li>
+&lt;li>&lt;strong>树搜索（如 Octree 或 KD-tree）&lt;/strong>：适合不均匀粒子分布，尤其适用于天体物理模拟中的自适应精度问题，良好的树代码具有非常高的鲁棒性。如果要考虑自引力，那么树搜索是效率和精度都不错的选择。&lt;/li>
+&lt;/ol>
+&lt;p>本文将以暴力搜索作为结果基线，重点介绍如何高效实现链表搜索和树搜索，并比较它们在实际 SPH 模拟中的性能表现。&lt;/p>
+&lt;h2 id="1-链表搜索linked-cellgrid-based">1. 链表搜索（Linked-Cell/Grid-based）
+&lt;/h2>&lt;p>在光滑长度为空间常量的情况下，也即所有粒子的\( h_i \)都相等，应用链表搜索法非常有效。Monaghan 和 Gingold(1983)提出，可以通过对粒子的空间区域划分网格，记录每个网格内的粒子编号。这样在搜索粒子的邻居时，只需要遍历当前粒子网格的邻居网格内的粒子即可。此方法在传统SPH代码中使用非常多，如Monaghan(1985)，Rhoades(1992)，Simpson(1995)等。&lt;/p>
+&lt;p>在实现链表算法时，要在问题域上铺设一临时网格。网格单元的空间大小应选取与支持域的空间大小一致。若光滑函数支持域的计量尺度为 \( \eta h \)，则网格单元的尺度也必须设置为 \( \eta h \)。那么，对于给定的粒子i，其相邻粒子只能在同一网格单元内，或者在紧密相邻的单元内。所以，当 \( \eta = 2 \) 时，在一维、二维和三维空间里的搜索范围分别是在 3,9,27 个单元内。链表搜索法将每个粒子都分布在网格单元内，并通过简单的存储规则将每个网格内的所有粒子连接起来。若每个单元内的平均粒子数量足够小，则链表搜索法的复杂度阶数为 \( O(N) \)。&lt;/p>
+&lt;p>链表搜索法存在的问题是，当光滑长度可变时，尤其是模拟分辨率变化的问题时，网格空间就不能适应每一个粒子，此时若再应用链表搜索法，则搜索效率会很低。除此之外，该方法在CUDA上实现时，需要对显存分配进行小心处理，不然很容易占用超大显存（主要在存储网格粒子编号时）。下面首先就光滑长度为空间常量的情况下进行代码说明。&lt;/p>
+&lt;h3 id="光滑长度为空间常量的链表搜索">光滑长度为空间常量的链表搜索
+&lt;/h3>&lt;p>我们先来看链表搜索算法的基础版本。实现该算法需要两个步骤：&lt;/p>
+&lt;ol>
+&lt;li>记录每个网格单元中包含哪些粒子，并记录每个粒子所属的单元；&lt;/li>
+&lt;li>遍历所有粒子，对每个粒子的单元及其邻接单元进行扫描，查找可能的邻居粒子。&lt;/li>
+&lt;/ol>
+&lt;p>为了提高效率，本文只展示核函数的编写，且不在每次调用中反复申请或释放内存。&lt;/p>
+&lt;p>第一个核函数较为简单，其用于构建粒子与网格单元之间的映射关系。&lt;/p>
+&lt;h4 id="核函数声明与粒子网格索引计算">核函数声明与粒子网格索引计算
+&lt;/h4>&lt;p>下面是用于建立粒子与网格单元之间映射关系的 CUDA 核函数 &lt;code>particleLoop&lt;/code>，以及配套的粒子网格索引计算函数 &lt;code>particleGridIndex&lt;/code>。本版本假设所有粒子的核长度 $h$ 是一个常量，记为 &lt;code>h[0]&lt;/code>。&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;span class="lnt">11
+&lt;/span>&lt;span class="lnt">12
+&lt;/span>&lt;span class="lnt">13
+&lt;/span>&lt;span class="lnt">14
+&lt;/span>&lt;span class="lnt">15
+&lt;/span>&lt;span class="lnt">16
+&lt;/span>&lt;span class="lnt">17
+&lt;/span>&lt;span class="lnt">18
+&lt;/span>&lt;span class="lnt">19
+&lt;/span>&lt;span class="lnt">20
+&lt;/span>&lt;span class="lnt">21
+&lt;/span>&lt;span class="lnt">22
+&lt;/span>&lt;span class="lnt">23
+&lt;/span>&lt;span class="lnt">24
+&lt;/span>&lt;span class="lnt">25
+&lt;/span>&lt;span class="lnt">26
+&lt;/span>&lt;span class="lnt">27
+&lt;/span>&lt;span class="lnt">28
+&lt;/span>&lt;span class="lnt">29
+&lt;/span>&lt;span class="lnt">30
+&lt;/span>&lt;span class="lnt">31
+&lt;/span>&lt;span class="lnt">32
+&lt;/span>&lt;span class="lnt">33
+&lt;/span>&lt;span class="lnt">34
+&lt;/span>&lt;span class="lnt">35
+&lt;/span>&lt;span class="lnt">36
+&lt;/span>&lt;span class="lnt">37
+&lt;/span>&lt;span class="lnt">38
+&lt;/span>&lt;span class="lnt">39
+&lt;/span>&lt;span class="lnt">40
+&lt;/span>&lt;span class="lnt">41
+&lt;/span>&lt;span class="lnt">42
+&lt;/span>&lt;span class="lnt">43
+&lt;/span>&lt;span class="lnt">44
+&lt;/span>&lt;span class="lnt">45
+&lt;/span>&lt;span class="lnt">46
+&lt;/span>&lt;span class="lnt">47
+&lt;/span>&lt;span class="lnt">48
+&lt;/span>&lt;span class="lnt">49
+&lt;/span>&lt;span class="lnt">50
+&lt;/span>&lt;span class="lnt">51
+&lt;/span>&lt;span class="lnt">52
+&lt;/span>&lt;span class="lnt">53
+&lt;/span>&lt;span class="lnt">54
+&lt;/span>&lt;span class="lnt">55
+&lt;/span>&lt;span class="lnt">56
+&lt;/span>&lt;span class="lnt">57
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-gdscript3" data-lang="gdscript3">&lt;span class="line">&lt;span class="cl">&lt;span class="c1">#define DIM 3 // 空间维度：可设为 1, 2 或 3&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">#define MAX_PARTICLES_PER_GRID 200 // 每个网格单元最多可容纳的粒子数&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">#define eta 2 // 核长度比例因子&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="o">//&lt;/span> &lt;span class="n">CUDA&lt;/span> &lt;span class="err">核函数：构建每个粒子所属网格，以及每个网格中的粒子列表&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">__global__&lt;/span> &lt;span class="n">void&lt;/span> &lt;span class="n">particleLoop&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">const&lt;/span> &lt;span class="n">double&lt;/span> &lt;span class="o">*&lt;/span>&lt;span class="n">x&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="o">//&lt;/span> &lt;span class="err">粒子&lt;/span> &lt;span class="n">x&lt;/span> &lt;span class="err">坐标，长度为&lt;/span> &lt;span class="n">numParticles&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">const&lt;/span> &lt;span class="n">double&lt;/span> &lt;span class="n">minx&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="o">//&lt;/span> &lt;span class="n">x&lt;/span> &lt;span class="err">方向最小坐标&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">const&lt;/span> &lt;span class="ne">int&lt;/span> &lt;span class="n">nx&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="o">//&lt;/span> &lt;span class="n">x&lt;/span> &lt;span class="err">方向网格数&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nb">ceil&lt;/span>&lt;span class="p">((&lt;/span>&lt;span class="n">maxx&lt;/span> &lt;span class="o">-&lt;/span> &lt;span class="n">minx&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">/&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="err">η&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">h&lt;/span>&lt;span class="p">))&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">#if DIM &amp;gt; 1&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">const&lt;/span> &lt;span class="n">double&lt;/span> &lt;span class="o">*&lt;/span>&lt;span class="n">y&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="o">//&lt;/span> &lt;span class="err">粒子&lt;/span> &lt;span class="n">y&lt;/span> &lt;span class="err">坐标&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">const&lt;/span> &lt;span class="n">double&lt;/span> &lt;span class="n">miny&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">const&lt;/span> &lt;span class="ne">int&lt;/span> &lt;span class="n">ny&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">#endif&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">#if DIM &amp;gt; 2 &lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">const&lt;/span> &lt;span class="n">double&lt;/span> &lt;span class="o">*&lt;/span>&lt;span class="n">z&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="o">//&lt;/span> &lt;span class="err">粒子&lt;/span> &lt;span class="n">z&lt;/span> &lt;span class="err">坐标&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">const&lt;/span> &lt;span class="n">double&lt;/span> &lt;span class="n">minz&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">const&lt;/span> &lt;span class="ne">int&lt;/span> &lt;span class="n">nz&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">#endif&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">const&lt;/span> &lt;span class="n">double&lt;/span> &lt;span class="o">*&lt;/span>&lt;span class="n">h&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="o">//&lt;/span> &lt;span class="err">每个粒子的核长度（此版本为常量）&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="ne">int&lt;/span> &lt;span class="o">*&lt;/span>&lt;span class="n">gridParticlesList&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="o">//&lt;/span> &lt;span class="err">网格中粒子索引列表，大小为&lt;/span> &lt;span class="n">numGrids&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">MAX_PARTICLES_PER_GRID&lt;/span> &lt;span class="err">无须初始化&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="ne">int&lt;/span> &lt;span class="o">*&lt;/span>&lt;span class="n">gridWritingPointer&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="o">//&lt;/span> &lt;span class="err">为避免数据竞争，使用一个&lt;/span>&lt;span class="n">gridWritingPointer来记录写入位置&lt;/span>&lt;span class="err">，长度为&lt;/span>&lt;span class="n">numGrids&lt;/span>&lt;span class="err">，需要初始化为&lt;/span>&lt;span class="mi">0&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="ne">int&lt;/span> &lt;span class="o">*&lt;/span>&lt;span class="n">particleGridList&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="o">//&lt;/span> &lt;span class="err">每个粒子所属网格索引，长度为&lt;/span> &lt;span class="n">numParticles&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="ne">int&lt;/span> &lt;span class="n">numParticles&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="o">//&lt;/span> &lt;span class="err">粒子总数&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="ne">int&lt;/span> &lt;span class="n">numGrids&lt;/span> &lt;span class="o">//&lt;/span> &lt;span class="err">网格总数&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">)&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="ne">int&lt;/span> &lt;span class="n">tid&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">threadIdx&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">x&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">blockIdx&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">x&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">blockDim&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">x&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">if&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">tid&lt;/span> &lt;span class="o">&amp;gt;=&lt;/span> &lt;span class="n">numParticles&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="k">return&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">//&lt;/span> &lt;span class="err">计算粒子在网格中的索引坐标&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="ne">int&lt;/span> &lt;span class="n">ix&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="ne">int&lt;/span>&lt;span class="p">((&lt;/span>&lt;span class="n">x&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">tid&lt;/span>&lt;span class="p">]&lt;/span> &lt;span class="o">-&lt;/span> &lt;span class="n">minx&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">/&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">h&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="mi">0&lt;/span>&lt;span class="p">])&lt;/span>&lt;span class="o">*&lt;/span>&lt;span class="n">eta&lt;/span>&lt;span class="p">);&lt;/span> &lt;span class="o">//&lt;/span> &lt;span class="err">η&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="mi">2&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">#if DIM &amp;gt; 1&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="ne">int&lt;/span> &lt;span class="n">iy&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="ne">int&lt;/span>&lt;span class="p">((&lt;/span>&lt;span class="n">y&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">tid&lt;/span>&lt;span class="p">]&lt;/span> &lt;span class="o">-&lt;/span> &lt;span class="n">miny&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">/&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">h&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="mi">0&lt;/span>&lt;span class="p">])&lt;/span>&lt;span class="o">*&lt;/span>&lt;span class="n">eta&lt;/span>&lt;span class="p">);&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">#else&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="ne">int&lt;/span> &lt;span class="n">iy&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="mi">0&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">#endif&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">#if DIM &amp;gt; 2&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="ne">int&lt;/span> &lt;span class="n">iz&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="ne">int&lt;/span>&lt;span class="p">((&lt;/span>&lt;span class="n">z&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">tid&lt;/span>&lt;span class="p">]&lt;/span> &lt;span class="o">-&lt;/span> &lt;span class="n">minz&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">/&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">h&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="mi">0&lt;/span>&lt;span class="p">])&lt;/span>&lt;span class="o">*&lt;/span>&lt;span class="n">eta&lt;/span>&lt;span class="p">);&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">#else&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="ne">int&lt;/span> &lt;span class="n">iz&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="mi">0&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">#endif&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">//&lt;/span> &lt;span class="err">获取粒子所在网格的线性索引&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="ne">int&lt;/span> &lt;span class="n">gridIndex&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">#if DIM == 1&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">gridIndex&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">ix&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">#elif DIM == 2&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">gridIndex&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">ix&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">iy&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">nx&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">#else // DIM == 3&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">gridIndex&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">ix&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">iy&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">nx&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">iz&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">nx&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">ny&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">#endif&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">particleGridList&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">tid&lt;/span>&lt;span class="p">]&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">gridIndex&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">//&lt;/span> &lt;span class="err">获取当前网格的&lt;/span>&lt;span class="n">gridWritingPointer位置&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="ne">int&lt;/span> &lt;span class="n">writingPointer&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">atomicAdd&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="o">&amp;amp;&lt;/span>&lt;span class="n">gridWritingPointer&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">gridIndex&lt;/span>&lt;span class="p">],&lt;/span> &lt;span class="mi">1&lt;/span>&lt;span class="p">);&lt;/span> &lt;span class="o">//&lt;/span> &lt;span class="n">atomicAdd返回写入位置&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">gridParticlesList&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">gridIndex&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">MAX_PARTICLES_PER_GRID&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">writingPointer&lt;/span>&lt;span class="p">]&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">tid&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>使用上述函数时要注意，当网格个数很多时，容易超过int的表达范围。此外，前置条件是需要知道最小和最大的粒子坐标，长数组求最大最小值可以使用scan算法，以后有空也会介绍此类算法。&lt;/p>
+&lt;p>至此，我们已经建立了空间粒子与网格之间的联系，现在可以遍历粒子，获取他们的邻居粒子。我目前想到两种遍历方法，1. 按粒子顺序遍历（下面称A1） 2. 按网格顺序遍历（下面称A1）。&lt;/p>
+&lt;h4 id="搜索">搜索
+&lt;/h4>&lt;h5 id="按粒子顺序遍历a1">按粒子顺序遍历(A1)
+&lt;/h5>&lt;p>首先来看第一个遍历方法：按粒子顺序遍历(A1)。事实上&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;span class="lnt">11
+&lt;/span>&lt;span class="lnt">12
+&lt;/span>&lt;span class="lnt">13
+&lt;/span>&lt;span class="lnt">14
+&lt;/span>&lt;span class="lnt">15
+&lt;/span>&lt;span class="lnt">16
+&lt;/span>&lt;span class="lnt">17
+&lt;/span>&lt;span class="lnt">18
+&lt;/span>&lt;span class="lnt">19
+&lt;/span>&lt;span class="lnt">20
+&lt;/span>&lt;span class="lnt">21
+&lt;/span>&lt;span class="lnt">22
+&lt;/span>&lt;span class="lnt">23
+&lt;/span>&lt;span class="lnt">24
+&lt;/span>&lt;span class="lnt">25
+&lt;/span>&lt;span class="lnt">26
+&lt;/span>&lt;span class="lnt">27
+&lt;/span>&lt;span class="lnt">28
+&lt;/span>&lt;span class="lnt">29
+&lt;/span>&lt;span class="lnt">30
+&lt;/span>&lt;span class="lnt">31
+&lt;/span>&lt;span class="lnt">32
+&lt;/span>&lt;span class="lnt">33
+&lt;/span>&lt;span class="lnt">34
+&lt;/span>&lt;span class="lnt">35
+&lt;/span>&lt;span class="lnt">36
+&lt;/span>&lt;span class="lnt">37
+&lt;/span>&lt;span class="lnt">38
+&lt;/span>&lt;span class="lnt">39
+&lt;/span>&lt;span class="lnt">40
+&lt;/span>&lt;span class="lnt">41
+&lt;/span>&lt;span class="lnt">42
+&lt;/span>&lt;span class="lnt">43
+&lt;/span>&lt;span class="lnt">44
+&lt;/span>&lt;span class="lnt">45
+&lt;/span>&lt;span class="lnt">46
+&lt;/span>&lt;span class="lnt">47
+&lt;/span>&lt;span class="lnt">48
+&lt;/span>&lt;span class="lnt">49
+&lt;/span>&lt;span class="lnt">50
+&lt;/span>&lt;span class="lnt">51
+&lt;/span>&lt;span class="lnt">52
+&lt;/span>&lt;span class="lnt">53
+&lt;/span>&lt;span class="lnt">54
+&lt;/span>&lt;span class="lnt">55
+&lt;/span>&lt;span class="lnt">56
+&lt;/span>&lt;span class="lnt">57
+&lt;/span>&lt;span class="lnt">58
+&lt;/span>&lt;span class="lnt">59
+&lt;/span>&lt;span class="lnt">60
+&lt;/span>&lt;span class="lnt">61
+&lt;/span>&lt;span class="lnt">62
+&lt;/span>&lt;span class="lnt">63
+&lt;/span>&lt;span class="lnt">64
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-gdscript3" data-lang="gdscript3">&lt;span class="line">&lt;span class="cl">&lt;span class="c1">#define MAX_NEIGHBORS 200 // 每个粒子最多的邻居数&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">__global__&lt;/span> &lt;span class="n">void&lt;/span> &lt;span class="n">neighborSearchByParticles&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">const&lt;/span> &lt;span class="n">double&lt;/span> &lt;span class="o">*&lt;/span>&lt;span class="n">x&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="k">const&lt;/span> &lt;span class="n">double&lt;/span> &lt;span class="o">*&lt;/span>&lt;span class="n">y&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="k">const&lt;/span> &lt;span class="n">double&lt;/span> &lt;span class="o">*&lt;/span>&lt;span class="n">z&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">const&lt;/span> &lt;span class="n">double&lt;/span> &lt;span class="o">*&lt;/span>&lt;span class="n">h&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">const&lt;/span> &lt;span class="ne">int&lt;/span> &lt;span class="o">*&lt;/span>&lt;span class="n">gridParticlesList&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="o">//&lt;/span> &lt;span class="err">网格中粒子索引&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">const&lt;/span> &lt;span class="ne">int&lt;/span> &lt;span class="o">*&lt;/span>&lt;span class="n">gridWritingPointer&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="o">//&lt;/span> &lt;span class="err">每个网格中的粒子数量（已由&lt;/span>&lt;span class="n">atomicAdd更新&lt;/span>&lt;span class="err">）&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">const&lt;/span> &lt;span class="ne">int&lt;/span> &lt;span class="o">*&lt;/span>&lt;span class="n">particleGridList&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="o">//&lt;/span> &lt;span class="err">每个粒子所在网格索引&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">const&lt;/span> &lt;span class="n">double&lt;/span> &lt;span class="n">minx&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="k">const&lt;/span> &lt;span class="n">double&lt;/span> &lt;span class="n">miny&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="k">const&lt;/span> &lt;span class="n">double&lt;/span> &lt;span class="n">minz&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">const&lt;/span> &lt;span class="ne">int&lt;/span> &lt;span class="n">nx&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="k">const&lt;/span> &lt;span class="ne">int&lt;/span> &lt;span class="n">ny&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="k">const&lt;/span> &lt;span class="ne">int&lt;/span> &lt;span class="n">nz&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="ne">int&lt;/span> &lt;span class="o">*&lt;/span>&lt;span class="n">neighborList&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="o">//&lt;/span> &lt;span class="err">输出：每个粒子的邻居列表，大小为&lt;/span> &lt;span class="n">numParticles&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">MAX_NEIGHBORS&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="ne">int&lt;/span> &lt;span class="o">*&lt;/span>&lt;span class="n">neighborCount&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="o">//&lt;/span> &lt;span class="err">输出：每个粒子的邻居数&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="ne">int&lt;/span> &lt;span class="n">numParticles&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">)&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="ne">int&lt;/span> &lt;span class="n">tid&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">threadIdx&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">x&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">blockIdx&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">x&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">blockDim&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">x&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">if&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">tid&lt;/span> &lt;span class="o">&amp;gt;=&lt;/span> &lt;span class="n">numParticles&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="k">return&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">double&lt;/span> &lt;span class="n">xi&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">x&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">tid&lt;/span>&lt;span class="p">],&lt;/span> &lt;span class="n">yi&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">y&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">tid&lt;/span>&lt;span class="p">],&lt;/span> &lt;span class="n">zi&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">z&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">tid&lt;/span>&lt;span class="p">];&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">double&lt;/span> &lt;span class="n">hi&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">h&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="mi">0&lt;/span>&lt;span class="p">];&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">double&lt;/span> &lt;span class="n">hi2&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">hi&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">hi&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="ne">int&lt;/span> &lt;span class="n">gridIndex&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">particleGridList&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">tid&lt;/span>&lt;span class="p">];&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">//&lt;/span> &lt;span class="err">计算该粒子所在网格的坐标索引&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="ne">int&lt;/span> &lt;span class="n">ix&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">gridIndex&lt;/span> &lt;span class="o">%&lt;/span> &lt;span class="n">nx&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="ne">int&lt;/span> &lt;span class="n">iy&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">gridIndex&lt;/span> &lt;span class="o">/&lt;/span> &lt;span class="n">nx&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">%&lt;/span> &lt;span class="n">ny&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="ne">int&lt;/span> &lt;span class="n">iz&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">gridIndex&lt;/span> &lt;span class="o">/&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">nx&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">ny&lt;/span>&lt;span class="p">);&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="ne">int&lt;/span> &lt;span class="n">count&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="mi">0&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">//&lt;/span> &lt;span class="err">遍历该粒子所在网格及其周围&lt;/span> &lt;span class="mi">3&lt;/span>&lt;span class="n">x3x3&lt;/span> &lt;span class="err">网格&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">for&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="ne">int&lt;/span> &lt;span class="n">dx&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="o">-&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">;&lt;/span> &lt;span class="n">dx&lt;/span> &lt;span class="o">&amp;lt;=&lt;/span> &lt;span class="mi">1&lt;/span>&lt;span class="p">;&lt;/span> &lt;span class="o">++&lt;/span>&lt;span class="n">dx&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="ne">int&lt;/span> &lt;span class="n">nix&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">ix&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">dx&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">if&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">nix&lt;/span> &lt;span class="o">&amp;lt;&lt;/span> &lt;span class="mi">0&lt;/span> &lt;span class="o">||&lt;/span> &lt;span class="n">nix&lt;/span> &lt;span class="o">&amp;gt;=&lt;/span> &lt;span class="n">nx&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="k">continue&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">for&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="ne">int&lt;/span> &lt;span class="n">dy&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="o">-&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">;&lt;/span> &lt;span class="n">dy&lt;/span> &lt;span class="o">&amp;lt;=&lt;/span> &lt;span class="mi">1&lt;/span>&lt;span class="p">;&lt;/span> &lt;span class="o">++&lt;/span>&lt;span class="n">dy&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="ne">int&lt;/span> &lt;span class="n">niy&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">iy&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">dy&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">if&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">niy&lt;/span> &lt;span class="o">&amp;lt;&lt;/span> &lt;span class="mi">0&lt;/span> &lt;span class="o">||&lt;/span> &lt;span class="n">niy&lt;/span> &lt;span class="o">&amp;gt;=&lt;/span> &lt;span class="n">ny&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="k">continue&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">for&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="ne">int&lt;/span> &lt;span class="n">dz&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="o">-&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">;&lt;/span> &lt;span class="n">dz&lt;/span> &lt;span class="o">&amp;lt;=&lt;/span> &lt;span class="mi">1&lt;/span>&lt;span class="p">;&lt;/span> &lt;span class="o">++&lt;/span>&lt;span class="n">dz&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="ne">int&lt;/span> &lt;span class="n">niz&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">iz&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">dz&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">if&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">niz&lt;/span> &lt;span class="o">&amp;lt;&lt;/span> &lt;span class="mi">0&lt;/span> &lt;span class="o">||&lt;/span> &lt;span class="n">niz&lt;/span> &lt;span class="o">&amp;gt;=&lt;/span> &lt;span class="n">nz&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="k">continue&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">//&lt;/span> &lt;span class="err">相邻网格索引&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="ne">int&lt;/span> &lt;span class="n">neighborGrid&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">nix&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">niy&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">nx&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">niz&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">nx&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">ny&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="ne">int&lt;/span> &lt;span class="n">npg&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">gridWritingPointer&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">neighborGrid&lt;/span>&lt;span class="p">];&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">for&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="ne">int&lt;/span> &lt;span class="n">k&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="mi">0&lt;/span>&lt;span class="p">;&lt;/span> &lt;span class="n">k&lt;/span> &lt;span class="o">&amp;lt;&lt;/span> &lt;span class="n">npg&lt;/span>&lt;span class="p">;&lt;/span> &lt;span class="o">++&lt;/span>&lt;span class="n">k&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="ne">int&lt;/span> &lt;span class="n">j&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">gridParticlesList&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">neighborGrid&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">MAX_PARTICLES_PER_GRID&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">k&lt;/span>&lt;span class="p">];&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">if&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">j&lt;/span> &lt;span class="o">==&lt;/span> &lt;span class="n">tid&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="k">continue&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">double&lt;/span> &lt;span class="n">dx&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">x&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">j&lt;/span>&lt;span class="p">]&lt;/span> &lt;span class="o">-&lt;/span> &lt;span class="n">xi&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">double&lt;/span> &lt;span class="n">dy&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">y&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">j&lt;/span>&lt;span class="p">]&lt;/span> &lt;span class="o">-&lt;/span> &lt;span class="n">yi&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">double&lt;/span> &lt;span class="n">dz&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">z&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">j&lt;/span>&lt;span class="p">]&lt;/span> &lt;span class="o">-&lt;/span> &lt;span class="n">zi&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">double&lt;/span> &lt;span class="n">dist2&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">dx&lt;/span>&lt;span class="o">*&lt;/span>&lt;span class="n">dx&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">dy&lt;/span>&lt;span class="o">*&lt;/span>&lt;span class="n">dy&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">dz&lt;/span>&lt;span class="o">*&lt;/span>&lt;span class="n">dz&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">if&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">dist2&lt;/span> &lt;span class="o">&amp;lt;&lt;/span> &lt;span class="n">hi2&lt;/span> &lt;span class="o">&amp;amp;&amp;amp;&lt;/span> &lt;span class="n">count&lt;/span> &lt;span class="o">&amp;lt;&lt;/span> &lt;span class="n">MAX_NEIGHBORS&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">neighborList&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">tid&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">MAX_NEIGHBORS&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">count&lt;/span>&lt;span class="p">]&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">j&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">count&lt;/span>&lt;span class="o">++&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">neighborCount&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">tid&lt;/span>&lt;span class="p">]&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">count&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>事实上，&lt;code>particleGridList&lt;/code> 数组是专门为 &lt;strong>A1 方案&lt;/strong> 设计的；而若采用 &lt;strong>A2 方案&lt;/strong>，则无需该数组。&lt;/p>
+&lt;p>A1 的缺点在于：当粒子在数组中呈随机排布时，线程束（warp）之间对粒子属性和网格数据的访问也将是随机的。在 CUDA 编程中，访存模式对性能影响极大，因此可以预期 A1 的效率不会非常理想。&lt;/p>
+&lt;p>在一个失眠的深夜，我思考了两个问题：&lt;/p>
+&lt;ol>
+&lt;li>&lt;strong>如何优化 A1 的访存模式？&lt;/strong>&lt;/li>
+&lt;li>&lt;strong>当粒子的核尺度 \( h \) 相差悬殊（例如在模拟月球遭受小行星撞击时，\(h_{min} ≈ 1\)，\(h_{max} ≈ 500\)），如何在链表结构中高效支持如此大的跨度？&lt;/strong>&lt;/li>
+&lt;/ol>
+&lt;p>关于这两个问题，我各自有一些设想和初步实现，接下来将逐一介绍，并进行测试和分析。&lt;/p>
+&lt;hr>
+&lt;h4 id="a2按网格顺序遍历粒子">A2：按网格顺序遍历粒子
+&lt;/h4>&lt;p>（此处补充 A2 的实现简介和性能特点。）
+更多关于树搜索的内容可以参见[树搜索]更多关于树搜索的内容可以参见&lt;a class="link" href="https://keqiye.github.io/posts/SPH_neighbor_search/tree_search/" >树搜索&lt;/a>.&lt;/p>
+&lt;h3 id="缺陷">缺陷
+&lt;/h3>&lt;p>网格搜索我个人感觉效率是比树搜索好的，尤其是当粒子的光滑长度都一致或者差不多的时候。缺点在于，如果粒子在空间中分散的非常广泛，比如撞击引起的dust喷发。这会导致网格数量激增，显存很快就会用光，导致计算失败。因此网格搜索还是适合模拟空间分布稳定的问题，比如溃坝。&lt;/p></description></item></channel></rss>

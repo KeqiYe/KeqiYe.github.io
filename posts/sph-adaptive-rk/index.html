@@ -1,0 +1,223 @@
+<!doctype html><html lang=zh-cn dir=ltr><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><meta name=description content="1. 引言 在流体动力学的数值模拟中，光滑粒子流体动力学（Smoothed Particle Hydrodynamics, SPH）是一种广泛应用的无网格拉格朗日方法。SPH方法的核心之一是对"><title>基于自适应步长 Runge-Kutta 方法的 SPH 计算流程</title>
+<link rel=canonical href=https://keqiye.github.io/posts/sph-adaptive-rk/><link rel=stylesheet href=/scss/style.min.663803bebe609202d5b39d848f2d7c2dc8b598a2d879efa079fa88893d29c49c.css><meta property='og:title' content="基于自适应步长 Runge-Kutta 方法的 SPH 计算流程"><meta property='og:description' content="1. 引言 在流体动力学的数值模拟中，光滑粒子流体动力学（Smoothed Particle Hydrodynamics, SPH）是一种广泛应用的无网格拉格朗日方法。SPH方法的核心之一是对"><meta property='og:url' content='https://keqiye.github.io/posts/sph-adaptive-rk/'><meta property='og:site_name' content='Keqi的博客'><meta property='og:type' content='article'><meta property='article:section' content='Posts'><meta property='article:tag' content='SPH'><meta property='article:tag' content='Runge-Kutta'><meta property='article:tag' content='数值模拟'><meta property='article:tag' content='自适应步长'><meta property='article:published_time' content='2024-05-23T10:30:00+08:00'><meta property='article:modified_time' content='2024-05-23T10:30:00+08:00'><meta name=twitter:title content="基于自适应步长 Runge-Kutta 方法的 SPH 计算流程"><meta name=twitter:description content="1. 引言 在流体动力学的数值模拟中，光滑粒子流体动力学（Smoothed Particle Hydrodynamics, SPH）是一种广泛应用的无网格拉格朗日方法。SPH方法的核心之一是对"></head><body class=article-page><script>(function(){const e="StackColorScheme";localStorage.getItem(e)||localStorage.setItem(e,"auto")})()</script><script>(function(){const t="StackColorScheme",e=localStorage.getItem(t),n=window.matchMedia("(prefers-color-scheme: dark)").matches===!0;e=="dark"||e==="auto"&&n?document.documentElement.dataset.scheme="dark":document.documentElement.dataset.scheme="light"})()</script><div class="container main-container flex on-phone--column extended"><aside class="sidebar left-sidebar sticky"><button class="hamburger hamburger--spin" type=button id=toggle-menu aria-label=切换菜单>
+<span class=hamburger-box><span class=hamburger-inner></span></span></button><header><figure class=site-avatar><a href=/><img src="https://avatars.githubusercontent.com/u/175122082?v=4" width=300 height=300 class=site-logo loading=lazy alt=Avatar>
+</a><span class=emoji>🪐</span></figure><div class=site-meta><h1 class=site-name><a href=/>Keqi的博客</a></h1><h2 class=site-description>数学、物理与编程</h2></div></header><ol class=menu-social><li><a href=mailto:plloningye@gmail.com target=_blank title=E-mail rel=me><svg data-name="Livello 1" id="Livello_1" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg"><title/><path d="M116.73 31.83a3 3 0 00-4.2-.61L64.14 67.34a1 1 0 01-1.2.0L15.5 31.06a3 3 0 10-3.64 4.77l37.3 28.53-36.89 27.8A3 3 0 1015.88 97L54.11 68.14l5.18 4a7 7 0 008.43.06l5.44-4.06L111.84 97a3 3 0 103.59-4.81L78.17 64.35 116.12 36A3 3 0 00116.73 31.83z"/><path d="M113 19H15A15 15 0 000 34V94a15 15 0 0015 15h98a15 15 0 0015-15V34A15 15 0 00113 19zm9 75a9 9 0 01-9 9H15a9 9 0 01-9-9V34a9 9 0 019-9h98a9 9 0 019 9z"/></svg></a></li><li><a href=https://github.com/KeqiYe target=_blank title=GitHub rel=me><svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-brand-github" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentcolor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6.0 00-1.3-3.2 4.2 4.2.0 00-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3.0 00-6.2.0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2.0 00-.1 3.2A4.6 4.6.0 004 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg></a></li></ol><ol class=menu id=main-menu><li><a href=/posts/><span>文章</span></a></li><li><a href=/categories/><span>分类</span></a></li><li class=menu-bottom-section><ol class=menu><li id=i18n-switch><svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-language" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentcolor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M4 5h7"/><path d="M9 3v2c0 4.418-2.239 8-5 8"/><path d="M5 9c-.003 2.144 2.952 3.908 6.7 4"/><path d="M12 20l4-9 4 9"/><path d="M19.1 18h-6.2"/></svg>
+<select name=language title=language onchange="window.location.href=this.selectedOptions[0].value"><option value=https://keqiye.github.io/en/>English</option><option value=https://keqiye.github.io/ selected>中文</option></select></li><li id=dark-mode-toggle><svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-toggle-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentcolor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="8" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-toggle-right" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentcolor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="16" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<span>暗色模式</span></li></ol></li></ol></aside><aside class="sidebar right-sidebar sticky"><section class="widget archives"><div class=widget-icon><svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-hash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentcolor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><line x1="5" y1="9" x2="19" y2="9"/><line x1="5" y1="15" x2="19" y2="15"/><line x1="11" y1="4" x2="7" y2="20"/><line x1="17" y1="4" x2="13" y2="20"/></svg></div><h2 class="widget-title section-title">目录</h2><div class=widget--toc><nav id=TableOfContents><ol><li><a href=#1-引言>1. 引言</a></li><li><a href=#2-sph-核心方程>2. SPH 核心方程</a></li><li><a href=#3-自适应步长-runge-kutta-方法>3. 自适应步长 Runge-Kutta 方法</a></li><li><a href=#3-自适应步长-runge-kutta-方法-rk45>3. 自适应步长 Runge-Kutta 方法 (RK45)</a><ol><li><a href=#31-rk45-的核心思想>3.1 RK45 的核心思想</a></li><li><a href=#dormand-prince-54-系数表>Dormand-Prince 5(4) 系数表</a></li><li><a href=#32-误差控制模仿-matlab-ode45-的策略>3.2 误差控制：模仿 MATLAB <code>ode45</code> 的策略</a></li><li><a href=#33-步长调整决策>3.3 步长调整决策</a></li></ol></li><li><a href=#4-结合sph的计算伪代码>4. 结合SPH的计算伪代码</a></li></ol><ol><li><ol><li><a href=#1-动量方程-momentum-equation>1. 动量方程 (Momentum Equation)</a></li><li><a href=#2-连续性方程-continuity-equation>2. 连续性方程 (Continuity Equation)</a></li><li><a href=#3-能量方程-energy-equation>3. 能量方程 (Energy Equation)</a></li><li><a href=#4-固体力学本构方程-constitutive-equations-for-solids>4. 固体力学本构方程 (Constitutive Equations for Solids)</a></li><li><a href=#5-损伤演化方程-damage-evolution-equation>5. 损伤演化方程 (Damage Evolution Equation)</a></li><li><a href=#计算流程概述>计算流程概述</a></li></ol></li></ol></nav></div></section></aside><main class="main full-width"><article class=main-article><header class=article-header><div class=article-details><header class=article-category><a href=/categories/sphseries/>SPHSeries</a></header><div class=article-title-wrapper><h2 class=article-title><a href=/posts/sph-adaptive-rk/>基于自适应步长 Runge-Kutta 方法的 SPH 计算流程</a></h2></div><footer class=article-time><div><svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-calendar-time" width="56" height="56" viewBox="0 0 24 24" stroke-width="2" stroke="currentcolor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M11.795 21H5a2 2 0 01-2-2V7a2 2 0 012-2h12a2 2 0 012 2v4"/><circle cx="18" cy="18" r="4"/><path d="M15 3v4"/><path d="M7 3v4"/><path d="M3 11h16"/><path d="M18 16.496V18l1 1"/></svg>
+<time class=article-time--published>May 23, 2024</time></div><div><svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-clock" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentcolor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+<time class=article-time--reading>阅读时长: 9 分钟</time></div></footer></div></header><section class=article-content><h2 id=1-引言>1. 引言</h2><p>在流体动力学的数值模拟中，光滑粒子流体动力学（Smoothed Particle Hydrodynamics, SPH）是一种广泛应用的无网格拉格朗日方法。SPH方法的核心之一是对控制方程组进行时间积分，以更新每个粒子的物理状态。</p><p>传统的时间积分方案（如简单的欧拉法或固定步长的龙格-库塔法）虽然实现简单，但在处理复杂动态过程时面临挑战：</p><ul><li><strong>步长过大</strong>可能导致数值不稳定，模拟发散。</li><li><strong>步长过小</strong>则会极大地增加计算成本，尤其是在模拟过程相对平稳的阶段。</li></ul><p>为了在保证计算精度的同时提高效率，<strong>自适应步长（Adaptive Time-Stepping）</strong> 的积分方法应运而生。本文将详细介绍如何将自适应步长的 Runge-Kutta (RK) 方法应用于 SPH 的计算流程中。</p><h2 id=2-sph-核心方程>2. SPH 核心方程</h2><p>在 SPH 中，流体被离散为一系列携带物理属性（质量、密度、速度等）的粒子。其状态演化由一组常微分方程（ODE）描述，主要包括：</p><ul><li><p><strong>连续性方程（密度演化）</strong>:</p>$$
+\frac{d\rho_i}{dt} = \sum_j m_j (\mathbf{v}_i - \mathbf{v}_j) \cdot \nabla_i W_{ij}
+$$</li><li><p><strong>动量方程（速度演化）</strong>:</p>$$
+\frac{d\mathbf{v}_i}{dt} = -\sum_j m_j \left( \frac{p_i}{\rho_i^2} + \frac{p_j}{\rho_j^2} + \Pi_{ij} \right) \nabla_i W_{ij} + \mathbf{g}
+$$</li></ul><p>其中，<code>i</code> 和 <code>j</code> 是粒子索引，<code>m</code> 是质量，<code>ρ</code> 是密度，<code>p</code> 是压力，<code>v</code> 是速度，<code>Π</code> 是人工粘性项，<code>g</code> 是外力（如重力），<code>W</code> 是核函数。</p><h2 id=3-自适应步长-runge-kutta-方法>3. 自适应步长 Runge-Kutta 方法</h2><p>自适应步长的核心思想是：在每个积分步中，通过比较两种不同精度的计算结果来估计局部截断误差（Local Truncation Error）。根据误差的大小，动态地调整下一步的时间步长 <code>Δt</code>。</p><p>一个经典的例子是 <strong>RK45</strong>（或称 Dormand-Prince、Cash-Karp 方法），它在一个步长内同时计算出一个四阶精度和一个五阶精度的解。</p><p><strong>基本逻辑如下</strong>:</p><ol><li>用一个 <code>Δt</code> 计算出四阶解 <code>y₄</code> 和五阶解 <code>y₅</code>。</li><li>计算误差 <code>ε = ||y₅ - y₄||</code>。</li><li>将误差 <code>ε</code> 与预设的容忍度 <code>tol</code> 比较。<ul><li>如果 <code>ε &lt;= tol</code>：接受本次计算结果（通常使用更高阶的 <code>y₅</code> 作为最终结果），并可以适当增大大下一轮的步长 <code>Δt</code>。</li><li>如果 <code>ε > tol</code>：拒绝本次计算，减小步长 <code>Δt</code>，并用新的小步长重新计算当前步。</li></ul></li></ol><p>步长调整的常用公式为：</p>$$
+\Delta t_{\text{new}} = \Delta t_{\text{old}} \times \text{safe} \times \left( \frac{\text{tol}}{\epsilon} \right)^{p}
+$$<p>其中 <code>safe</code> 是一个安全因子（如0.9），<code>p</code> 是一个与方法阶数相关的指数。</p><h2 id=3-自适应步长-runge-kutta-方法-rk45>3. 自适应步长 Runge-Kutta 方法 (RK45)</h2><p>为了在 SPH 模拟中实现效率与精度的平衡，我们不能简单地依赖固定步长积分。自适应步长（Adaptive Time-Stepping）方法，特别是基于 Runge-Kutta-Fehlberg 的 <strong>RK45</strong> 算法，提供了一种优雅的解决方案。它在每个时间步内，通过巧妙地计算两次（一次四阶精度，一次五阶精度），来估计并控制局部截断误差。</p><h3 id=31-rk45-的核心思想>3.1 RK45 的核心思想</h3><p>RK45 的精髓在于“用一次计算，得两个结果”。通过精心选择的一组系数（如 Dormand-Prince 或 Cash-Karp 系数），它可以用6次函数求值（计算<code>k1</code>到<code>k6</code>）同时得到一个四阶精度的解 <code>y_{n+1}^{(4)}</code> 和一个五阶精度的解 <code>y_{n+1}^{(5)}</code>。</p><p>RK45 的精髓在于“用一次计算，得两种不同阶数的解”。这依赖于一组精心设计的系数，其中最著名和广泛使用的是 <strong>Dormand-Prince 5(4) 对</strong>，这也是 MATLAB <code>ode45</code> 的默认选择。</p><p>这个方法需要进行 <strong>7 次</strong>函数求值（计算 <code>k_1</code> 到 <code>k_7</code>），然后用这些 <code>k</code> 的线性组合来构造解。</p><p><strong>1. 计算中间斜率 (k_i):</strong></p>$$
+\begin{aligned}
+k_1 &= f(t_n, y_n) \\
+k_2 &= f(t_n + c_2 h, y_n + h(a_{21}k_1)) \\
+k_3 &= f(t_n + c_3 h, y_n + h(a_{31}k_1 + a_{32}k_2)) \\
+&\vdots \\
+k_7 &= f(t_n + c_7 h, y_n + h(a_{71}k_1 + \dots + a_{76}k_6))
+\end{aligned}
+$$<p><strong>2. 构造解：</strong></p><ul><li><p><strong>五阶解 (更高精度，用于更新状态):</strong></p>$$
+y_{n+1}^{(5)} = y_n + h \left( b_1 k_1 + b_2 k_2 + b_3 k_3 + b_4 k_4 + b_5 k_5 + b_6 k_6 + b_7 k_7 \right)
+$$<p>在 Dormand-Prince 方法中，为了效率，<code>b_7</code> 被设计为 0，所以 <code>k_7</code> 实际上不参与 <code>y_{n+1}^{(5)}</code> 的计算。</p></li><li><p><strong>四阶嵌入解 (更低精度，仅用于误差估计):</strong></p>$$
+y_{n+1}^{(4)} = y_n + h \left( b_1^* k_1 + b_2^* k_2 + b_3^* k_3 + b_4^* k_4 + b_5^* k_5 + b_6^* k_6 + b_7^* k_7 \right)
+$$</li></ul><p><strong>3. 计算误差估计:</strong></p><p>局部截断误差 <code>E_{n+1}</code> 可以通过两个解的差来高效计算：</p>$$
+E_{n+1} \approx \left\| y_{n+1}^{(5)} - y_{n+1}^{(4)} \right\| = h \left\| \sum_{i=1}^{7} (b_i - b_i^*) k_i \right\| = h \left\| \sum_{i=1}^{7} e_i k_i \right\|
+$$<p>其中 <code>e_i = b_i - b_i^*</code> 构成了误差系数向量。</p><h3 id=dormand-prince-54-系数表>Dormand-Prince 5(4) 系数表</h3><p>下面是完整的系数，通常以 <strong>Butcher 表</strong> 的形式展现：</p><div class=table-wrapper><table><thead><tr><th>c</th><th></th><th></th><th>a</th><th></th><th></th><th></th></tr></thead><tbody><tr><td>0</td><td></td><td></td><td></td><td></td><td></td><td></td></tr><tr><td>1/5</td><td></td><td>1/5</td><td></td><td></td><td></td><td></td></tr><tr><td>3/10</td><td></td><td>3/40</td><td>9/40</td><td></td><td></td><td></td></tr><tr><td>4/5</td><td></td><td>44/45</td><td>-56/15</td><td>32/9</td><td></td><td></td></tr><tr><td>8/9</td><td></td><td>19372/6561</td><td>-25360/2187</td><td>64448/6561</td><td>-212/729</td><td></td></tr><tr><td>1</td><td></td><td>9017/3168</td><td>-355/33</td><td>46732/5247</td><td>49/176</td><td>-5103/18656</td></tr><tr><td>1</td><td></td><td>35/384</td><td>0</td><td>500/1113</td><td>125/192</td><td>-2187/6784</td></tr></tbody></table></div><p><strong>权重系数 <code>b</code> 和 <code>b*</code>:</strong></p><ul><li><p><strong><code>b</code> (五阶精度):</strong>
+<code>[ 35/384, 0, 500/1113, 125/192, -2187/6784, 11/84, 0 ]</code></p><p><em>您会发现，这个 <code>b</code> 向量和 <code>a</code> 矩阵的最后一行是一样的，这被称为 FSAL (First Same As Last) 特性。这意味着计算 <code>k_7</code> 的值 <code>f(t_{n+1}, y_{n+1}^{(5)})</code> 正好可以作为下一个积分步的 <code>k_1</code>，从而每步节省一次函数求值。</em></p></li><li><p><strong><code>b*</code> (四阶精度):</strong>
+<code>[ 5179/57600, 0, 7571/16695, 393/640, -92097/339200, 187/2100, 1/40 ]</code></p></li><li><p><strong><code>e</code> (误差系数 <code>b - b*</code>):</strong>
+<code>[ 71/57600, 0, -71/16695, 71/1920, -17253/339200, 22/525, -1/40 ]</code></p></li></ul><p>在实际编程中，我们通常直接使用 <code>e</code> 向量来计算误差，这样更直接高效。</p><p>这两个解之间的差异，就为我们提供了一个对局部截断误差 <code>E_{n+1}</code> 的可靠估计：</p>$$
+E_{n+1} \approx \left\| y_{n+1}^{(5)} - y_{n+1}^{(4)} \right\| = h \left\| \sum_{i=1}^{6} (b_i - b_i^*) k_i \right\|
+$$<h3 id=32-误差控制模仿-matlab-ode45-的策略>3.2 误差控制：模仿 MATLAB <code>ode45</code> 的策略</h3><p>仅仅得到误差估计是不够的，关键在于如何利用它来判断当前步长 <code>h</code> 是否“好”。一个优秀的误差控制策略不应该只看绝对误差，而应该像 MATLAB 的 <code>ode45</code> 函数一样，同时考虑<strong>相对误差 (Relative Tolerance, <code>RelTol</code>)</strong> 和<strong>绝对误差 (Absolute Tolerance, <code>AbsTol</code>)</strong>。</p><p>对于状态向量 <code>y</code> 的每一个分量 <code>y_i</code>，我们计算一个容忍度阈值 <code>Tol_i</code>：</p>$$
+\text{Tol}_i = \text{RelTol} \times |y_i| + \text{AbsTol}
+$$<p><strong>这个策略的优点在于</strong>：</p><ul><li>当解 <code>|y_i|</code> 的数值很大时，主要由相对误差 <code>RelTol</code> 控制，保证了误差与解的量级成比例。</li><li>当解 <code>|y_i|</code> 的数值很小（趋近于零）时，<code>RelTol \times |y_i|</code> 项会变得过小，此时由绝对误差 <code>AbsTol</code> 托底，防止了对步长的过度严苛要求。</li></ul><p>接下来，我们将计算出的误差 <code>E_{n+1}</code> 与这个容忍度 <code>Tol</code> 进行比较。为了对整个向量的误差进行综合评估，我们计算一个标量误差率 <code>err_rate</code>：</p>$$
+\text{err\_rate} = \sqrt{ \frac{1}{N} \sum_{i=1}^{N} \left( \frac{E_{n+1, i}}{\text{Tol}_i} \right)^2 }
+$$<p>其中 <code>N</code> 是状态向量 <code>y</code> 的维度。</p><h3 id=33-步长调整决策>3.3 步长调整决策</h3><p>根据计算出的 <code>err_rate</code>，我们做出决策：</p><ol><li><p><strong>如果 <code>err_rate &lt;= 1.0</code></strong>: <strong>接受当前步</strong>。</p><ul><li>当前步长 <code>h</code> 是有效的，甚至可能有点过于保守。</li><li>我们将更高阶的解 <code>y_{n+1}^{(5)}</code> 作为本次积分的最终结果。</li><li>为了提高效率，我们可以尝试在<strong>下一个</strong>时间步使用一个更大的步长 <code>h_new</code>。</li></ul></li><li><p><strong>如果 <code>err_rate > 1.0</code></strong>: <strong>拒绝当前步</strong>。</p><ul><li>当前步长 <code>h</code> 太大，导致误差超出了容忍范围。</li><li>我们<strong>丢弃</strong>本次计算的所有结果（<code>y_{n+1}^{(4)}</code> 和 <code>y_{n+1}^{(5)}</code>），系统状态回退到 <code>y_n</code>。</li><li>我们需要用一个更小的步长 <code>h_new</code> <strong>重新计算当前步</strong>。</li></ul></li></ol><p>步长调整的经典公式为：</p>$$
+h_{\text{new}} = h_{\text{old}} \times \text{safe} \times \left( \frac{1.0}{\text{err\_rate}} \right)^{0.2}
+$$<ul><li><code>safe</code>: 一个安全因子，通常取 0.8 到 0.9，防止步长调整过于激进。</li><li>指数 <code>0.2</code>: 对于一个五阶方法来说，这个值是 <code>1/(k+1)</code>，其中 <code>k=4</code> 是低阶方法的阶数。在实践中，常用的是 <code>1/k_high</code>，即 <code>1/5=0.2</code>。</li></ul><p>同时，为了防止步长变化过快，通常会限制步长的最大/最小增长/缩减率（例如，<code>h_new</code> 不得超过 <code>h_old</code> 的5倍，或小于 <code>h_old</code> 的0.2倍）。</p><h2 id=4-结合sph的计算伪代码>4. 结合SPH的计算伪代码</h2><p>现在，我们将上述 RK45 误差控制逻辑整合到 SPH 的主循环中。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span><span class=lnt>38
+</span><span class=lnt>39
+</span><span class=lnt>40
+</span><span class=lnt>41
+</span><span class=lnt>42
+</span><span class=lnt>43
+</span><span class=lnt>44
+</span><span class=lnt>45
+</span><span class=lnt>46
+</span><span class=lnt>47
+</span><span class=lnt>48
+</span><span class=lnt>49
+</span><span class=lnt>50
+</span><span class=lnt>51
+</span><span class=lnt>52
+</span><span class=lnt>53
+</span><span class=lnt>54
+</span><span class=lnt>55
+</span><span class=lnt>56
+</span><span class=lnt>57
+</span><span class=lnt>58
+</span><span class=lnt>59
+</span><span class=lnt>60
+</span><span class=lnt>61
+</span><span class=lnt>62
+</span><span class=lnt>63
+</span><span class=lnt>64
+</span><span class=lnt>65
+</span><span class=lnt>66
+</span><span class=lnt>67
+</span><span class=lnt>68
+</span><span class=lnt>69
+</span><span class=lnt>70
+</span><span class=lnt>71
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-cpp data-lang=cpp><span class=line><span class=cl><span class=c1>// --- 全局参数 ---
+</span></span></span><span class=line><span class=cl><span class=c1></span><span class=kt>double</span> <span class=n>RelTol</span> <span class=o>=</span> <span class=mf>1e-6</span><span class=p>;</span> <span class=c1>// 相对容忍度
+</span></span></span><span class=line><span class=cl><span class=c1></span><span class=kt>double</span> <span class=n>AbsTol</span> <span class=o>=</span> <span class=mf>1e-9</span><span class=p>;</span> <span class=c1>// 绝对容忍度
+</span></span></span><span class=line><span class=cl><span class=c1></span><span class=kt>double</span> <span class=n>h_min</span> <span class=o>=</span> <span class=mf>1e-8</span><span class=p>,</span> <span class=n>h_max</span> <span class=o>=</span> <span class=mf>1e-2</span><span class=p>;</span> <span class=c1>// 步长上下限
+</span></span></span><span class=line><span class=cl><span class=c1></span><span class=kt>double</span> <span class=n>safe_factor</span> <span class=o>=</span> <span class=mf>0.9</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=kt>double</span> <span class=n>max_increase</span> <span class=o>=</span> <span class=mf>5.0</span><span class=p>,</span> <span class=n>min_decrease</span> <span class=o>=</span> <span class=mf>0.2</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1>// --- 主循环 ---
+</span></span></span><span class=line><span class=cl><span class=c1></span><span class=kt>double</span> <span class=n>t</span> <span class=o>=</span> <span class=mf>0.0</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=kt>double</span> <span class=n>h</span> <span class=o>=</span> <span class=n>initial_dt</span><span class=p>;</span> <span class=c1>// 初始步长
+</span></span></span><span class=line><span class=cl><span class=c1></span>
+</span></span><span class=line><span class=cl><span class=k>while</span> <span class=p>(</span><span class=n>t</span> <span class=o>&lt;</span> <span class=n>T_max</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=kt>bool</span> <span class=n>step_accepted</span> <span class=o>=</span> <span class=nb>false</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>while</span> <span class=p>(</span><span class=o>!</span><span class=n>step_accepted</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=k>if</span> <span class=p>(</span><span class=n>h</span> <span class=o>&lt;</span> <span class=n>h_min</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=c1>// 步长过小，可能出现问题
+</span></span></span><span class=line><span class=cl><span class=c1></span>            <span class=n>error</span><span class=p>(</span><span class=s>&#34;Timestep smaller than h_min&#34;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>            <span class=k>break</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>        <span class=c1>// 1. SPH力计算：根据当前状态 y_n 计算 k1
+</span></span></span><span class=line><span class=cl><span class=c1></span>        <span class=c1>//    y_n 包括所有粒子的位置 x 和速度 v
+</span></span></span><span class=line><span class=cl><span class=c1></span>        <span class=k>auto</span> <span class=n>k1</span> <span class=o>=</span> <span class=n>compute_derivatives</span><span class=p>(</span><span class=n>t</span><span class=p>,</span> <span class=n>y_n</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>        <span class=c1>// 2. RK45 核心计算：计算 k2, k3, ..., k6
+</span></span></span><span class=line><span class=cl><span class=c1></span>        <span class=c1>//    并得到 y_next_4 (四阶解) 和 y_next_5 (五阶解)
+</span></span></span><span class=line><span class=cl><span class=c1></span>        <span class=c1>//    (此处省略繁杂的系数计算)
+</span></span></span><span class=line><span class=cl><span class=c1></span>        <span class=k>auto</span> <span class=p>[</span><span class=n>y_next_4</span><span class=p>,</span> <span class=n>y_next_5</span><span class=p>]</span> <span class=o>=</span> <span class=n>perform_rk45_core</span><span class=p>(</span><span class=n>t</span><span class=p>,</span> <span class=n>y_n</span><span class=p>,</span> <span class=n>h</span><span class=p>,</span> <span class=n>k1</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>        <span class=c1>// 3. 计算误差率 err_rate (模仿 MATLAB)
+</span></span></span><span class=line><span class=cl><span class=c1></span>        <span class=kt>double</span> <span class=n>err_rate</span> <span class=o>=</span> <span class=mf>0.0</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=k>for</span> <span class=p>(</span><span class=kt>int</span> <span class=n>i</span> <span class=o>=</span> <span class=mi>0</span><span class=p>;</span> <span class=n>i</span> <span class=o>&lt;</span> <span class=n>N_particles</span><span class=p>;</span> <span class=o>++</span><span class=n>i</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=c1>// 对位置和速度分别计算容忍度
+</span></span></span><span class=line><span class=cl><span class=c1></span>            <span class=n>vec3</span> <span class=n>pos_error</span> <span class=o>=</span> <span class=n>y_next_5</span><span class=p>.</span><span class=n>pos</span><span class=p>[</span><span class=n>i</span><span class=p>]</span> <span class=o>-</span> <span class=n>y_next_4</span><span class=p>.</span><span class=n>pos</span><span class=p>[</span><span class=n>i</span><span class=p>];</span>
+</span></span><span class=line><span class=cl>            <span class=n>vec3</span> <span class=n>vel_error</span> <span class=o>=</span> <span class=n>y_next_5</span><span class=p>.</span><span class=n>vel</span><span class=p>[</span><span class=n>i</span><span class=p>]</span> <span class=o>-</span> <span class=n>y_next_4</span><span class=p>.</span><span class=n>vel</span><span class=p>[</span><span class=n>i</span><span class=p>];</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>            <span class=n>vec3</span> <span class=n>pos_tol</span> <span class=o>=</span> <span class=n>RelTol</span> <span class=o>*</span> <span class=n>abs</span><span class=p>(</span><span class=n>y_n</span><span class=p>.</span><span class=n>pos</span><span class=p>[</span><span class=n>i</span><span class=p>])</span> <span class=o>+</span> <span class=n>AbsTol</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>            <span class=n>vec3</span> <span class=n>vel_tol</span> <span class=o>=</span> <span class=n>RelTol</span> <span class=o>*</span> <span class=n>abs</span><span class=p>(</span><span class=n>y_n</span><span class=p>.</span><span class=n>vel</span><span class=p>[</span><span class=n>i</span><span class=p>])</span> <span class=o>+</span> <span class=n>AbsTol</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>            <span class=c1>// 累加误差的平方/容忍度的平方
+</span></span></span><span class=line><span class=cl><span class=c1></span>            <span class=n>err_rate</span> <span class=o>+=</span> <span class=n>sum</span><span class=p>(</span> <span class=p>(</span><span class=n>pos_error</span> <span class=o>/</span> <span class=n>pos_tol</span><span class=p>)</span><span class=o>^</span><span class=mi>2</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>            <span class=n>err_rate</span> <span class=o>+=</span> <span class=n>sum</span><span class=p>(</span> <span class=p>(</span><span class=n>vel_error</span> <span class=o>/</span> <span class=n>vel_tol</span><span class=p>)</span><span class=o>^</span><span class=mi>2</span> <span class=p>);</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span>
+</span></span><span class=line><span class=cl>        <span class=n>err_rate</span> <span class=o>=</span> <span class=n>sqrt</span><span class=p>(</span><span class=n>err_rate</span> <span class=o>/</span> <span class=p>(</span><span class=mi>6</span> <span class=o>*</span> <span class=n>N_particles</span><span class=p>));</span> <span class=c1>// 归一化
+</span></span></span><span class=line><span class=cl><span class=c1></span>
+</span></span><span class=line><span class=cl>        <span class=c1>// 4. 决策与步长调整
+</span></span></span><span class=line><span class=cl><span class=c1></span>        <span class=k>if</span> <span class=p>(</span><span class=n>err_rate</span> <span class=o>&lt;=</span> <span class=mf>1.0</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=c1>// --- 接受步长 ---
+</span></span></span><span class=line><span class=cl><span class=c1></span>            <span class=n>step_accepted</span> <span class=o>=</span> <span class=nb>true</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>            <span class=n>t</span> <span class=o>+=</span> <span class=n>h</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>            <span class=n>y_n</span> <span class=o>=</span> <span class=n>y_next_5</span><span class=p>;</span> <span class=c1>// 更新状态为更高阶的解
+</span></span></span><span class=line><span class=cl><span class=c1></span>
+</span></span><span class=line><span class=cl>            <span class=c1>// 计算下一个建议步长 (通常是增大的)
+</span></span></span><span class=line><span class=cl><span class=c1></span>            <span class=kt>double</span> <span class=n>h_new</span> <span class=o>=</span> <span class=n>h</span> <span class=o>*</span> <span class=n>safe_factor</span> <span class=o>*</span> <span class=n>pow</span><span class=p>(</span><span class=n>err_rate</span><span class=p>,</span> <span class=o>-</span><span class=mf>0.2</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>            <span class=n>h</span> <span class=o>=</span> <span class=n>min</span><span class=p>(</span><span class=n>h</span> <span class=o>*</span> <span class=n>max_increase</span><span class=p>,</span> <span class=n>h_new</span><span class=p>);</span> <span class=c1>// 限制最大增幅
+</span></span></span><span class=line><span class=cl><span class=c1></span>            <span class=n>h</span> <span class=o>=</span> <span class=n>min</span><span class=p>(</span><span class=n>h</span><span class=p>,</span> <span class=n>h_max</span><span class=p>);</span> <span class=c1>// 不超过最大步长限制
+</span></span></span><span class=line><span class=cl><span class=c1></span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span> <span class=k>else</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=c1>// --- 拒绝步长 ---
+</span></span></span><span class=line><span class=cl><span class=c1></span>            <span class=c1>// 状态 y_n 和 t 保持不变
+</span></span></span><span class=line><span class=cl><span class=c1></span>
+</span></span><span class=line><span class=cl>            <span class=c1>// 计算下一个建议步长 (必须是减小的)
+</span></span></span><span class=line><span class=cl><span class=c1></span>            <span class=kt>double</span> <span class=n>h_new</span> <span class=o>=</span> <span class=n>h</span> <span class=o>*</span> <span class=n>safe_factor</span> <span class=o>*</span> <span class=n>pow</span><span class=p>(</span><span class=n>err_rate</span><span class=p>,</span> <span class=o>-</span><span class=mf>0.2</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>            <span class=n>h</span> <span class=o>=</span> <span class=n>max</span><span class=p>(</span><span class=n>h</span> <span class=o>*</span> <span class=n>min_decrease</span><span class=p>,</span> <span class=n>h_new</span><span class=p>);</span> <span class=c1>// 限制最大降幅
+</span></span></span><span class=line><span class=cl><span class=c1></span>        <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=c1>// (可选) 在每个成功的时间步后，更新邻域、输出数据等
+</span></span></span><span class=line><span class=cl><span class=c1></span>    <span class=n>UpdateAndSaveData</span><span class=p>(</span><span class=n>t</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>// <code>compute_derivatives</code> 函数需要计算SPH的密度、压力、加速度等
+// 并返回一个包含所有粒子 d(pos)/dt (=v) 和 d(v)/dt (=a) 的导数向量</p><h1 id=sph控制方程的右端项计算-right-hand-side-rhs>SPH控制方程的右端项计算 (Right-Hand Side, RHS)</h1><p>在SPH（光滑粒子流体动力学）数值模拟中，系统的演化由一组常微分方程（ODEs）描述。使用显式时间积分方案（如Leapfrog或Runge-Kutta）求解这些ODEs的关键，是精确计算每个时间步的<strong>右端项（RHS）</strong>，即各个物理量的时间导数。</p><p>以下是SPH中需要求解的核心控制方程及其右端项，特别考虑了包含弹塑性固体力学模型的场景。</p><hr><h3 id=1-动量方程-momentum-equation>1. 动量方程 (Momentum Equation)</h3><p><strong>方程</strong>:</p>$$
+\frac{d\mathbf{v}_i}{dt} = \mathbf{a}_i
+$$<p><strong>右端项 (<code>RHS_v</code>)</strong>: 粒子 $i$ 的加速度 $\mathbf{a}_i$。它由多种力的贡献组成：</p>$$
+\mathbf{a}_i = \mathbf{f}_i^{\text{pressure}} + \mathbf{f}_i^{\text{viscosity}} + \mathbf{f}_i^{\text{deviatoric}} + \mathbf{f}_i^{\text{gravity}} + \dots
+$$<ul><li><strong>压力梯度力 (<code>f_pressure</code>)</strong>:<div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-fallback data-lang=fallback><span class=line><span class=cl>f_pressure = - \sum_j m_j \left( \frac{P_i}{\rho_i^2} + \frac{P_j}{\rho_j^2} \right) \nabla_i W_{ij}
+</span></span></code></pre></td></tr></table></div></div></li><li><strong>人工粘性力 (<code>f_viscosity</code>)</strong>: 用于处理冲击波。<div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-fallback data-lang=fallback><span class=line><span class=cl>f_viscosity = - \sum_j m_j \Pi_{ij} \nabla_i W_{ij}
+</span></span></code></pre></td></tr></table></div></div></li><li><strong>偏应力梯度力 (<code>f_deviatoric</code>)</strong>: <strong>此项在固体力学模型中至关重要</strong>，代表由剪切等形变引起的力。<div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-fallback data-lang=fallback><span class=line><span class=cl>f_deviatoric = \sum_j m_j \left( \frac{\mathbf{S}_i}{\rho_i^2} + \frac{\mathbf{S}_j}{\rho_j^2} \right) \cdot \nabla_i W_{ij}
+</span></span></code></pre></td></tr></table></div></div>其中 $\mathbf{S}$ 是偏应力张量。</li><li><strong>体力 (<code>f_gravity</code>, etc.)</strong>: 如自引力、外加引力场等。</li></ul><hr><h3 id=2-连续性方程-continuity-equation>2. 连续性方程 (Continuity Equation)</h3><p><strong>方程</strong>:</p>$$
+\frac{d\rho_i}{dt} = f(\rho)_i
+$$<p><strong>右端项 (<code>RHS_rho</code>)</strong>: 粒子 $i$ 的密度变化率。</p>$$
+\frac{d\rho_i}{dt} = \rho_i \sum_j \frac{m_j}{\rho_j} (\mathbf{v}_i - \mathbf{v}_j) \cdot \nabla_i W_{ij}
+$$<p>这也被称为SPH的“求和形式”密度。在许多现代实现中，密度通常不通过积分此方程得到，而是在每个时间步通过直接求和来计算，以保证质量守恒和稳定性。</p>$$
+\rho_i = \sum_j m_j W_{ij}
+$$<hr><h3 id=3-能量方程-energy-equation>3. 能量方程 (Energy Equation)</h3><p><strong>方程</strong>:</p>$$
+\frac{du_i}{dt} = f(u)_i
+$$<p><strong>右端项 (<code>RHS_u</code>)</strong>: 粒子 $i$ 的比内能变化率。</p>$$
+\frac{du_i}{dt} = \frac{1}{2} \sum_j m_j (\mathbf{v}_i - \mathbf{v}_j) \cdot \left( \left( \frac{P_i}{\rho_i^2} + \frac{P_j}{\rho_j^2} \right) \nabla_i W_{ij} - \Pi_{ij} \nabla_i W_{ij} \right) + \frac{\mathbf{S}_i}{\rho_i^2} : \nabla_i \mathbf{v}_i
+$$<ul><li><strong>第一部分</strong>: 压力和人工粘性所做的功。</li><li><strong>第二部分</strong>: <strong>偏应力所做的功</strong>，是弹塑性变形中能量耗散和温升的重要来源。</li></ul><hr><h3 id=4-固体力学本构方程-constitutive-equations-for-solids>4. 固体力学本构方程 (Constitutive Equations for Solids)</h3><p>对于弹塑性固体，除了上述流体力学变量，还必须追踪应力张量的演化。这引入了新的ODE。</p><p><strong>方程</strong>:</p>$$
+\frac{d\mathbf{S}_i}{dt} = f(\mathbf{S})_i
+$$<p><strong>右端项 (<code>RHS_S</code>)</strong>: 粒子 $i$ 的<strong>偏应力张量时间导数 (Rate of Deviatoric Stress Tensor)</strong>。
+为了保证坐标系旋转下的客观性，必须使用客观应力率，如Jaumann率：</p>$$
+\frac{d\mathbf{S}_i}{dt} = 2G \left( \dot{\boldsymbol{\epsilon}}_i - \frac{1}{3}\text{tr}(\dot{\boldsymbol{\epsilon}}_i)\mathbf{I} \right) + \mathbf{S}_i \cdot \boldsymbol{\Omega}_i - \boldsymbol{\Omega}_i \cdot \mathbf{S}_i
+$$<ul><li>$\dot{\boldsymbol{\epsilon}}_i$: 应变率张量，由速度梯度计算得到。</li><li>$\boldsymbol{\Omega}_i$: 自旋张量（速度场的反对称部分），用于处理旋转。</li><li><strong>注意</strong>: 在实际的弹塑性返回映射算法中，这一步通常与塑性校正隐式地结合在一起，而不是直接积分一个显式的导数。</li></ul><hr><h3 id=5-损伤演化方程-damage-evolution-equation>5. 损伤演化方程 (Damage Evolution Equation)</h3><p><strong>方程</strong>:</p>$$
+\frac{dD_i}{dt} = f(D)_i
+$$<p><strong>右端项 (<code>RHS_D</code>)</strong>: 粒子 $i$ 的<strong>损伤变量时间导数 (Rate of Damage Variable)</strong>。
+该方程的形式完全取决于所选的损伤模型。例如，对于一个基于塑性应变累积的简单模型：</p>$$
+\frac{dD_i}{dt} = \frac{1}{\epsilon_f} \frac{d\epsilon_p}{dt}
+$$<ul><li>$\epsilon_p$: 等效塑性应变。</li><li>$\epsilon_f$: 材料的断裂应变。</li><li>在Grady-Kipp模型中，这个导数的形式会更复杂（如 <code>d(D^(1/3))/dt = ...</code>）。</li></ul><hr><h3 id=计算流程概述>计算流程概述</h3><p>在一个典型的RHS函数中，计算顺序至关重要：</p><ol><li><strong>压力计算</strong>: 根据密度 <code>ρ</code> 和内能 <code>u</code>，通过状态方程（EoS）计算压力 <code>P</code>。</li><li><strong>屈服模型</strong>：区别于常屈服强度，脆性材料如岩石，其屈服强度是压力<code>P</code>的函数。</li><li><strong>总应力</strong>：应力通过静水压力（<code>P</code>）和切应力得到。注意需要判断弹性还是屈服，若屈服需使用径向返回算法得到修正切应力。</li><li><strong>粒子循环</strong>：循环，累计求和，计算内能，密度，速度，切应力等导数</li></ol><p>上述过程中，步骤1，2，3为单粒子计算，4为邻居粒子循环累加。</p></section><footer class=article-footer><section class=article-tags><a href=/tags/sph/>SPH</a>
+<a href=/tags/runge-kutta/>Runge-Kutta</a>
+<a href=/tags/%E6%95%B0%E5%80%BC%E6%A8%A1%E6%8B%9F/>数值模拟</a>
+<a href=/tags/%E8%87%AA%E9%80%82%E5%BA%94%E6%AD%A5%E9%95%BF/>自适应步长</a></section><section class=article-copyright><svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-copyright" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentcolor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="9"/><path d="M14.5 9a3.5 4 0 100 6"/></svg>
+<span>Licensed under CC BY-NC-ND 4.0</span></section></footer><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css integrity=sha384-n8MVd4RsNIU0tAv4ct0nTaAbDJwPJzDEaqSD1odI+WdtXRGWt2kTvGFasHpSy3SV crossorigin=anonymous><script src=https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js integrity=sha384-XjKyOOlGwcjNTAIQHIpgOno0Hl1YQqzUOEleOLALmuqehneUG+vnGctmUb0ZY0l8 crossorigin=anonymous defer></script><script src=https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js integrity=sha384-+VBxd3r6XgURycqtZ117nYw44OOcIax56Z4dCRWbxyPt0Koah1uHoK0o4+/RRE05 crossorigin=anonymous defer></script><script>window.addEventListener("DOMContentLoaded",()=>{const e=document.querySelector(".main-article");renderMathInElement(e,{delimiters:[{left:"$$",right:"$$",display:!0},{left:"$",right:"$",display:!1},{left:"\\(",right:"\\)",display:!1},{left:"\\[",right:"\\]",display:!0}],ignoredClasses:["gist"]})})</script></article><aside class=related-content--wrapper><h2 class=section-title>相关文章</h2><div class=related-content><div class="flex article-list--tile"><article><a href=/posts/sphseries/blog-post-sph3/><div class=article-details><h2 class=article-title>SPH 状态方程</h2></div></a></article></div></div></aside><div class=disqus-container><div id=disqus_thread></div><script>window.disqus_config=function(){},function(){if(["localhost","127.0.0.1"].indexOf(window.location.hostname)!=-1){document.getElementById("disqus_thread").innerHTML="Disqus comments not available by default when the website is previewed locally.";return}var t=document,e=t.createElement("script");e.async=!0,e.src="//hugo-theme-stack.disqus.com/embed.js",e.setAttribute("data-timestamp",+new Date),(t.head||t.body).appendChild(e)}()</script><noscript>Please enable JavaScript to view the <a href=https://disqus.com/?ref_noscript>comments powered by Disqus.</a></noscript><a href=https://disqus.com class=dsq-brlink>comments powered by <span class=logo-disqus>Disqus</span></a></div><style>.disqus-container{background-color:var(--card-background);border-radius:var(--card-border-radius);box-shadow:var(--shadow-l1);padding:var(--card-padding)}</style><script>window.addEventListener("onColorSchemeChange",e=>{typeof DISQUS=="object"&&DISQUS.reset({reload:!0})})</script><footer class=site-footer><section class=copyright>&copy;
+2025 Example Person</section><section class=powerby>使用 <a href=https://gohugo.io/ target=_blank rel=noopener>Hugo</a> 构建<br>主题 <b><a href=https://github.com/CaiJimmy/hugo-theme-stack target=_blank rel=noopener data-version=3.30.0>Stack</a></b> 由 <a href=https://jimmycai.com target=_blank rel=noopener>Jimmy</a> 设计</section></footer><div class=pswp tabindex=-1 role=dialog aria-hidden=true><div class=pswp__bg></div><div class=pswp__scroll-wrap><div class=pswp__container><div class=pswp__item></div><div class=pswp__item></div><div class=pswp__item></div></div><div class="pswp__ui pswp__ui--hidden"><div class=pswp__top-bar><div class=pswp__counter></div><button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+<button class="pswp__button pswp__button--share" title=Share></button>
+<button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+<button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button><div class=pswp__preloader><div class=pswp__preloader__icn><div class=pswp__preloader__cut><div class=pswp__preloader__donut></div></div></div></div></div><div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap"><div class=pswp__share-tooltip></div></div><button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+</button>
+<button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)"></button><div class=pswp__caption><div class=pswp__caption__center></div></div></div></div></div><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js integrity="sha256-ePwmChbbvXbsO02lbM3HoHbSHTHFAeChekF1xKJdleo=" crossorigin=anonymous defer></script><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js integrity="sha256-UKkzOn/w1mBxRmLLGrSeyB4e1xbrp4xylgAWb3M42pU=" crossorigin=anonymous defer></script><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css crossorigin=anonymous><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css crossorigin=anonymous></main></div><script src=https://cdn.jsdelivr.net/npm/node-vibrant@3.1.6/dist/vibrant.min.js integrity="sha256-awcR2jno4kI5X0zL8ex0vi2z+KMkF24hUW8WePSA9HM=" crossorigin=anonymous></script><script type=text/javascript src=/ts/main.1e9a3bafd846ced4c345d084b355fb8c7bae75701c338f8a1f8a82c780137826.js defer></script><script>(function(){const e=document.createElement("link");e.href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap",e.type="text/css",e.rel="stylesheet",document.head.appendChild(e)})()</script></body></html>
