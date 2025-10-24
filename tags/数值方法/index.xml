@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>数值方法 on Keqi的博客</title><link>https://keqiye.github.io/tags/%E6%95%B0%E5%80%BC%E6%96%B9%E6%B3%95/</link><description>Recent content in 数值方法 on Keqi的博客</description><generator>Hugo -- gohugo.io</generator><language>zh-cn</language><managingEditor>plloningye@gmail.com (Keqi Ye)</managingEditor><webMaster>plloningye@gmail.com (Keqi Ye)</webMaster><copyright>Example Person</copyright><lastBuildDate>Tue, 21 May 2024 10:00:00 +0800</lastBuildDate><atom:link href="https://keqiye.github.io/tags/%E6%95%B0%E5%80%BC%E6%96%B9%E6%B3%95/index.xml" rel="self" type="application/rss+xml"/><item><title>SPH基础(序): 概述与系列介绍</title><link>https://keqiye.github.io/posts/sphseries/sphseries-intro/</link><pubDate>Mon, 20 May 2024 00:00:00 +0000</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://keqiye.github.io/posts/sphseries/sphseries-intro/</guid><description>&lt;h1 id="sph-系列总览">SPH 系列总览
+&lt;/h1>&lt;p>本系列文章旨在从零开始，系统介绍光滑粒子流体动力学（SPH, Smoothed Particle Hydrodynamics）方法的核心概念、数学原理以及实现技巧。通过本系列，你将能够：&lt;/p>
+&lt;ul>
+&lt;li>理解 SPH 方法的基本思想和应用场景。&lt;/li>
+&lt;li>学会选择合适的核函数，并掌握其实现方式。&lt;/li>
+&lt;li>掌握邻居搜索，常微分方程求解等关键算法。&lt;/li>
+&lt;li>逐步搭建自己的 SPH 流体模拟框架。&lt;/li>
+&lt;/ul>
+&lt;h2 id="系列结构">系列结构
+&lt;/h2>&lt;p>本系列主要包含以下内容：&lt;/p>
+&lt;ol>
+&lt;li>
+&lt;p>&lt;strong>SPH 方法简介&lt;/strong>&lt;br>
+SPH 的基本原理、流体模拟的数学模型和物理背景。&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;strong>核函数的选择与实现&lt;/strong>&lt;br>
+常用核函数类型及其在数值模拟中的应用。&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;strong>状态方程&lt;/strong>&lt;br>
+如何建立和应用流体的状态方程，计算压力与密度关系。&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;strong>邻居搜索与数据结构&lt;/strong>&lt;br>
+高效邻居搜索方法、树结构和邻居列表构建技巧。&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;strong>高级主题与优化&lt;/strong>&lt;br>
+自适应时间步长、并行计算优化等进阶内容。&lt;/p>
+&lt;/li>
+&lt;/ol>
+&lt;hr>
+&lt;p>阅读本篇文章后，你可以从各个子文章入手，逐步深入理解 SPH 模型和实现细节。本系列适合有一定编程基础和物理背景的读者，但也会从基础讲起，让新手逐步掌握方法。&lt;/p></description></item><item><title>SPH基础(一): 核函数与导数近似</title><link>https://keqiye.github.io/posts/sphseries/1-kernel-approximation/</link><pubDate>Tue, 21 May 2024 10:00:00 +0800</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://keqiye.github.io/posts/sphseries/1-kernel-approximation/</guid><description>&lt;p>欢迎来到“SPH 系列教程”系列！&lt;/p>
+&lt;p>光滑粒子流体动力学（Smoothed Particle Hydrodynamics, SPH）是一种无网格的拉格朗日粒子法。与传统的基于网格的方法不同，SPH 通过一系列离散的粒子来代表连续的流体，极大地简化了对大变形、自由表面等问题的处理。&lt;/p>
+&lt;p>本系列的第一篇文章，我们将从 SPH 的两个最核心的概念——&lt;strong>核函数近似&lt;/strong>与&lt;strong>导数近似&lt;/strong>——开始。&lt;/p>
+&lt;h2 id="什么是核函数近似">什么是核函数近似？
+&lt;/h2>&lt;p>在 SPH 中，任何一个连续场 $A$ 在空间任意一点 $\mathbf{r}$ 的值，都可以通过一个对邻近粒子的加权求和来近似：&lt;/p>
+$$
+A(\mathbf{r}_i) \approx \sum_{j} A(\mathbf{r}_j) W(\mathbf{r}_i - \mathbf{r}_j, h) V_j
+$$
+&lt;p>这里的：&lt;/p>
+&lt;ul>
+&lt;li>$A(\mathbf{r}_i)$ 是我们想要求的粒子 $i$ 的场量值。&lt;/li>
+&lt;li>求和遍历粒子 $i$ 的所有邻居粒子 $j$。&lt;/li>
+&lt;li>$W$ 是&lt;strong>核函数&lt;/strong>，一个根据距离分配权重的函数。&lt;/li>
+&lt;li>$h$ 是&lt;strong>光滑长度&lt;/strong>，定义了核函数的影响范围。&lt;/li>
+&lt;li>$V_j$ 是粒子 $j$ 的体积，通常等于其质量除以密度 ($V_j = m_j / \rho_j$)。&lt;/li>
+&lt;/ul>
+&lt;p>这个公式的核心思想是：&lt;strong>一个点的属性，可以由其周围点的属性加权平均得到&lt;/strong>。&lt;/p>
+&lt;h2 id="如何近似一个场的导数">如何近似一个场的导数？
+&lt;/h2>&lt;p>SPH 的真正威力在于它也能方便地近似一个场的导数（如梯度、散度），这是构建物理控制方程（如流体力学的纳维-斯托克斯方程）的关键。场 $A$ 在粒子 $i$ 处的梯度 $\nabla A(\mathbf{r}_i)$ 可以通过以下对称形式来近似：&lt;/p>
+$$
+\nabla A(\mathbf{r}_i) \approx \sum_{j} [A(\mathbf{r}_j) - A(\mathbf{r}_i)] \nabla_i W(\mathbf{r}_i - \mathbf{r}_j, h) V_j
+$$
+&lt;p>其中 $\nabla_i W$ 是核函数对粒子 $i$ 坐标的梯度。这个形式具有良好的数值稳定性，并且保证了一个常数场的梯度为零。&lt;/p>
+&lt;blockquote>
+&lt;p>&lt;strong>与有限元法（FEM）的类比&lt;/strong>: 如果读者对有限元法有了解，会发现这两种方法在哲学上是相通的。无论是SPH还是FEM，它们都巧妙地将对未知场函数的&lt;strong>微分操作，转移到了已知的、解析的基函数（SPH中的核函数，FEM中的形函数）上&lt;/strong>。这样做最大的好处是&lt;strong>避免了对离散数据点进行直接的数值差分&lt;/strong>，因为后一种方法对粒子/节点的无序性和噪声非常敏感，容易导致数值不稳定和精度损失。&lt;/p>
+&lt;/blockquote>
+&lt;h2 id="常用核函数及其梯度">常用核函数及其梯度
+&lt;/h2>&lt;p>一个好的核函数需要满足归一性、紧支撑性等性质。下面介绍几种在 SPH 中常用的核函数。&lt;/p>
+&lt;blockquote>
+&lt;p>&lt;strong>注意&lt;/strong>：以下公式中的归一化常数 $\alpha$ 均是&lt;strong>三维空间&lt;/strong>下的值。在不同维度下，这些常数会发生变化。&lt;/p>
+&lt;/blockquote>
+&lt;h3 id="1-三次样条核-cubic-spline-kernel">1. 三次样条核 (Cubic Spline Kernel)
+&lt;/h3>&lt;p>这是SPH中最经典和广泛使用的核函数之一，因其良好的稳定性和近似二阶高斯函数的特性而备受青睐。&lt;/p>
+&lt;p>其数学表达式为：
+&lt;/p>
+$$
+W(R,h) = \alpha_d \times \begin{cases}
+\frac{2}{3} - R^2 + \frac{1}{2}R^3, &amp; 0 \le R &lt; 1; \\
+\frac{1}{6}(2-R)^3, &amp; 1 \le R &lt; 2; \\
+0, &amp; R \ge 2.
+\end{cases}
+$$
+&lt;p>其中，归一化常数 $\alpha_d$ 在不同维度下分别为：&lt;/p>
+&lt;ul>
+&lt;li>&lt;strong>一维&lt;/strong>: $\alpha_d = \frac{1}{h}$&lt;/li>
+&lt;li>&lt;strong>二维&lt;/strong>: $\alpha_d = \frac{15}{7\pi h^2}$&lt;/li>
+&lt;li>&lt;strong>三维&lt;/strong>: $\alpha_d = \frac{3}{2\pi h^3}$&lt;/li>
+&lt;/ul>
+&lt;h3 id="2-二次光滑核-quadratic-kernel-for-impact-problems">2. 二次光滑核 (Quadratic Kernel for Impact Problems)
+&lt;/h3>&lt;p>根据Johnson等人 (1996b) 的研究，在模拟高速冲击问题时，可以采用以下的二次光滑函数。&lt;/p>
+&lt;p>其数学表达式为：
+&lt;/p>
+$$
+W(R,h) = \alpha_d \left(\frac{3}{16}R^2 - \frac{3}{4}R + \frac{3}{4}\right), \quad 0 \le R \le 2.
+$$
+&lt;p>其中，归一化常数 $\alpha_d$ 在不同维度下分别为：&lt;/p>
+&lt;ul>
+&lt;li>&lt;strong>一维&lt;/strong>: $\alpha_d = \frac{1}{h}$&lt;/li>
+&lt;li>&lt;strong>二维&lt;/strong>: $\alpha_d = \frac{2}{\pi h^2}$&lt;/li>
+&lt;li>&lt;strong>三维&lt;/strong>: $\alpha_d = \frac{5}{4\pi h^3}$&lt;/li>
+&lt;/ul>
+&lt;h2 id="matlab-实验一维函数与导数近似">Matlab 实验：一维函数与导数近似
+&lt;/h2>&lt;p>让我们通过一个更全面的 Matlab 实验来感受这些概念。下面的代码将：&lt;/p>
+&lt;ol>
+&lt;li>在一个一维域上近似函数 $y = \sin(x)$ 及其导数 $y&amp;rsquo; = \cos(x)$。&lt;/li>
+&lt;li>提供多种核函数（&lt;code>cubic&lt;/code>, &lt;code>poly6&lt;/code>, &lt;code>spiky&lt;/code>）供选择。&lt;/li>
+&lt;li>可视化整个域上的近似结果和误差。&lt;/li>
+&lt;/ol>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;span class="lnt">11
+&lt;/span>&lt;span class="lnt">12
+&lt;/span>&lt;span class="lnt">13
+&lt;/span>&lt;span class="lnt">14
+&lt;/span>&lt;span class="lnt">15
+&lt;/span>&lt;span class="lnt">16
+&lt;/span>&lt;span class="lnt">17
+&lt;/span>&lt;span class="lnt">18
+&lt;/span>&lt;span class="lnt">19
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-matlab" data-lang="matlab">&lt;span class="line">&lt;span class="cl">&lt;span class="c">% SPH_APPROXIMATION_1D_ADVANCED.m&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c">%&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c">% 描述:&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c">% 这是一个更高级的1D SPH实验，用于近似一个函数及其一阶导数。&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c">% 1. 使用多种核函数（Cubic Spline, Poly6, Spiky）。&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c">% 2. 近似整个函数域，而不仅仅是一个点。&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c">% 3. 可视化函数近似和导数近似的误差。&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">clear&lt;/span>&lt;span class="p">;&lt;/span> &lt;span class="n">clc&lt;/span>&lt;span class="p">;&lt;/span> &lt;span class="n">close&lt;/span> &lt;span class="n">all&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c">%% 1. 参数设置&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">L&lt;/span> &lt;span class="p">=&lt;/span> &lt;span class="mi">2&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="nb">pi&lt;/span>&lt;span class="p">;&lt;/span> &lt;span class="c">% 定义域长度 [0, 2*pi]&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">N&lt;/span> &lt;span class="p">=&lt;/span> &lt;span class="mi">100&lt;/span>&lt;span class="p">;&lt;/span> &lt;span class="c">% 粒子数量&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">dx&lt;/span> &lt;span class="p">=&lt;/span> &lt;span class="n">L&lt;/span> &lt;span class="o">/&lt;/span> &lt;span class="n">N&lt;/span>&lt;span class="p">;&lt;/span> &lt;span class="c">% 粒子间距 (每个粒子的“体积”)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c">% --- 可调参数 ---&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">h_factor&lt;/span> &lt;span class="p">=&lt;/span> &lt;span class="mf">2.0&lt;/span>&lt;span class="p">;&lt;/span> &lt;span class="c">% 光滑长度因子 h = h_factor * dx&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">kernel_choice&lt;/span> &lt;span class="p">=&lt;/span> &lt;span class="s">&amp;#39;cubic&amp;#39;&lt;/span>&lt;span class="p">;&lt;/span> &lt;span class="c">% 可选: &amp;#39;cubic&amp;#39;, &amp;#39;poly6&amp;#39;, &amp;#39;spiky&amp;#39;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c">% ... (代码其余部分和上面提供的一样)&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div></description></item></channel></rss>

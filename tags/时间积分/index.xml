@@ -1,0 +1,523 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>时间积分 on Keqi的博客</title><link>https://keqiye.github.io/tags/%E6%97%B6%E9%97%B4%E7%A7%AF%E5%88%86/</link><description>Recent content in 时间积分 on Keqi的博客</description><generator>Hugo -- gohugo.io</generator><language>zh-cn</language><managingEditor>plloningye@gmail.com (Keqi Ye)</managingEditor><webMaster>plloningye@gmail.com (Keqi Ye)</webMaster><copyright>Example Person</copyright><lastBuildDate>Thu, 23 May 2024 10:30:00 +0800</lastBuildDate><atom:link href="https://keqiye.github.io/tags/%E6%97%B6%E9%97%B4%E7%A7%AF%E5%88%86/index.xml" rel="self" type="application/rss+xml"/><item><title>SPH基础(五): 自适应时间积分</title><link>https://keqiye.github.io/posts/sphseries/5-adaptive-timestepping/</link><pubDate>Thu, 23 May 2024 10:30:00 +0800</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://keqiye.github.io/posts/sphseries/5-adaptive-timestepping/</guid><description>&lt;h2 id="1-引言">1. 引言
+&lt;/h2>&lt;p>在流体动力学的数值模拟中，光滑粒子流体动力学（Smoothed Particle Hydrodynamics, SPH）是一种广泛应用的无网格拉格朗日方法。SPH方法的核心之一是对控制方程组进行时间积分，以更新每个粒子的物理状态。&lt;/p>
+&lt;p>传统的时间积分方案（如简单的欧拉法或固定步长的龙格-库塔法）虽然实现简单，但在处理复杂动态过程时面临挑战：&lt;/p>
+&lt;ul>
+&lt;li>&lt;strong>步长过大&lt;/strong>可能导致数值不稳定，模拟发散。&lt;/li>
+&lt;li>&lt;strong>步长过小&lt;/strong>则会极大地增加计算成本，尤其是在模拟过程相对平稳的阶段。&lt;/li>
+&lt;/ul>
+&lt;p>为了在保证计算精度的同时提高效率，&lt;strong>自适应步长（Adaptive Time-Stepping）&lt;/strong> 的积分方法应运而生。本文将详细介绍如何将自适应步长的 Runge-Kutta (RK) 方法应用于 SPH 的计算流程中。&lt;/p>
+&lt;h2 id="2-sph-核心方程">2. SPH 核心方程
+&lt;/h2>&lt;p>在 SPH 中，流体被离散为一系列携带物理属性（质量、密度、速度等）的粒子。其状态演化由一组常微分方程（ODE）描述，主要包括：&lt;/p>
+&lt;ul>
+&lt;li>
+&lt;p>&lt;strong>连续性方程（密度演化）&lt;/strong>:
+&lt;/p>
+$$
+\frac{d\rho_i}{dt} = \sum_j m_j (\mathbf{v}_i - \mathbf{v}_j) \cdot \nabla_i W_{ij}
+$$
+&lt;/li>
+&lt;li>
+&lt;p>&lt;strong>动量方程（速度演化）&lt;/strong>:
+&lt;/p>
+$$
+\frac{d\mathbf{v}_i}{dt} = -\sum_j m_j \left( \frac{p_i}{\rho_i^2} + \frac{p_j}{\rho_j^2} + \Pi_{ij} \right) \nabla_i W_{ij} + \mathbf{g}
+$$
+&lt;/li>
+&lt;/ul>
+&lt;p>其中，&lt;code>i&lt;/code> 和 &lt;code>j&lt;/code> 是粒子索引，&lt;code>m&lt;/code> 是质量，&lt;code>ρ&lt;/code> 是密度，&lt;code>p&lt;/code> 是压力，&lt;code>v&lt;/code> 是速度，&lt;code>Π&lt;/code> 是人工粘性项，&lt;code>g&lt;/code> 是外力（如重力），&lt;code>W&lt;/code> 是核函数。&lt;/p>
+&lt;h2 id="3-自适应步长-runge-kutta-方法">3. 自适应步长 Runge-Kutta 方法
+&lt;/h2>&lt;p>自适应步长的核心思想是：在每个积分步中，通过比较两种不同精度的计算结果来估计局部截断误差（Local Truncation Error）。根据误差的大小，动态地调整下一步的时间步长 &lt;code>Δt&lt;/code>。&lt;/p>
+&lt;p>一个经典的例子是 &lt;strong>RK45&lt;/strong>（或称 Dormand-Prince、Cash-Karp 方法），它在一个步长内同时计算出一个四阶精度和一个五阶精度的解。&lt;/p>
+&lt;p>&lt;strong>基本逻辑如下&lt;/strong>:&lt;/p>
+&lt;ol>
+&lt;li>用一个 &lt;code>Δt&lt;/code> 计算出四阶解 &lt;code>y₄&lt;/code> 和五阶解 &lt;code>y₅&lt;/code>。&lt;/li>
+&lt;li>计算误差 &lt;code>ε = ||y₅ - y₄||&lt;/code>。&lt;/li>
+&lt;li>将误差 &lt;code>ε&lt;/code> 与预设的容忍度 &lt;code>tol&lt;/code> 比较。
+&lt;ul>
+&lt;li>如果 &lt;code>ε &amp;lt;= tol&lt;/code>：接受本次计算结果（通常使用更高阶的 &lt;code>y₅&lt;/code> 作为最终结果），并可以适当增大大下一轮的步长 &lt;code>Δt&lt;/code>。&lt;/li>
+&lt;li>如果 &lt;code>ε &amp;gt; tol&lt;/code>：拒绝本次计算，减小步长 &lt;code>Δt&lt;/code>，并用新的小步长重新计算当前步。&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;/ol>
+&lt;p>步长调整的常用公式为：
+&lt;/p>
+$$
+\Delta t_{\text{new}} = \Delta t_{\text{old}} \times \text{safe} \times \left( \frac{\text{tol}}{\epsilon} \right)^{p}
+$$
+&lt;p>
+其中 &lt;code>safe&lt;/code> 是一个安全因子（如0.9），&lt;code>p&lt;/code> 是一个与方法阶数相关的指数。&lt;/p>
+&lt;h2 id="3-自适应步长-runge-kutta-方法-rk45">3. 自适应步长 Runge-Kutta 方法 (RK45)
+&lt;/h2>&lt;p>为了在 SPH 模拟中实现效率与精度的平衡，我们不能简单地依赖固定步长积分。自适应步长（Adaptive Time-Stepping）方法，特别是基于 Runge-Kutta-Fehlberg 的 &lt;strong>RK45&lt;/strong> 算法，提供了一种优雅的解决方案。它在每个时间步内，通过巧妙地计算两次（一次四阶精度，一次五阶精度），来估计并控制局部截断误差。&lt;/p>
+&lt;h3 id="31-rk45-的核心思想">3.1 RK45 的核心思想
+&lt;/h3>&lt;p>RK45 的精髓在于“用一次计算，得两个结果”。通过精心选择的一组系数（如 Dormand-Prince 或 Cash-Karp 系数），它可以用6次函数求值（计算&lt;code>k1&lt;/code>到&lt;code>k6&lt;/code>）同时得到一个四阶精度的解 &lt;code>y_{n+1}^{(4)}&lt;/code> 和一个五阶精度的解 &lt;code>y_{n+1}^{(5)}&lt;/code>。&lt;/p>
+&lt;p>RK45 的精髓在于“用一次计算，得两种不同阶数的解”。这依赖于一组精心设计的系数，其中最著名和广泛使用的是 &lt;strong>Dormand-Prince 5(4) 对&lt;/strong>，这也是 MATLAB &lt;code>ode45&lt;/code> 的默认选择。&lt;/p>
+&lt;p>这个方法需要进行 &lt;strong>7 次&lt;/strong>函数求值（计算 &lt;code>k_1&lt;/code> 到 &lt;code>k_7&lt;/code>），然后用这些 &lt;code>k&lt;/code> 的线性组合来构造解。&lt;/p>
+&lt;p>&lt;strong>1. 计算中间斜率 (k_i):&lt;/strong>
+&lt;/p>
+$$
+\begin{aligned}
+k_1 &amp;= f(t_n, y_n) \\
+k_2 &amp;= f(t_n + c_2 h, y_n + h(a_{21}k_1)) \\
+k_3 &amp;= f(t_n + c_3 h, y_n + h(a_{31}k_1 + a_{32}k_2)) \\
+&amp;\vdots \\
+k_7 &amp;= f(t_n + c_7 h, y_n + h(a_{71}k_1 + \dots + a_{76}k_6))
+\end{aligned}
+$$
+&lt;p>&lt;strong>2. 构造解：&lt;/strong>&lt;/p>
+&lt;ul>
+&lt;li>
+&lt;p>&lt;strong>五阶解 (更高精度，用于更新状态):&lt;/strong>
+&lt;/p>
+$$
+y_{n+1}^{(5)} = y_n + h \left( b_1 k_1 + b_2 k_2 + b_3 k_3 + b_4 k_4 + b_5 k_5 + b_6 k_6 + b_7 k_7 \right)
+$$
+&lt;p>
+在 Dormand-Prince 方法中，为了效率，&lt;code>b_7&lt;/code> 被设计为 0，所以 &lt;code>k_7&lt;/code> 实际上不参与 &lt;code>y_{n+1}^{(5)}&lt;/code> 的计算。&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;strong>四阶嵌入解 (更低精度，仅用于误差估计):&lt;/strong>
+&lt;/p>
+$$
+y_{n+1}^{(4)} = y_n + h \left( b_1^* k_1 + b_2^* k_2 + b_3^* k_3 + b_4^* k_4 + b_5^* k_5 + b_6^* k_6 + b_7^* k_7 \right)
+$$
+&lt;/li>
+&lt;/ul>
+&lt;p>&lt;strong>3. 计算误差估计:&lt;/strong>&lt;/p>
+&lt;p>局部截断误差 &lt;code>E_{n+1}&lt;/code> 可以通过两个解的差来高效计算：
+&lt;/p>
+$$
+E_{n+1} \approx \left\| y_{n+1}^{(5)} - y_{n+1}^{(4)} \right\| = h \left\| \sum_{i=1}^{7} (b_i - b_i^*) k_i \right\| = h \left\| \sum_{i=1}^{7} e_i k_i \right\|
+$$
+&lt;p>
+其中 &lt;code>e_i = b_i - b_i^*&lt;/code> 构成了误差系数向量。&lt;/p>
+&lt;h3 id="dormand-prince-54-系数表">Dormand-Prince 5(4) 系数表
+&lt;/h3>&lt;p>下面是完整的系数，通常以 &lt;strong>Butcher 表&lt;/strong> 的形式展现：&lt;/p>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>c&lt;/th>
+&lt;th>&lt;/th>
+&lt;th>&lt;/th>
+&lt;th>a&lt;/th>
+&lt;th>&lt;/th>
+&lt;th>&lt;/th>
+&lt;th>&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>0&lt;/td>
+&lt;td>&lt;/td>
+&lt;td>&lt;/td>
+&lt;td>&lt;/td>
+&lt;td>&lt;/td>
+&lt;td>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>1/5&lt;/td>
+&lt;td>&lt;/td>
+&lt;td>1/5&lt;/td>
+&lt;td>&lt;/td>
+&lt;td>&lt;/td>
+&lt;td>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>3/10&lt;/td>
+&lt;td>&lt;/td>
+&lt;td>3/40&lt;/td>
+&lt;td>9/40&lt;/td>
+&lt;td>&lt;/td>
+&lt;td>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>4/5&lt;/td>
+&lt;td>&lt;/td>
+&lt;td>44/45&lt;/td>
+&lt;td>-56/15&lt;/td>
+&lt;td>32/9&lt;/td>
+&lt;td>&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>8/9&lt;/td>
+&lt;td>&lt;/td>
+&lt;td>19372/6561&lt;/td>
+&lt;td>-25360/2187&lt;/td>
+&lt;td>64448/6561&lt;/td>
+&lt;td>-212/729&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>1&lt;/td>
+&lt;td>&lt;/td>
+&lt;td>9017/3168&lt;/td>
+&lt;td>-355/33&lt;/td>
+&lt;td>46732/5247&lt;/td>
+&lt;td>49/176&lt;/td>
+&lt;td>-5103/18656&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>1&lt;/td>
+&lt;td>&lt;/td>
+&lt;td>35/384&lt;/td>
+&lt;td>0&lt;/td>
+&lt;td>500/1113&lt;/td>
+&lt;td>125/192&lt;/td>
+&lt;td>-2187/6784&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;p>&lt;strong>权重系数 &lt;code>b&lt;/code> 和 &lt;code>b*&lt;/code>:&lt;/strong>&lt;/p>
+&lt;ul>
+&lt;li>
+&lt;p>&lt;strong>&lt;code>b&lt;/code> (五阶精度):&lt;/strong>
+&lt;code>[ 35/384, 0, 500/1113, 125/192, -2187/6784, 11/84, 0 ]&lt;/code>&lt;/p>
+&lt;p>&lt;em>您会发现，这个 &lt;code>b&lt;/code> 向量和 &lt;code>a&lt;/code> 矩阵的最后一行是一样的，这被称为 FSAL (First Same As Last) 特性。这意味着计算 &lt;code>k_7&lt;/code> 的值 &lt;code>f(t_{n+1}, y_{n+1}^{(5)})&lt;/code> 正好可以作为下一个积分步的 &lt;code>k_1&lt;/code>，从而每步节省一次函数求值。&lt;/em>&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;strong>&lt;code>b*&lt;/code> (四阶精度):&lt;/strong>
+&lt;code>[ 5179/57600, 0, 7571/16695, 393/640, -92097/339200, 187/2100, 1/40 ]&lt;/code>&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;strong>&lt;code>e&lt;/code> (误差系数 &lt;code>b - b*&lt;/code>):&lt;/strong>
+&lt;code>[ 71/57600, 0, -71/16695, 71/1920, -17253/339200, 22/525, -1/40 ]&lt;/code>&lt;/p>
+&lt;/li>
+&lt;/ul>
+&lt;p>在实际编程中，我们通常直接使用 &lt;code>e&lt;/code> 向量来计算误差，这样更直接高效。&lt;/p>
+&lt;p>这两个解之间的差异，就为我们提供了一个对局部截断误差 &lt;code>E_{n+1}&lt;/code> 的可靠估计：
+&lt;/p>
+$$
+E_{n+1} \approx \left\| y_{n+1}^{(5)} - y_{n+1}^{(4)} \right\| = h \left\| \sum_{i=1}^{6} (b_i - b_i^*) k_i \right\|
+$$
+&lt;h3 id="32-误差控制模仿-matlab-ode45-的策略">3.2 误差控制：模仿 MATLAB &lt;code>ode45&lt;/code> 的策略
+&lt;/h3>&lt;p>仅仅得到误差估计是不够的，关键在于如何利用它来判断当前步长 &lt;code>h&lt;/code> 是否“好”。一个优秀的误差控制策略不应该只看绝对误差，而应该像 MATLAB 的 &lt;code>ode45&lt;/code> 函数一样，同时考虑&lt;strong>相对误差 (Relative Tolerance, &lt;code>RelTol&lt;/code>)&lt;/strong> 和&lt;strong>绝对误差 (Absolute Tolerance, &lt;code>AbsTol&lt;/code>)&lt;/strong>。&lt;/p>
+&lt;p>对于状态向量 &lt;code>y&lt;/code> 的每一个分量 &lt;code>y_i&lt;/code>，我们计算一个容忍度阈值 &lt;code>Tol_i&lt;/code>：
+&lt;/p>
+$$
+\text{Tol}_i = \text{RelTol} \times |y_i| + \text{AbsTol}
+$$
+&lt;p>&lt;strong>这个策略的优点在于&lt;/strong>：&lt;/p>
+&lt;ul>
+&lt;li>当解 &lt;code>|y_i|&lt;/code> 的数值很大时，主要由相对误差 &lt;code>RelTol&lt;/code> 控制，保证了误差与解的量级成比例。&lt;/li>
+&lt;li>当解 &lt;code>|y_i|&lt;/code> 的数值很小（趋近于零）时，&lt;code>RelTol \times |y_i|&lt;/code> 项会变得过小，此时由绝对误差 &lt;code>AbsTol&lt;/code> 托底，防止了对步长的过度严苛要求。&lt;/li>
+&lt;/ul>
+&lt;p>接下来，我们将计算出的误差 &lt;code>E_{n+1}&lt;/code> 与这个容忍度 &lt;code>Tol&lt;/code> 进行比较。为了对整个向量的误差进行综合评估，我们计算一个标量误差率 &lt;code>err_rate&lt;/code>：&lt;/p>
+$$
+\text{err\_rate} = \sqrt{ \frac{1}{N} \sum_{i=1}^{N} \left( \frac{E_{n+1, i}}{\text{Tol}_i} \right)^2 }
+$$
+&lt;p>
+其中 &lt;code>N&lt;/code> 是状态向量 &lt;code>y&lt;/code> 的维度。&lt;/p>
+&lt;h3 id="33-步长调整决策">3.3 步长调整决策
+&lt;/h3>&lt;p>根据计算出的 &lt;code>err_rate&lt;/code>，我们做出决策：&lt;/p>
+&lt;ol>
+&lt;li>
+&lt;p>&lt;strong>如果 &lt;code>err_rate &amp;lt;= 1.0&lt;/code>&lt;/strong>: &lt;strong>接受当前步&lt;/strong>。&lt;/p>
+&lt;ul>
+&lt;li>当前步长 &lt;code>h&lt;/code> 是有效的，甚至可能有点过于保守。&lt;/li>
+&lt;li>我们将更高阶的解 &lt;code>y_{n+1}^{(5)}&lt;/code> 作为本次积分的最终结果。&lt;/li>
+&lt;li>为了提高效率，我们可以尝试在&lt;strong>下一个&lt;/strong>时间步使用一个更大的步长 &lt;code>h_new&lt;/code>。&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;strong>如果 &lt;code>err_rate &amp;gt; 1.0&lt;/code>&lt;/strong>: &lt;strong>拒绝当前步&lt;/strong>。&lt;/p>
+&lt;ul>
+&lt;li>当前步长 &lt;code>h&lt;/code> 太大，导致误差超出了容忍范围。&lt;/li>
+&lt;li>我们&lt;strong>丢弃&lt;/strong>本次计算的所有结果（&lt;code>y_{n+1}^{(4)}&lt;/code> 和 &lt;code>y_{n+1}^{(5)}&lt;/code>），系统状态回退到 &lt;code>y_n&lt;/code>。&lt;/li>
+&lt;li>我们需要用一个更小的步长 &lt;code>h_new&lt;/code> &lt;strong>重新计算当前步&lt;/strong>。&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;/ol>
+&lt;p>步长调整的经典公式为：
+&lt;/p>
+$$
+h_{\text{new}} = h_{\text{old}} \times \text{safe} \times \left( \frac{1.0}{\text{err\_rate}} \right)^{0.2}
+$$
+&lt;ul>
+&lt;li>&lt;code>safe&lt;/code>: 一个安全因子，通常取 0.8 到 0.9，防止步长调整过于激进。&lt;/li>
+&lt;li>指数 &lt;code>0.2&lt;/code>: 对于一个五阶方法来说，这个值是 &lt;code>1/(k+1)&lt;/code>，其中 &lt;code>k=4&lt;/code> 是低阶方法的阶数。在实践中，常用的是 &lt;code>1/k_high&lt;/code>，即 &lt;code>1/5=0.2&lt;/code>。&lt;/li>
+&lt;/ul>
+&lt;p>同时，为了防止步长变化过快，通常会限制步长的最大/最小增长/缩减率（例如，&lt;code>h_new&lt;/code> 不得超过 &lt;code>h_old&lt;/code> 的5倍，或小于 &lt;code>h_old&lt;/code> 的0.2倍）。&lt;/p>
+&lt;h2 id="4-结合sph的计算伪代码">4. 结合SPH的计算伪代码
+&lt;/h2>&lt;p>现在，我们将上述 RK45 误差控制逻辑整合到 SPH 的主循环中。&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;span class="lnt">11
+&lt;/span>&lt;span class="lnt">12
+&lt;/span>&lt;span class="lnt">13
+&lt;/span>&lt;span class="lnt">14
+&lt;/span>&lt;span class="lnt">15
+&lt;/span>&lt;span class="lnt">16
+&lt;/span>&lt;span class="lnt">17
+&lt;/span>&lt;span class="lnt">18
+&lt;/span>&lt;span class="lnt">19
+&lt;/span>&lt;span class="lnt">20
+&lt;/span>&lt;span class="lnt">21
+&lt;/span>&lt;span class="lnt">22
+&lt;/span>&lt;span class="lnt">23
+&lt;/span>&lt;span class="lnt">24
+&lt;/span>&lt;span class="lnt">25
+&lt;/span>&lt;span class="lnt">26
+&lt;/span>&lt;span class="lnt">27
+&lt;/span>&lt;span class="lnt">28
+&lt;/span>&lt;span class="lnt">29
+&lt;/span>&lt;span class="lnt">30
+&lt;/span>&lt;span class="lnt">31
+&lt;/span>&lt;span class="lnt">32
+&lt;/span>&lt;span class="lnt">33
+&lt;/span>&lt;span class="lnt">34
+&lt;/span>&lt;span class="lnt">35
+&lt;/span>&lt;span class="lnt">36
+&lt;/span>&lt;span class="lnt">37
+&lt;/span>&lt;span class="lnt">38
+&lt;/span>&lt;span class="lnt">39
+&lt;/span>&lt;span class="lnt">40
+&lt;/span>&lt;span class="lnt">41
+&lt;/span>&lt;span class="lnt">42
+&lt;/span>&lt;span class="lnt">43
+&lt;/span>&lt;span class="lnt">44
+&lt;/span>&lt;span class="lnt">45
+&lt;/span>&lt;span class="lnt">46
+&lt;/span>&lt;span class="lnt">47
+&lt;/span>&lt;span class="lnt">48
+&lt;/span>&lt;span class="lnt">49
+&lt;/span>&lt;span class="lnt">50
+&lt;/span>&lt;span class="lnt">51
+&lt;/span>&lt;span class="lnt">52
+&lt;/span>&lt;span class="lnt">53
+&lt;/span>&lt;span class="lnt">54
+&lt;/span>&lt;span class="lnt">55
+&lt;/span>&lt;span class="lnt">56
+&lt;/span>&lt;span class="lnt">57
+&lt;/span>&lt;span class="lnt">58
+&lt;/span>&lt;span class="lnt">59
+&lt;/span>&lt;span class="lnt">60
+&lt;/span>&lt;span class="lnt">61
+&lt;/span>&lt;span class="lnt">62
+&lt;/span>&lt;span class="lnt">63
+&lt;/span>&lt;span class="lnt">64
+&lt;/span>&lt;span class="lnt">65
+&lt;/span>&lt;span class="lnt">66
+&lt;/span>&lt;span class="lnt">67
+&lt;/span>&lt;span class="lnt">68
+&lt;/span>&lt;span class="lnt">69
+&lt;/span>&lt;span class="lnt">70
+&lt;/span>&lt;span class="lnt">71
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-cpp" data-lang="cpp">&lt;span class="line">&lt;span class="cl">&lt;span class="c1">// --- 全局参数 ---
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span>&lt;span class="kt">double&lt;/span> &lt;span class="n">RelTol&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="mf">1e-6&lt;/span>&lt;span class="p">;&lt;/span> &lt;span class="c1">// 相对容忍度
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span>&lt;span class="kt">double&lt;/span> &lt;span class="n">AbsTol&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="mf">1e-9&lt;/span>&lt;span class="p">;&lt;/span> &lt;span class="c1">// 绝对容忍度
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span>&lt;span class="kt">double&lt;/span> &lt;span class="n">h_min&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="mf">1e-8&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">h_max&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="mf">1e-2&lt;/span>&lt;span class="p">;&lt;/span> &lt;span class="c1">// 步长上下限
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span>&lt;span class="kt">double&lt;/span> &lt;span class="n">safe_factor&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="mf">0.9&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kt">double&lt;/span> &lt;span class="n">max_increase&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="mf">5.0&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">min_decrease&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="mf">0.2&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">// --- 主循环 ---
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span>&lt;span class="kt">double&lt;/span> &lt;span class="n">t&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="mf">0.0&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kt">double&lt;/span> &lt;span class="n">h&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">initial_dt&lt;/span>&lt;span class="p">;&lt;/span> &lt;span class="c1">// 初始步长
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="k">while&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">t&lt;/span> &lt;span class="o">&amp;lt;&lt;/span> &lt;span class="n">T_max&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="kt">bool&lt;/span> &lt;span class="n">step_accepted&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nb">false&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">while&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="o">!&lt;/span>&lt;span class="n">step_accepted&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">if&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">h&lt;/span> &lt;span class="o">&amp;lt;&lt;/span> &lt;span class="n">h_min&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="c1">// 步长过小，可能出现问题
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span> &lt;span class="n">error&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s">&amp;#34;Timestep smaller than h_min&amp;#34;&lt;/span>&lt;span class="p">);&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">break&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="c1">// 1. SPH力计算：根据当前状态 y_n 计算 k1
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span> &lt;span class="c1">// y_n 包括所有粒子的位置 x 和速度 v
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span> &lt;span class="k">auto&lt;/span> &lt;span class="n">k1&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">compute_derivatives&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">t&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">y_n&lt;/span>&lt;span class="p">);&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="c1">// 2. RK45 核心计算：计算 k2, k3, ..., k6
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span> &lt;span class="c1">// 并得到 y_next_4 (四阶解) 和 y_next_5 (五阶解)
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span> &lt;span class="c1">// (此处省略繁杂的系数计算)
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span> &lt;span class="k">auto&lt;/span> &lt;span class="p">[&lt;/span>&lt;span class="n">y_next_4&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">y_next_5&lt;/span>&lt;span class="p">]&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">perform_rk45_core&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">t&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">y_n&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">h&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">k1&lt;/span>&lt;span class="p">);&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="c1">// 3. 计算误差率 err_rate (模仿 MATLAB)
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span> &lt;span class="kt">double&lt;/span> &lt;span class="n">err_rate&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="mf">0.0&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">for&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="kt">int&lt;/span> &lt;span class="n">i&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="mi">0&lt;/span>&lt;span class="p">;&lt;/span> &lt;span class="n">i&lt;/span> &lt;span class="o">&amp;lt;&lt;/span> &lt;span class="n">N_particles&lt;/span>&lt;span class="p">;&lt;/span> &lt;span class="o">++&lt;/span>&lt;span class="n">i&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="c1">// 对位置和速度分别计算容忍度
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span> &lt;span class="n">vec3&lt;/span> &lt;span class="n">pos_error&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">y_next_5&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="n">pos&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">i&lt;/span>&lt;span class="p">]&lt;/span> &lt;span class="o">-&lt;/span> &lt;span class="n">y_next_4&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="n">pos&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">i&lt;/span>&lt;span class="p">];&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">vec3&lt;/span> &lt;span class="n">vel_error&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">y_next_5&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="n">vel&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">i&lt;/span>&lt;span class="p">]&lt;/span> &lt;span class="o">-&lt;/span> &lt;span class="n">y_next_4&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="n">vel&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">i&lt;/span>&lt;span class="p">];&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">vec3&lt;/span> &lt;span class="n">pos_tol&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">RelTol&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">abs&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">y_n&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="n">pos&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">i&lt;/span>&lt;span class="p">])&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">AbsTol&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">vec3&lt;/span> &lt;span class="n">vel_tol&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">RelTol&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">abs&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">y_n&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="n">vel&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">i&lt;/span>&lt;span class="p">])&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">AbsTol&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="c1">// 累加误差的平方/容忍度的平方
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span> &lt;span class="n">err_rate&lt;/span> &lt;span class="o">+=&lt;/span> &lt;span class="n">sum&lt;/span>&lt;span class="p">(&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">pos_error&lt;/span> &lt;span class="o">/&lt;/span> &lt;span class="n">pos_tol&lt;/span>&lt;span class="p">)&lt;/span>&lt;span class="o">^&lt;/span>&lt;span class="mi">2&lt;/span> &lt;span class="p">);&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">err_rate&lt;/span> &lt;span class="o">+=&lt;/span> &lt;span class="n">sum&lt;/span>&lt;span class="p">(&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">vel_error&lt;/span> &lt;span class="o">/&lt;/span> &lt;span class="n">vel_tol&lt;/span>&lt;span class="p">)&lt;/span>&lt;span class="o">^&lt;/span>&lt;span class="mi">2&lt;/span> &lt;span class="p">);&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">err_rate&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">sqrt&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">err_rate&lt;/span> &lt;span class="o">/&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="mi">6&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">N_particles&lt;/span>&lt;span class="p">));&lt;/span> &lt;span class="c1">// 归一化
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="c1">// 4. 决策与步长调整
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span> &lt;span class="k">if&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">err_rate&lt;/span> &lt;span class="o">&amp;lt;=&lt;/span> &lt;span class="mf">1.0&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="c1">// --- 接受步长 ---
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span> &lt;span class="n">step_accepted&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nb">true&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">t&lt;/span> &lt;span class="o">+=&lt;/span> &lt;span class="n">h&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">y_n&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">y_next_5&lt;/span>&lt;span class="p">;&lt;/span> &lt;span class="c1">// 更新状态为更高阶的解
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="c1">// 计算下一个建议步长 (通常是增大的)
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span> &lt;span class="kt">double&lt;/span> &lt;span class="n">h_new&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">h&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">safe_factor&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">pow&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">err_rate&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="o">-&lt;/span>&lt;span class="mf">0.2&lt;/span>&lt;span class="p">);&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">h&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">min&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">h&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">max_increase&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">h_new&lt;/span>&lt;span class="p">);&lt;/span> &lt;span class="c1">// 限制最大增幅
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span> &lt;span class="n">h&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">min&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">h&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">h_max&lt;/span>&lt;span class="p">);&lt;/span> &lt;span class="c1">// 不超过最大步长限制
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span> &lt;span class="k">else&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="c1">// --- 拒绝步长 ---
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span> &lt;span class="c1">// 状态 y_n 和 t 保持不变
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="c1">// 计算下一个建议步长 (必须是减小的)
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span> &lt;span class="kt">double&lt;/span> &lt;span class="n">h_new&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">h&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">safe_factor&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">pow&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">err_rate&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="o">-&lt;/span>&lt;span class="mf">0.2&lt;/span>&lt;span class="p">);&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">h&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">max&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">h&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">min_decrease&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">h_new&lt;/span>&lt;span class="p">);&lt;/span> &lt;span class="c1">// 限制最大降幅
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="c1">// (可选) 在每个成功的时间步后，更新邻域、输出数据等
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span> &lt;span class="n">UpdateAndSaveData&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">t&lt;/span>&lt;span class="p">);&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>// &lt;code>compute_derivatives&lt;/code> 函数需要计算SPH的密度、压力、加速度等
+// 并返回一个包含所有粒子 d(pos)/dt (=v) 和 d(v)/dt (=a) 的导数向量&lt;/p>
+&lt;h1 id="sph控制方程的右端项计算-right-hand-side-rhs">SPH控制方程的右端项计算 (Right-Hand Side, RHS)
+&lt;/h1>&lt;p>在SPH（光滑粒子流体动力学）数值模拟中，系统的演化由一组常微分方程（ODEs）描述。使用显式时间积分方案（如Leapfrog或Runge-Kutta）求解这些ODEs的关键，是精确计算每个时间步的&lt;strong>右端项（RHS）&lt;/strong>，即各个物理量的时间导数。&lt;/p>
+&lt;p>以下是SPH中需要求解的核心控制方程及其右端项，特别考虑了包含弹塑性固体力学模型的场景。&lt;/p>
+&lt;hr>
+&lt;h3 id="1-动量方程-momentum-equation">1. 动量方程 (Momentum Equation)
+&lt;/h3>&lt;p>&lt;strong>方程&lt;/strong>:
+&lt;/p>
+$$
+\frac{d\mathbf{v}_i}{dt} = \mathbf{a}_i
+$$
+&lt;p>&lt;strong>右端项 (&lt;code>RHS_v&lt;/code>)&lt;/strong>: 粒子 $i$ 的加速度 $\mathbf{a}_i$。它由多种力的贡献组成：
+&lt;/p>
+$$
+\mathbf{a}_i = \mathbf{f}_i^{\text{pressure}} + \mathbf{f}_i^{\text{viscosity}} + \mathbf{f}_i^{\text{deviatoric}} + \mathbf{f}_i^{\text{gravity}} + \dots
+$$
+&lt;ul>
+&lt;li>&lt;strong>压力梯度力 (&lt;code>f_pressure&lt;/code>)&lt;/strong>:
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-fallback" data-lang="fallback">&lt;span class="line">&lt;span class="cl">f_pressure = - \sum_j m_j \left( \frac{P_i}{\rho_i^2} + \frac{P_j}{\rho_j^2} \right) \nabla_i W_{ij}
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;/li>
+&lt;li>&lt;strong>人工粘性力 (&lt;code>f_viscosity&lt;/code>)&lt;/strong>: 用于处理冲击波。
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-fallback" data-lang="fallback">&lt;span class="line">&lt;span class="cl">f_viscosity = - \sum_j m_j \Pi_{ij} \nabla_i W_{ij}
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;/li>
+&lt;li>&lt;strong>偏应力梯度力 (&lt;code>f_deviatoric&lt;/code>)&lt;/strong>: &lt;strong>此项在固体力学模型中至关重要&lt;/strong>，代表由剪切等形变引起的力。
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-fallback" data-lang="fallback">&lt;span class="line">&lt;span class="cl">f_deviatoric = \sum_j m_j \left( \frac{\mathbf{S}_i}{\rho_i^2} + \frac{\mathbf{S}_j}{\rho_j^2} \right) \cdot \nabla_i W_{ij}
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>其中 $\mathbf{S}$ 是偏应力张量。&lt;/li>
+&lt;li>&lt;strong>体力 (&lt;code>f_gravity&lt;/code>, etc.)&lt;/strong>: 如自引力、外加引力场等。&lt;/li>
+&lt;/ul>
+&lt;hr>
+&lt;h3 id="2-连续性方程-continuity-equation">2. 连续性方程 (Continuity Equation)
+&lt;/h3>&lt;p>&lt;strong>方程&lt;/strong>:
+&lt;/p>
+$$
+\frac{d\rho_i}{dt} = f(\rho)_i
+$$
+&lt;p>&lt;strong>右端项 (&lt;code>RHS_rho&lt;/code>)&lt;/strong>: 粒子 $i$ 的密度变化率。
+&lt;/p>
+$$
+\frac{d\rho_i}{dt} = \rho_i \sum_j \frac{m_j}{\rho_j} (\mathbf{v}_i - \mathbf{v}_j) \cdot \nabla_i W_{ij}
+$$
+&lt;p>
+这也被称为SPH的“求和形式”密度。在许多现代实现中，密度通常不通过积分此方程得到，而是在每个时间步通过直接求和来计算，以保证质量守恒和稳定性。
+&lt;/p>
+$$
+\rho_i = \sum_j m_j W_{ij}
+$$
+&lt;hr>
+&lt;h3 id="3-能量方程-energy-equation">3. 能量方程 (Energy Equation)
+&lt;/h3>&lt;p>&lt;strong>方程&lt;/strong>:
+&lt;/p>
+$$
+\frac{du_i}{dt} = f(u)_i
+$$
+&lt;p>&lt;strong>右端项 (&lt;code>RHS_u&lt;/code>)&lt;/strong>: 粒子 $i$ 的比内能变化率。
+&lt;/p>
+$$
+\frac{du_i}{dt} = \frac{1}{2} \sum_j m_j (\mathbf{v}_i - \mathbf{v}_j) \cdot \left( \left( \frac{P_i}{\rho_i^2} + \frac{P_j}{\rho_j^2} \right) \nabla_i W_{ij} - \Pi_{ij} \nabla_i W_{ij} \right) + \frac{\mathbf{S}_i}{\rho_i^2} : \nabla_i \mathbf{v}_i
+$$
+&lt;ul>
+&lt;li>&lt;strong>第一部分&lt;/strong>: 压力和人工粘性所做的功。&lt;/li>
+&lt;li>&lt;strong>第二部分&lt;/strong>: &lt;strong>偏应力所做的功&lt;/strong>，是弹塑性变形中能量耗散和温升的重要来源。&lt;/li>
+&lt;/ul>
+&lt;hr>
+&lt;h3 id="4-固体力学本构方程-constitutive-equations-for-solids">4. 固体力学本构方程 (Constitutive Equations for Solids)
+&lt;/h3>&lt;p>对于弹塑性固体，除了上述流体力学变量，还必须追踪应力张量的演化。这引入了新的ODE。&lt;/p>
+&lt;p>&lt;strong>方程&lt;/strong>:
+&lt;/p>
+$$
+\frac{d\mathbf{S}_i}{dt} = f(\mathbf{S})_i
+$$
+&lt;p>&lt;strong>右端项 (&lt;code>RHS_S&lt;/code>)&lt;/strong>: 粒子 $i$ 的&lt;strong>偏应力张量时间导数 (Rate of Deviatoric Stress Tensor)&lt;/strong>。
+为了保证坐标系旋转下的客观性，必须使用客观应力率，如Jaumann率：
+&lt;/p>
+$$
+\frac{d\mathbf{S}_i}{dt} = 2G \left( \dot{\boldsymbol{\epsilon}}_i - \frac{1}{3}\text{tr}(\dot{\boldsymbol{\epsilon}}_i)\mathbf{I} \right) + \mathbf{S}_i \cdot \boldsymbol{\Omega}_i - \boldsymbol{\Omega}_i \cdot \mathbf{S}_i
+$$
+&lt;ul>
+&lt;li>$\dot{\boldsymbol{\epsilon}}_i$: 应变率张量，由速度梯度计算得到。&lt;/li>
+&lt;li>$\boldsymbol{\Omega}_i$: 自旋张量（速度场的反对称部分），用于处理旋转。&lt;/li>
+&lt;li>&lt;strong>注意&lt;/strong>: 在实际的弹塑性返回映射算法中，这一步通常与塑性校正隐式地结合在一起，而不是直接积分一个显式的导数。&lt;/li>
+&lt;/ul>
+&lt;hr>
+&lt;h3 id="5-损伤演化方程-damage-evolution-equation">5. 损伤演化方程 (Damage Evolution Equation)
+&lt;/h3>&lt;p>&lt;strong>方程&lt;/strong>:
+&lt;/p>
+$$
+\frac{dD_i}{dt} = f(D)_i
+$$
+&lt;p>&lt;strong>右端项 (&lt;code>RHS_D&lt;/code>)&lt;/strong>: 粒子 $i$ 的&lt;strong>损伤变量时间导数 (Rate of Damage Variable)&lt;/strong>。
+该方程的形式完全取决于所选的损伤模型。例如，对于一个基于塑性应变累积的简单模型：
+&lt;/p>
+$$
+\frac{dD_i}{dt} = \frac{1}{\epsilon_f} \frac{d\epsilon_p}{dt}
+$$
+&lt;ul>
+&lt;li>$\epsilon_p$: 等效塑性应变。&lt;/li>
+&lt;li>$\epsilon_f$: 材料的断裂应变。&lt;/li>
+&lt;li>在Grady-Kipp模型中，这个导数的形式会更复杂（如 &lt;code>d(D^(1/3))/dt = ...&lt;/code>）。&lt;/li>
+&lt;/ul>
+&lt;hr>
+&lt;h3 id="计算流程概述">计算流程概述
+&lt;/h3>&lt;p>在一个典型的RHS函数中，计算顺序至关重要：&lt;/p>
+&lt;ol>
+&lt;li>&lt;strong>压力计算&lt;/strong>: 根据密度 &lt;code>ρ&lt;/code> 和内能 &lt;code>u&lt;/code>，通过状态方程（EoS）计算压力 &lt;code>P&lt;/code>。&lt;/li>
+&lt;li>&lt;strong>屈服模型&lt;/strong>：区别于常屈服强度，脆性材料如岩石，其屈服强度是压力&lt;code>P&lt;/code>的函数。&lt;/li>
+&lt;li>&lt;strong>总应力&lt;/strong>：应力通过静水压力（&lt;code>P&lt;/code>）和切应力得到。注意需要判断弹性还是屈服，若屈服需使用径向返回算法得到修正切应力。&lt;/li>
+&lt;li>&lt;strong>粒子循环&lt;/strong>：循环，累计求和，计算内能，密度，速度，切应力等导数&lt;/li>
+&lt;/ol>
+&lt;p>上述过程中，步骤1，2，3为单粒子计算，4为邻居粒子循环累加。&lt;/p></description></item></channel></rss>
