@@ -1,0 +1,340 @@
+<!doctype html><html lang=zh-cn dir=ltr><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><meta name=description content="Zotero AI 辅助文献分类插件：功能详解与实现原理"><title>AI Classifier - 功能介绍与实现原理</title>
+<link rel=canonical href=https://keqiye.github.io/posts/zotero-ai-classifier/><link rel=stylesheet href=/scss/style.min.663803bebe609202d5b39d848f2d7c2dc8b598a2d879efa079fa88893d29c49c.css><meta property='og:title' content="AI Classifier - 功能介绍与实现原理"><meta property='og:description' content="Zotero AI 辅助文献分类插件：功能详解与实现原理"><meta property='og:url' content='https://keqiye.github.io/posts/zotero-ai-classifier/'><meta property='og:site_name' content='Keqi的博客'><meta property='og:type' content='article'><meta property='article:section' content='Posts'><meta property='article:tag' content='Zotero'><meta property='article:tag' content='AI Classifier'><meta property='article:tag' content='文献管理'><meta property='article:tag' content='插件'><meta property='article:tag' content='LLM'><meta property='article:published_time' content='2026-03-12T00:00:00+00:00'><meta property='article:modified_time' content='2026-03-12T00:00:00+00:00'><meta name=twitter:title content="AI Classifier - 功能介绍与实现原理"><meta name=twitter:description content="Zotero AI 辅助文献分类插件：功能详解与实现原理"></head><body class=article-page><script>(function(){const e="StackColorScheme";localStorage.getItem(e)||localStorage.setItem(e,"auto")})()</script><script>(function(){const t="StackColorScheme",e=localStorage.getItem(t),n=window.matchMedia("(prefers-color-scheme: dark)").matches===!0;e=="dark"||e==="auto"&&n?document.documentElement.dataset.scheme="dark":document.documentElement.dataset.scheme="light"})()</script><div class="container main-container flex on-phone--column extended"><aside class="sidebar left-sidebar sticky"><button class="hamburger hamburger--spin" type=button id=toggle-menu aria-label=切换菜单>
+<span class=hamburger-box><span class=hamburger-inner></span></span></button><header><figure class=site-avatar><a href=/><img src="https://avatars.githubusercontent.com/u/175122082?v=4" width=300 height=300 class=site-logo loading=lazy alt=Avatar>
+</a><span class=emoji>🪐</span></figure><div class=site-meta><h1 class=site-name><a href=/>Keqi的博客</a></h1><h2 class=site-description>数学、物理与编程</h2></div></header><ol class=menu-social><li><a href=mailto:plloningye@gmail.com target=_blank title=E-mail rel=me><svg data-name="Livello 1" id="Livello_1" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg"><title/><path d="M116.73 31.83a3 3 0 00-4.2-.61L64.14 67.34a1 1 0 01-1.2.0L15.5 31.06a3 3 0 10-3.64 4.77l37.3 28.53-36.89 27.8A3 3 0 1015.88 97L54.11 68.14l5.18 4a7 7 0 008.43.06l5.44-4.06L111.84 97a3 3 0 103.59-4.81L78.17 64.35 116.12 36A3 3 0 00116.73 31.83z"/><path d="M113 19H15A15 15 0 000 34V94a15 15 0 0015 15h98a15 15 0 0015-15V34A15 15 0 00113 19zm9 75a9 9 0 01-9 9H15a9 9 0 01-9-9V34a9 9 0 019-9h98a9 9 0 019 9z"/></svg></a></li><li><a href=https://github.com/KeqiYe target=_blank title=GitHub rel=me><svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-brand-github" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentcolor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6.0 00-1.3-3.2 4.2 4.2.0 00-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3.0 00-6.2.0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2.0 00-.1 3.2A4.6 4.6.0 004 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg></a></li></ol><ol class=menu id=main-menu><li><a href=/posts/><span>文章</span></a></li><li><a href=/categories/><span>分类</span></a></li><li class=menu-bottom-section><ol class=menu><li id=i18n-switch><svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-language" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentcolor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M4 5h7"/><path d="M9 3v2c0 4.418-2.239 8-5 8"/><path d="M5 9c-.003 2.144 2.952 3.908 6.7 4"/><path d="M12 20l4-9 4 9"/><path d="M19.1 18h-6.2"/></svg>
+<select name=language title=language onchange="window.location.href=this.selectedOptions[0].value"><option value=https://keqiye.github.io/en/>English</option><option value=https://keqiye.github.io/ selected>中文</option></select></li><li id=dark-mode-toggle><svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-toggle-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentcolor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="8" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-toggle-right" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentcolor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="16" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<span>暗色模式</span></li></ol></li></ol></aside><aside class="sidebar right-sidebar sticky"><section class="widget archives"><div class=widget-icon><svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-hash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentcolor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><line x1="5" y1="9" x2="19" y2="9"/><line x1="5" y1="15" x2="19" y2="15"/><line x1="11" y1="4" x2="7" y2="20"/><line x1="17" y1="4" x2="13" y2="20"/></svg></div><h2 class="widget-title section-title">目录</h2><div class=widget--toc><nav id=TableOfContents><ol><li><a href=#一核心功能概览>一、核心功能概览</a></li><li><a href=#二功能详解与实现原理>二、功能详解与实现原理</a><ol><li><a href=#21-智能归类核心功能>2.1 智能归类（核心功能）</a><ol><li><a href=#实现原理>实现原理</a></li><li><a href=#技术亮点>技术亮点</a></li></ol></li><li><a href=#22-保存与恢复分类结构>2.2 保存与恢复分类结构</a><ol><li><a href=#实现原理-1>实现原理</a></li><li><a href=#注意事项>注意事项</a></li></ol></li><li><a href=#23-导出文献数据>2.3 导出文献数据</a><ol><li><a href=#实现原理-2>实现原理</a></li></ol></li><li><a href=#24-从-txt-导入层级>2.4 从 TXT 导入层级</a><ol><li><a href=#实现原理-3>实现原理</a></li><li><a href=#注意事项-1>注意事项</a></li></ol></li><li><a href=#25-停止分类任务>2.5 停止分类任务</a><ol><li><a href=#实现原理-4>实现原理</a></li><li><a href=#设计考量>设计考量</a></li></ol></li><li><a href=#26-隐私优先本地存储>2.6 隐私优先：本地存储</a><ol><li><a href=#实现原理-5>实现原理</a></li></ol></li></ol></li><li><a href=#三配置指南>三、配置指南</a><ol><li><a href=#31-配置文件结构>3.1 配置文件结构</a></li><li><a href=#32-支持的-llm-服务商>3.2 支持的 LLM 服务商</a></li><li><a href=#33-提示词自定义>3.3 提示词自定义</a></li></ol></li><li><a href=#四快速入门>四、快速入门</a><ol><li><a href=#41-安装步骤>4.1 安装步骤</a></li><li><a href=#42-首次配置>4.2 首次配置</a></li><li><a href=#43-完整工作流程>4.3 完整工作流程</a></li></ol></li><li><a href=#五常见问题>五、常见问题</a><ol><li><a href=#q1-分类结果不准确怎么办>Q1: 分类结果不准确怎么办？</a></li><li><a href=#q2-分类速度慢怎么办>Q2: 分类速度慢怎么办？</a></li><li><a href=#q3-api-调用失败怎么办>Q3: API 调用失败怎么办？</a></li></ol></li><li><a href=#六总结>六、总结</a></li><li><a href=#相关链接>相关链接</a></li></ol></nav></div></section></aside><main class="main full-width"><article class=main-article><header class=article-header><div class=article-details><header class=article-category><a href=/categories/%E5%B7%A5%E5%85%B7%E6%8E%A8%E8%8D%90/>工具推荐
+</a><a href=/categories/zotero-%E6%8F%92%E4%BB%B6/>Zotero 插件</a></header><div class=article-title-wrapper><h2 class=article-title><a href=/posts/zotero-ai-classifier/>AI Classifier - 功能介绍与实现原理</a></h2><h3 class=article-subtitle>Zotero AI 辅助文献分类插件：功能详解与实现原理</h3></div><footer class=article-time><div><svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-calendar-time" width="56" height="56" viewBox="0 0 24 24" stroke-width="2" stroke="currentcolor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M11.795 21H5a2 2 0 01-2-2V7a2 2 0 012-2h12a2 2 0 012 2v4"/><circle cx="18" cy="18" r="4"/><path d="M15 3v4"/><path d="M7 3v4"/><path d="M3 11h16"/><path d="M18 16.496V18l1 1"/></svg>
+<time class=article-time--published>Mar 12, 2026</time></div><div><svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-clock" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentcolor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+<time class=article-time--reading>阅读时长: 8 分钟</time></div></footer><footer class=article-translations><svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-language" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentcolor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M4 5h7"/><path d="M9 3v2c0 4.418-2.239 8-5 8"/><path d="M5 9c-.003 2.144 2.952 3.908 6.7 4"/><path d="M12 20l4-9 4 9"/><path d="M19.1 18h-6.2"/></svg><div><a href=https://keqiye.github.io/en/posts/zotero-ai-classifier/ class=link>English</a></div></footer></div></header><section class=article-content><h1 id=ai-classifier---功能介绍与实现原理>AI Classifier - 功能介绍与实现原理</h1><p>作为科研工作者，你是否曾为管理大量文献而头疼？面对成百上千篇论文，如何高效地将它们分类到合适的文件夹成为一个难题。<strong>AI Classifier</strong> 正是为解决这一问题而生的 Zotero 插件，它利用大语言模型（LLM）实现智能文献分类，让你的文献管理效率大幅提升。</p><p>本文将详细介绍 AI Classifier 的核心功能，并深入讲解每个功能的实现原理，帮助你更好地理解插件的工作机制。</p><hr><h2 id=一核心功能概览>一、核心功能概览</h2><p>AI Classifier 提供以下核心功能：</p><div class=table-wrapper><table><thead><tr><th>功能</th><th>说明</th></tr></thead><tbody><tr><td>📂 智能归类</td><td>AI 自动阅读文献标题、摘要、关键词，按置信度阈值自动归类</td></tr><tr><td>💾 保存/恢复结构</td><td>备份当前分类结构，随时恢复</td></tr><tr><td>📤 导出数据</td><td>导出标题、摘要、关键词为 JSON</td></tr><tr><td>📥 导入层级</td><td>从 TXT 文件批量创建文件夹结构</td></tr><tr><td>🛑 停止归类</td><td>随时中断正在进行的分类任务</td></tr><tr><td>🛡️ 隐私优先</td><td>API Key 仅保存在本地，不上传服务器</td></tr></tbody></table></div><hr><h2 id=二功能详解与实现原理>二、功能详解与实现原理</h2><h3 id=21-智能归类核心功能>2.1 智能归类（核心功能）</h3><p>这是 AI Classifier 最核心的功能。它利用 LLM 理解文献内容，自动将文献分类到预设的文件夹中。</p><h4 id=实现原理>实现原理</h4><p><strong>第一步：获取文献信息</strong></p><p>插件通过 Zotero API 获取用户选中文献的以下信息：</p><ul><li>标题（Title）</li><li>摘要（Abstract）</li><li>关键词（Keywords）</li></ul><p>这些信息构成了 LLM 理解文献内容的基础。</p><p><strong>第二步：构建提示词（Prompt）</strong></p><p>插件将用户配置的分类目录结构和文献信息组合成提示词，发送给 LLM。提示词的核心逻辑如下：</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-fallback data-lang=fallback><span class=line><span class=cl>你是一个文献分类助手。以下是待分类文献的信息：
+</span></span><span class=line><span class=cl>标题：{title}
+</span></span><span class=line><span class=cl>摘要：{abstract}
+</span></span><span class=line><span class=cl>关键词：{keywords}
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>可用的分类目录结构如下：
+</span></span><span class=line><span class=cl>{folder_structure}
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>请根据文献内容，从上述目录中选择最合适的分类路径。
+</span></span><span class=line><span class=cl>返回格式要求：JSON格式，包含以下字段：
+</span></span><span class=line><span class=cl>- &#34;path&#34;: 最合适的分类路径
+</span></span><span class=line><span class=cl>- &#34;confidence&#34;: 置信度（0-1之间的浮点数）
+</span></span><span class=line><span class=cl>- &#34;reason&#34;: 简要说明分类理由
+</span></span></code></pre></td></tr></table></div></div><p><strong>第三步：调用 LLM API</strong></p><p>插件通过 HTTP 请求调用用户配置的 LLM API（如 SiliconFlow、OpenAI 等），发送构建好的提示词，获取分类结果。</p><p>API 调用使用标准的 OpenAI 兼容格式：</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-json data-lang=json><span class=line><span class=cl><span class=p>{</span>
+</span></span><span class=line><span class=cl>  <span class=nt>&#34;model&#34;</span><span class=p>:</span> <span class=s2>&#34;Qwen/Qwen2.5-7B-Instruct&#34;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>  <span class=nt>&#34;messages&#34;</span><span class=p>:</span> <span class=p>[</span>
+</span></span><span class=line><span class=cl>    <span class=p>{</span><span class=nt>&#34;role&#34;</span><span class=p>:</span> <span class=s2>&#34;user&#34;</span><span class=p>,</span> <span class=nt>&#34;content&#34;</span><span class=p>:</span> <span class=s2>&#34;...&#34;</span><span class=p>}</span>
+</span></span><span class=line><span class=cl>  <span class=p>],</span>
+</span></span><span class=line><span class=cl>  <span class=nt>&#34;temperature&#34;</span><span class=p>:</span> <span class=mf>0.1</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p><strong>第四步：解析响应与置信度判断</strong></p><p>LLM 返回分类结果后，插件解析 JSON 响应，获取分类路径和置信度。</p><p><strong>关键设计：置信度阈值机制</strong></p><p>用户可以配置置信度阈值（默认 0.7）。只有当 LLM 返回的置信度 <strong>高于</strong> 阈值时，插件才会自动移动文献；否则，文献保持原位，分类结果仅记录在日志中。</p><p>这一设计有重要意义：</p><ul><li><strong>避免错误分类</strong>：低置信度意味着 AI 不确定，强制归类可能导致错误</li><li><strong>用户可控</strong>：通过调整阈值，用户可以在"自动化程度"和"准确率"之间权衡</li><li><strong>渐进优化</strong>：用户可以先处理高置信度结果，再回头检查低置信度结果</li></ul><p><strong>第五步：执行分类</strong></p><p>根据分类结果，插件调用 Zotero API 将文献移动到对应的文件夹：</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-javascript data-lang=javascript><span class=line><span class=cl><span class=c1>// 移动文献到目标集合
+</span></span></span><span class=line><span class=cl><span class=c1></span><span class=kr>await</span> <span class=nx>item</span><span class=p>.</span><span class=nx>moveToCollection</span><span class=p>(</span><span class=nx>collectionPath</span><span class=p>);</span>
+</span></span></code></pre></td></tr></table></div></div><h4 id=技术亮点>技术亮点</h4><ul><li><strong>批量处理</strong>：支持一次性选中多篇文献，串行调用 LLM API（避免并发过高导致 API 限流）</li><li><strong>增量进度</strong>：每完成一篇文献的分类，立即更新 UI，用户可以看到实时进度</li><li><strong>错误容忍</strong>：单篇文献分类失败不影响其他文献，继续处理后续文献</li><li><strong>异步任务</strong>：分类过程在后台运行，不阻塞 Zotero 主界面</li></ul><hr><h3 id=22-保存与恢复分类结构>2.2 保存与恢复分类结构</h3><p>这一功能用于备份和恢复你的文献分类体系，防止因误操作导致分类结构丢失。</p><h4 id=实现原理-1>实现原理</h4><p><strong>保存结构</strong></p><p>插件遍历 Zotero 中的所有收藏夹（Collections），递归提取文件夹层级结构，并序列化保存为 JSON 文件。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-javascript data-lang=javascript><span class=line><span class=cl><span class=c1>// 伪代码：保存结构
+</span></span></span><span class=line><span class=cl><span class=c1></span><span class=kd>function</span> <span class=nx>saveStructure</span><span class=p>()</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>  <span class=kr>const</span> <span class=nx>collections</span> <span class=o>=</span> <span class=nx>Zotero</span><span class=p>.</span><span class=nx>Collections</span><span class=p>.</span><span class=nx>get</span><span class=p>();</span>
+</span></span><span class=line><span class=cl>  <span class=kr>const</span> <span class=nx>structure</span> <span class=o>=</span> <span class=nx>traverseCollections</span><span class=p>(</span><span class=nx>collections</span><span class=p>,</span> <span class=kc>null</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>  <span class=kr>const</span> <span class=nx>json</span> <span class=o>=</span> <span class=nx>JSON</span><span class=p>.</span><span class=nx>stringify</span><span class=p>(</span><span class=nx>structure</span><span class=p>,</span> <span class=kc>null</span><span class=p>,</span> <span class=mi>2</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>  <span class=nx>saveToFile</span><span class=p>(</span><span class=nx>json</span><span class=p>,</span> <span class=nx>backupPath</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1>// 递归遍历收藏夹
+</span></span></span><span class=line><span class=cl><span class=c1></span><span class=kd>function</span> <span class=nx>traverseCollections</span><span class=p>(</span><span class=nx>collections</span><span class=p>,</span> <span class=nx>parentId</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>  <span class=k>return</span> <span class=nx>collections</span>
+</span></span><span class=line><span class=cl>    <span class=p>.</span><span class=nx>filter</span><span class=p>(</span><span class=nx>c</span> <span class=p>=&gt;</span> <span class=nx>c</span><span class=p>.</span><span class=nx>parentID</span> <span class=o>===</span> <span class=nx>parentId</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=p>.</span><span class=nx>map</span><span class=p>(</span><span class=nx>c</span> <span class=p>=&gt;</span> <span class=p>({</span>
+</span></span><span class=line><span class=cl>      <span class=nx>name</span><span class=o>:</span> <span class=nx>c</span><span class=p>.</span><span class=nx>name</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>      <span class=nx>children</span><span class=o>:</span> <span class=nx>traverseCollections</span><span class=p>(</span><span class=nx>collections</span><span class=p>,</span> <span class=nx>c</span><span class=p>.</span><span class=nx>id</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=p>}));</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p><strong>恢复结构</strong></p><p>读取备份 JSON 文件，递归创建收藏夹：</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-javascript data-lang=javascript><span class=line><span class=cl><span class=c1>// 伪代码：恢复结构
+</span></span></span><span class=line><span class=cl><span class=c1></span><span class=kd>function</span> <span class=nx>restoreStructure</span><span class=p>(</span><span class=nx>json</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>  <span class=kr>const</span> <span class=nx>structure</span> <span class=o>=</span> <span class=nx>JSON</span><span class=p>.</span><span class=nx>parse</span><span class=p>(</span><span class=nx>json</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>  <span class=nx>createCollections</span><span class=p>(</span><span class=nx>structure</span><span class=p>,</span> <span class=kc>null</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=kd>function</span> <span class=nx>createCollections</span><span class=p>(</span><span class=nx>nodes</span><span class=p>,</span> <span class=nx>parentId</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>  <span class=nx>nodes</span><span class=p>.</span><span class=nx>forEach</span><span class=p>(</span><span class=nx>node</span> <span class=p>=&gt;</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=kr>const</span> <span class=nx>collection</span> <span class=o>=</span> <span class=nx>Zotero</span><span class=p>.</span><span class=nx>Collections</span><span class=p>.</span><span class=nx>create</span><span class=p>({</span>
+</span></span><span class=line><span class=cl>      <span class=nx>name</span><span class=o>:</span> <span class=nx>node</span><span class=p>.</span><span class=nx>name</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>      <span class=nx>parentID</span><span class=o>:</span> <span class=nx>parentId</span>
+</span></span><span class=line><span class=cl>    <span class=p>});</span>
+</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=p>(</span><span class=nx>node</span><span class=p>.</span><span class=nx>children</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>      <span class=nx>createCollections</span><span class=p>(</span><span class=nx>node</span><span class=p>.</span><span class=nx>children</span><span class=p>,</span> <span class=nx>collection</span><span class=p>.</span><span class=nx>id</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>  <span class=p>});</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><h4 id=注意事项>注意事项</h4><ul><li><strong>恢复结构</strong>：采用<strong>增量追加</strong>模式，只会补充备份中存在但当前不存在的文件夹，不会删除现有的分类结构，也不会影响已分类的文献</li><li><strong>从 TXT 导入</strong>：会<strong>清空现有所有收藏夹</strong>后重建（文献本身不会被删除）</li><li>导入前插件会提示确认，请谨慎操作</li></ul><hr><h3 id=23-导出文献数据>2.3 导出文献数据</h3><p>这一功能可以将文献的标题、摘要、关键词导出为 JSON 文件，方便后续分析或迁移。</p><h4 id=实现原理-2>实现原理</h4><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-javascript data-lang=javascript><span class=line><span class=cl><span class=c1>// 伪代码：导出数据
+</span></span></span><span class=line><span class=cl><span class=c1></span><span class=kd>function</span> <span class=nx>exportData</span><span class=p>(</span><span class=nx>type</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>  <span class=kr>const</span> <span class=nx>items</span> <span class=o>=</span> <span class=nx>Zotero</span><span class=p>.</span><span class=nx>Items</span><span class=p>.</span><span class=nx>getAll</span><span class=p>();</span>
+</span></span><span class=line><span class=cl>  <span class=kr>const</span> <span class=nx>data</span> <span class=o>=</span> <span class=nx>items</span><span class=p>.</span><span class=nx>map</span><span class=p>(</span><span class=nx>item</span> <span class=p>=&gt;</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>switch</span><span class=p>(</span><span class=nx>type</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>      <span class=k>case</span> <span class=s1>&#39;title&#39;</span><span class=o>:</span> <span class=k>return</span> <span class=nx>item</span><span class=p>.</span><span class=nx>getField</span><span class=p>(</span><span class=s1>&#39;title&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>      <span class=k>case</span> <span class=s1>&#39;abstract&#39;</span><span class=o>:</span> <span class=k>return</span> <span class=nx>item</span><span class=p>.</span><span class=nx>getField</span><span class=p>(</span><span class=s1>&#39;abstractNote&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>      <span class=k>case</span> <span class=s1>&#39;keywords&#39;</span><span class=o>:</span> <span class=k>return</span> <span class=nx>item</span><span class=p>.</span><span class=nx>getTags</span><span class=p>().</span><span class=nx>map</span><span class=p>(</span><span class=nx>t</span> <span class=p>=&gt;</span> <span class=nx>t</span><span class=p>.</span><span class=nx>tag</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>  <span class=p>});</span>
+</span></span><span class=line><span class=cl>  <span class=nx>saveToFile</span><span class=p>(</span><span class=nx>JSON</span><span class=p>.</span><span class=nx>stringify</span><span class=p>(</span><span class=nx>data</span><span class=p>,</span> <span class=kc>null</span><span class=p>,</span> <span class=mi>2</span><span class=p>),</span> <span class=nx>exportPath</span><span class=p>);</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>导出格式示例（标题）：</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-json data-lang=json><span class=line><span class=cl><span class=p>[</span>
+</span></span><span class=line><span class=cl>  <span class=s2>&#34;Deep Learning for Scientific Discovery&#34;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>  <span class=s2>&#34;A Survey of Natural Language Processing&#34;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>  <span class=s2>&#34;Quantum Computing: Principles and Applications&#34;</span>
+</span></span><span class=line><span class=cl><span class=p>]</span>
+</span></span></code></pre></td></tr></table></div></div><hr><h3 id=24-从-txt-导入层级>2.4 从 TXT 导入层级</h3><p>这一功能允许用户通过文本文件批量创建文件夹结构，非常适合一次性建立完整的分类体系。</p><h4 id=实现原理-3>实现原理</h4><p><strong>TXT 文件格式</strong></p><p>插件支持层级缩进格式：</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-fallback data-lang=fallback><span class=line><span class=cl>1. 物理学
+</span></span><span class=line><span class=cl>1.1 量子力学
+</span></span><span class=line><span class=cl>1.2 热力学
+</span></span><span class=line><span class=cl>1.3 相对论
+</span></span><span class=line><span class=cl>1.3.1 广义相对论
+</span></span><span class=line><span class=cl>1.3.2 狭义相对论
+</span></span><span class=line><span class=cl>2. 化学
+</span></span><span class=line><span class=cl>2.1 有机化学
+</span></span><span class=line><span class=cl>2.2 无机化学
+</span></span><span class=line><span class=cl>2.3 分析化学
+</span></span></code></pre></td></tr></table></div></div><p>缩进可以使用空格或制表符，数字前缀用于排序。</p><p><strong>解析逻辑</strong></p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-javascript data-lang=javascript><span class=line><span class=cl><span class=c1>// 伪代码：解析 TXT
+</span></span></span><span class=line><span class=cl><span class=c1></span><span class=kd>function</span> <span class=nx>parseHierarchy</span><span class=p>(</span><span class=nx>text</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>  <span class=kr>const</span> <span class=nx>lines</span> <span class=o>=</span> <span class=nx>text</span><span class=p>.</span><span class=nx>split</span><span class=p>(</span><span class=s1>&#39;\n&#39;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>  <span class=kr>const</span> <span class=nx>stack</span> <span class=o>=</span> <span class=p>[];</span>
+</span></span><span class=line><span class=cl>  
+</span></span><span class=line><span class=cl>  <span class=nx>lines</span><span class=p>.</span><span class=nx>forEach</span><span class=p>(</span><span class=nx>line</span> <span class=p>=&gt;</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=kr>const</span> <span class=nx>match</span> <span class=o>=</span> <span class=nx>line</span><span class=p>.</span><span class=nx>match</span><span class=p>(</span><span class=sr>/^(\s*)(\d+\.)?\s*(.+)/</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=p>(</span><span class=o>!</span><span class=nx>match</span><span class=p>)</span> <span class=k>return</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=kr>const</span> <span class=nx>indent</span> <span class=o>=</span> <span class=nx>match</span><span class=p>[</span><span class=mi>1</span><span class=p>].</span><span class=nx>length</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=kr>const</span> <span class=nx>name</span> <span class=o>=</span> <span class=nx>match</span><span class=p>[</span><span class=mi>3</span><span class=p>];</span>
+</span></span><span class=line><span class=cl>    <span class=kr>const</span> <span class=nx>level</span> <span class=o>=</span> <span class=nb>Math</span><span class=p>.</span><span class=nx>floor</span><span class=p>(</span><span class=nx>indent</span> <span class=o>/</span> <span class=mi>2</span><span class=p>)</span> <span class=o>+</span> <span class=mi>1</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=c1>// 根据缩进级别确定父节点
+</span></span></span><span class=line><span class=cl><span class=c1></span>    <span class=k>while</span> <span class=p>(</span><span class=nx>stack</span><span class=p>.</span><span class=nx>length</span> <span class=o>&gt;=</span> <span class=nx>level</span><span class=p>)</span> <span class=nx>stack</span><span class=p>.</span><span class=nx>pop</span><span class=p>();</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=kr>const</span> <span class=nx>node</span> <span class=o>=</span> <span class=p>{</span> <span class=nx>name</span><span class=p>,</span> <span class=nx>children</span><span class=o>:</span> <span class=p>[]</span> <span class=p>};</span>
+</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=p>(</span><span class=nx>stack</span><span class=p>.</span><span class=nx>length</span> <span class=o>===</span> <span class=mi>0</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>      <span class=nx>root</span><span class=p>.</span><span class=nx>push</span><span class=p>(</span><span class=nx>node</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span> <span class=k>else</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>      <span class=nx>stack</span><span class=p>[</span><span class=nx>stack</span><span class=p>.</span><span class=nx>length</span> <span class=o>-</span> <span class=mi>1</span><span class=p>].</span><span class=nx>children</span><span class=p>.</span><span class=nx>push</span><span class=p>(</span><span class=nx>node</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=nx>stack</span><span class=p>.</span><span class=nx>push</span><span class=p>(</span><span class=nx>node</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>  <span class=p>});</span>
+</span></span><span class=line><span class=cl>  
+</span></span><span class=line><span class=cl>  <span class=k>return</span> <span class=nx>root</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p><strong>创建收藏夹</strong></p><p>解析完成后，递归调用 Zotero API 创建收藏夹：</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span><span class=lnt>8
+</span><span class=lnt>9
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-javascript data-lang=javascript><span class=line><span class=cl><span class=kd>function</span> <span class=nx>createCollections</span><span class=p>(</span><span class=nx>nodes</span><span class=p>,</span> <span class=nx>parentId</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>  <span class=nx>nodes</span><span class=p>.</span><span class=nx>forEach</span><span class=p>(</span><span class=nx>node</span> <span class=p>=&gt;</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=kr>const</span> <span class=nx>collection</span> <span class=o>=</span> <span class=nx>Zotero</span><span class=p>.</span><span class=nx>Collections</span><span class=p>.</span><span class=nx>create</span><span class=p>({</span>
+</span></span><span class=line><span class=cl>      <span class=nx>name</span><span class=o>:</span> <span class=nx>node</span><span class=p>.</span><span class=nx>name</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>      <span class=nx>parentID</span><span class=o>:</span> <span class=nx>parentId</span>
+</span></span><span class=line><span class=cl>    <span class=p>});</span>
+</span></span><span class=line><span class=cl>    <span class=nx>createCollections</span><span class=p>(</span><span class=nx>node</span><span class=p>.</span><span class=nx>children</span><span class=p>,</span> <span class=nx>collection</span><span class=p>.</span><span class=nx>id</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>  <span class=p>});</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><h4 id=注意事项-1>注意事项</h4><ul><li>导入层级会<strong>清空现有所有收藏夹</strong>（包括其中的文献，但文献本身不会被删除）</li><li>导入前插件会提示确认，请谨慎操作</li></ul><hr><h3 id=25-停止分类任务>2.5 停止分类任务</h3><p>在处理大量文献时，用户可能需要中途停止分类进程。这一功能可以安全地中断正在进行的分类任务。</p><h4 id=实现原理-4>实现原理</h4><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-javascript data-lang=javascript><span class=line><span class=cl><span class=c1>// 使用标志位控制任务
+</span></span></span><span class=line><span class=cl><span class=c1></span><span class=kd>let</span> <span class=nx>isStopping</span> <span class=o>=</span> <span class=kc>false</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=kr>async</span> <span class=kd>function</span> <span class=nx>classifyPapers</span><span class=p>(</span><span class=nx>items</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>  <span class=k>for</span> <span class=p>(</span><span class=kr>const</span> <span class=nx>item</span> <span class=k>of</span> <span class=nx>items</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=p>(</span><span class=nx>isStopping</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>      <span class=nx>console</span><span class=p>.</span><span class=nx>log</span><span class=p>(</span><span class=s2>&#34;分类任务已停止&#34;</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>      <span class=k>break</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>    
+</span></span><span class=line><span class=cl>    <span class=kr>await</span> <span class=nx>classifyOnePaper</span><span class=p>(</span><span class=nx>item</span><span class=p>);</span>
+</span></span><span class=line><span class=cl>    <span class=nx>updateProgress</span><span class=p>();</span>
+</span></span><span class=line><span class=cl>  <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=kd>function</span> <span class=nx>stopClassification</span><span class=p>()</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>  <span class=nx>isStopping</span> <span class=o>=</span> <span class=kc>true</span><span class=p>;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><h4 id=设计考量>设计考量</h4><ul><li><strong>优雅停止</strong>：不是强制终止线程，而是设置标志位，让当前批次完成后自然退出</li><li><strong>状态重置</strong>：停止后需要重置标志位，以便下次分类任务可以正常运行</li></ul><hr><h3 id=26-隐私优先本地存储>2.6 隐私优先：本地存储</h3><p>AI Classifier 在隐私设计上非常谨慎，确保用户的 API Key 和文献数据安全。</p><h4 id=实现原理-5>实现原理</h4><p><strong>配置文件存储位置</strong></p><p>所有配置信息（包括 API Key）保存在 Zotero 数据目录下的 JSON 文件中：</p><div class=table-wrapper><table><thead><tr><th>操作系统</th><th>路径</th></tr></thead><tbody><tr><td>Windows</td><td><code>%APPDATA%\Zotero\zotero_ai_config.json</code></td></tr><tr><td>macOS</td><td><code>~/Library/Application Support/Zotero/zotero_ai_config.json</code></td></tr><tr><td>Linux</td><td><code>~/.config/zotero/zotero_ai_config.json</code></td></tr></tbody></table></div><p><strong>数据流向</strong></p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-fallback data-lang=fallback><span class=line><span class=cl>用户 → 插件 → LLM API → 返回结果
+</span></span><span class=line><span class=cl>         ↓
+</span></span><span class=line><span class=cl>    本地配置文件（API Key）
+</span></span></code></pre></td></tr></table></div></div><p><strong>关键点</strong>：</p><ul><li>API Key <strong>只存在于本地配置文件</strong>，不经过任何第三方服务器</li><li>调用 LLM API 时，插件直接与 API 服务商通信（如 SiliconFlow、OpenAI）</li><li>插件本身不搭建任何后端服务，不收集任何用户数据</li><li>文献内容（标题、摘要、关键词）仅在分类过程中发送给 LLM API，不保存副本</li></ul><hr><h2 id=三配置指南>三、配置指南</h2><h3 id=31-配置文件结构>3.1 配置文件结构</h3><p><code>zotero_ai_config.json</code> 包含以下字段：</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span><span class=lnt>8
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-json data-lang=json><span class=line><span class=cl><span class=p>{</span>
+</span></span><span class=line><span class=cl>  <span class=nt>&#34;apiUrl&#34;</span><span class=p>:</span> <span class=s2>&#34;https://api.siliconflow.cn/v1/chat/completions&#34;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>  <span class=nt>&#34;apiKey&#34;</span><span class=p>:</span> <span class=s2>&#34;your-api-key-here&#34;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>  <span class=nt>&#34;model&#34;</span><span class=p>:</span> <span class=s2>&#34;Qwen/Qwen2.5-7B-Instruct&#34;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>  <span class=nt>&#34;logPath&#34;</span><span class=p>:</span> <span class=s2>&#34;/path/to/log/file.log&#34;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>  <span class=nt>&#34;confidenceThreshold&#34;</span><span class=p>:</span> <span class=mf>0.7</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>  <span class=nt>&#34;customPrompt&#34;</span><span class=p>:</span> <span class=s2>&#34;&#34;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><h3 id=32-支持的-llm-服务商>3.2 支持的 LLM 服务商</h3><p>理论上支持所有兼容 OpenAI API 格式的服务商，常见选择：</p><ul><li><strong>SiliconFlow</strong>：国内访问速度快，价格实惠</li><li><strong>OpenAI</strong>：官方服务，质量有保障</li><li><strong>Anthropic</strong>：Claude 系列模型</li><li><strong>本地部署</strong>：Ollama、LM Studio 等本地模型</li></ul><h3 id=33-提示词自定义>3.3 提示词自定义</h3><p>在「设置」→「提示词配置」中，用户可以自定义发送给 LLM 的提示词。高级用户可以根据自己的学科特点优化提示词，提升分类准确率。</p><hr><h2 id=四快速入门>四、快速入门</h2><h3 id=41-安装步骤>4.1 安装步骤</h3><ol><li>前往 <a class=link href=https://github.com/KeqiYe/Zotero-AI-Classifier/releases target=_blank rel=noopener>GitHub Releases</a> 下载最新 <code>.xpi</code> 文件</li><li>打开 Zotero，点击 <strong>工具</strong> → <strong>附加组件</strong></li><li>点击齿轮图标 → <strong>从文件安装附加组件</strong></li><li>选中下载的 <code>.xpi</code> 文件</li><li>重启 Zotero</li></ol><h3 id=42-首次配置>4.2 首次配置</h3><ol><li>点击 <strong>工具</strong> → <strong>AI Classifier</strong> → <strong>设置日志保存位置</strong>，选择日志保存路径</li><li>点击 <strong>工具</strong> → <strong>AI Classifier</strong> → <strong>设置</strong> → <strong>API 参数配置</strong></li><li>填写以下信息：<ul><li><strong>API URL</strong>：如 <code>https://api.siliconflow.cn/v1/chat/completions</code></li><li><strong>API Key</strong>：你的密钥</li><li><strong>Model Name</strong>：如 <code>Qwen/Qwen2.5-7B-Instruct</code></li></ul></li><li>点击「测试连接」，确认成功后保存</li></ol><h3 id=43-完整工作流程>4.3 完整工作流程</h3><p><strong>第一步：创建分类层级</strong></p><p>新建 TXT 文件，定义你的分类结构：</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-fallback data-lang=fallback><span class=line><span class=cl>1. 机器学习
+</span></span><span class=line><span class=cl>1.1 深度学习
+</span></span><span class=line><span class=cl>1.2 强化学习
+</span></span><span class=line><span class=cl>1.3 自然语言处理
+</span></span><span class=line><span class=cl>2. 计算机视觉
+</span></span><span class=line><span class=cl>2.1 图像分类
+</span></span><span class=line><span class=cl>2.2 目标检测
+</span></span><span class=line><span class=cl>2.3 图像分割
+</span></span><span class=line><span class=cl>3. 物理学
+</span></span><span class=line><span class=cl>3.1 量子力学
+</span></span><span class=line><span class=cl>3.2 流体力学
+</span></span></code></pre></td></tr></table></div></div><blockquote><p>💡 <strong>提示</strong>：如果你不确定如何构建分类结构，可以先使用插件的「导出」功能将文献库信息（标题、摘要等）导出，然后提交给 AI，让 AI 根据你的文献内容推荐合理的分类层级。这样比自己冥思苦想更加高效。</p></blockquote><p><strong>第二步：导入层级</strong></p><p>点击 <strong>AI Classifier</strong> → <strong>从 TXT 导入层级</strong>，选择上述 TXT 文件。</p><p><strong>第三步：选择文献并分类</strong></p><ol><li>在 Zotero 中选中多篇待分类文献</li><li>点击 <strong>AI Classifier</strong> → <strong>LLM 模型文献归类</strong></li><li>设置置信度阈值（如 0.7）</li><li>开始分类，观察进度</li></ol><p><strong>第四步：备份结构</strong></p><p>重要操作前，点击 <strong>保存当前分类结构</strong> 备份。</p><hr><h2 id=五常见问题>五、常见问题</h2><h3 id=q1-分类结果不准确怎么办>Q1: 分类结果不准确怎么办？</h3><ol><li>调整置信度阈值，降低阈值可以让更多文献被分类，但可能增加错误率</li><li>自定义提示词，提供更详细的分类指导</li><li>使用更强大的 LLM 模型</li></ol><h3 id=q2-分类速度慢怎么办>Q2: 分类速度慢怎么办？</h3><ol><li>选择响应更快的 API 服务商（如 SiliconFlow）</li><li>使用更小的模型（如 Qwen2.5-3B）</li><li>减少单次分类的文献数量</li></ol><h3 id=q3-api-调用失败怎么办>Q3: API 调用失败怎么办？</h3><ol><li>检查 API Key 是否正确</li><li>检查网络连接</li><li>查看日志文件（工具 → AI Classifier → 日志查看器）排查错误</li></ol><hr><h2 id=六总结>六、总结</h2><p>AI Classifier 通过将大语言模型与 Zotero 文献管理深度结合，实现了科研文献的智能分类。它不仅功能完善，而且在实现上充分考虑了用户隐私、数据安全和使用体验。</p><p>理解每个功能的实现原理，有助于你更好地使用插件，并根据实际需求进行调优。希望本文能帮助你充分发挥 AI Classifier 的威力，让文献管理变得更加轻松高效。</p><hr><h2 id=相关链接>相关链接</h2><ul><li>GitHub 仓库：https://github.com/KeqiYe/Zotero-AI-Classifier</li><li>作者主页：https://github.com/KeqiYe</li></ul></section><footer class=article-footer><section class=article-tags><a href=/tags/zotero/>Zotero</a>
+<a href=/tags/ai-classifier/>AI Classifier</a>
+<a href=/tags/%E6%96%87%E7%8C%AE%E7%AE%A1%E7%90%86/>文献管理</a>
+<a href=/tags/%E6%8F%92%E4%BB%B6/>插件</a>
+<a href=/tags/llm/>LLM</a></section><section class=article-copyright><svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-copyright" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentcolor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="9"/><path d="M14.5 9a3.5 4 0 100 6"/></svg>
+<span>Licensed under CC BY-NC-ND 4.0</span></section></footer><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css integrity=sha384-n8MVd4RsNIU0tAv4ct0nTaAbDJwPJzDEaqSD1odI+WdtXRGWt2kTvGFasHpSy3SV crossorigin=anonymous><script src=https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js integrity=sha384-XjKyOOlGwcjNTAIQHIpgOno0Hl1YQqzUOEleOLALmuqehneUG+vnGctmUb0ZY0l8 crossorigin=anonymous defer></script><script src=https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js integrity=sha384-+VBxd3r6XgURycqtZ117nYw44OOcIax56Z4dCRWbxyPt0Koah1uHoK0o4+/RRE05 crossorigin=anonymous defer></script><script>window.addEventListener("DOMContentLoaded",()=>{const e=document.querySelector(".main-article");renderMathInElement(e,{delimiters:[{left:"$$",right:"$$",display:!0},{left:"$",right:"$",display:!1},{left:"\\(",right:"\\)",display:!1},{left:"\\[",right:"\\]",display:!0}],ignoredClasses:["gist"]})})</script></article><script src=https://giscus.app/client.js data-repo=KeqiYe/KeqiYe.github.io data-repo-id=R_kgDOOmo8Lw data-category=Announcements data-category-id=DIC_kwDOOmo8L84C3Bzc data-mapping=pathname data-strict=0 data-reactions-enabled=1 data-emit-metadata=0 data-input-position=top data-theme=light data-lang=en data-loading crossorigin=anonymous async></script><script>function setGiscusTheme(e){let t=document.querySelector("iframe.giscus-frame");t&&t.contentWindow.postMessage({giscus:{setConfig:{theme:e}}},"https://giscus.app")}(function(){addEventListener("message",t=>{if(event.origin!=="https://giscus.app")return;e()}),window.addEventListener("onColorSchemeChange",e);function e(){setGiscusTheme(document.documentElement.dataset.scheme==="light"?"light":"dark")}})()</script><footer class=site-footer><section class=copyright>&copy;
+2025 -
+2026 Keqi Ye</section><section class=powerby><script async src=//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js></script>🪐 本站总访问量 <span id=busuanzi_value_site_pv><i class="fa fa-spinner fa-spin"></i></span> 次 | 📖 本文阅读量 <span id=busuanzi_value_page_pv><i class="fa fa-spinner fa-spin"></i></span> 次<br>使用 <a href=https://gohugo.io/ target=_blank rel=noopener>Hugo</a> 构建<br>主题 <b><a href=https://github.com/CaiJimmy/hugo-theme-stack target=_blank rel=noopener data-version=3.30.0>Stack</a></b> 由 <a href=https://jimmycai.com target=_blank rel=noopener>Jimmy</a> 设计</section></footer><div class=pswp tabindex=-1 role=dialog aria-hidden=true><div class=pswp__bg></div><div class=pswp__scroll-wrap><div class=pswp__container><div class=pswp__item></div><div class=pswp__item></div><div class=pswp__item></div></div><div class="pswp__ui pswp__ui--hidden"><div class=pswp__top-bar><div class=pswp__counter></div><button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+<button class="pswp__button pswp__button--share" title=Share></button>
+<button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+<button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button><div class=pswp__preloader><div class=pswp__preloader__icn><div class=pswp__preloader__cut><div class=pswp__preloader__donut></div></div></div></div></div><div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap"><div class=pswp__share-tooltip></div></div><button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+</button>
+<button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)"></button><div class=pswp__caption><div class=pswp__caption__center></div></div></div></div></div><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js integrity="sha256-ePwmChbbvXbsO02lbM3HoHbSHTHFAeChekF1xKJdleo=" crossorigin=anonymous defer></script><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js integrity="sha256-UKkzOn/w1mBxRmLLGrSeyB4e1xbrp4xylgAWb3M42pU=" crossorigin=anonymous defer></script><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css crossorigin=anonymous><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css crossorigin=anonymous></main></div><script src=https://cdn.jsdelivr.net/npm/node-vibrant@3.1.6/dist/vibrant.min.js integrity="sha256-awcR2jno4kI5X0zL8ex0vi2z+KMkF24hUW8WePSA9HM=" crossorigin=anonymous></script><script type=text/javascript src=/ts/main.1e9a3bafd846ced4c345d084b355fb8c7bae75701c338f8a1f8a82c780137826.js defer></script><script>(function(){const e=document.createElement("link");e.href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap",e.type="text/css",e.rel="stylesheet",document.head.appendChild(e)})()</script></body></html>

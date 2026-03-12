@@ -1,0 +1,645 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Literature Management on Keqi's blog</title><link>https://keqiye.github.io/en/tags/literature-management/</link><description>Recent content in Literature Management on Keqi's blog</description><generator>Hugo -- gohugo.io</generator><language>en</language><managingEditor>plloningye@gmail.com (Keqi Ye)</managingEditor><webMaster>plloningye@gmail.com (Keqi Ye)</webMaster><copyright>Keqi Ye</copyright><lastBuildDate>Thu, 12 Mar 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://keqiye.github.io/en/tags/literature-management/index.xml" rel="self" type="application/rss+xml"/><item><title>AI Classifier - Features &amp; Implementation Guide</title><link>https://keqiye.github.io/en/posts/zotero-ai-classifier/</link><pubDate>Thu, 12 Mar 2026 00:00:00 +0000</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://keqiye.github.io/en/posts/zotero-ai-classifier/</guid><description>&lt;h1 id="ai-classifier---features--implementation-guide">AI Classifier - Features &amp;amp; Implementation Guide
+&lt;/h1>&lt;p>As researchers, have you ever struggled with managing large collections of academic papers? With hundreds or thousands of articles, efficiently categorizing them into appropriate folders becomes a challenge. &lt;strong>AI Classifier&lt;/strong> is a Zotero plugin designed to solve this exact problem. It leverages Large Language Models (LLM) to intelligently classify your literature, significantly improving your workflow.&lt;/p>
+&lt;p>This article provides a detailed overview of AI Classifier&amp;rsquo;s core features and explains the implementation principles behind each function, helping you understand how the plugin works.&lt;/p>
+&lt;hr>
+&lt;h2 id="1-core-features-overview">1. Core Features Overview
+&lt;/h2>&lt;p>AI Classifier offers the following core features:&lt;/p>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>Feature&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>📂 Intelligent Classification&lt;/td>
+&lt;td>AI reads paper titles, abstracts, and keywords, auto-classifying based on confidence thresholds&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>💾 Save/Restore Structure&lt;/td>
+&lt;td>Backup and restore your classification hierarchy anytime&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>📤 Export Data&lt;/td>
+&lt;td>Export titles, abstracts, or keywords as JSON&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>📥 Import Hierarchy&lt;/td>
+&lt;td>Create folder structure from TXT files&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>🛑 Stop Classification&lt;/td>
+&lt;td>Interrupt ongoing classification tasks anytime&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>🛡️ Privacy-First&lt;/td>
+&lt;td>API Key stored locally, never uploaded to any server&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;hr>
+&lt;h2 id="2-features--implementation-principles">2. Features &amp;amp; Implementation Principles
+&lt;/h2>&lt;h3 id="21-intelligent-classification-core-feature">2.1 Intelligent Classification (Core Feature)
+&lt;/h3>&lt;p>This is the most important feature of AI Classifier. It uses LLM to understand paper content and automatically categorize them into preset folders.&lt;/p>
+&lt;h4 id="implementation-principles">Implementation Principles
+&lt;/h4>&lt;p>&lt;strong>Step 1: Fetch Paper Information&lt;/strong>&lt;/p>
+&lt;p>The plugin retrieves the following information from selected papers via Zotero API:&lt;/p>
+&lt;ul>
+&lt;li>Title&lt;/li>
+&lt;li>Abstract&lt;/li>
+&lt;li>Keywords&lt;/li>
+&lt;/ul>
+&lt;p>These form the basis for the LLM to understand the paper&amp;rsquo;s content.&lt;/p>
+&lt;p>&lt;strong>Step 2: Build Prompt&lt;/strong>&lt;/p>
+&lt;p>The plugin combines the user-configured classification hierarchy with paper information to construct a prompt for the LLM. The core prompt logic:&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;span class="lnt">11
+&lt;/span>&lt;span class="lnt">12
+&lt;/span>&lt;span class="lnt">13
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-fallback" data-lang="fallback">&lt;span class="line">&lt;span class="cl">You are a literature classification assistant. Here is the paper to classify:
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">Title: {title}
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">Abstract: {abstract}
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">Keywords: {keywords}
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">Available classification hierarchy:
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">{folder_structure}
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">Based on the paper content, choose the most appropriate classification path.
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">Return format: JSON with the following fields:
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">- &amp;#34;path&amp;#34;: The most appropriate classification path
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">- &amp;#34;confidence&amp;#34;: Confidence score (float between 0-1)
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">- &amp;#34;reason&amp;#34;: Brief explanation for the classification
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>&lt;strong>Step 3: Call LLM API&lt;/strong>&lt;/p>
+&lt;p>The plugin sends HTTP requests to the user-configured LLM API (such as SiliconFlow, OpenAI, etc.) with the constructed prompt to get classification results.&lt;/p>
+&lt;p>The API call uses the standard OpenAI-compatible format:&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;span class="lnt">2
+&lt;/span>&lt;span class="lnt">3
+&lt;/span>&lt;span class="lnt">4
+&lt;/span>&lt;span class="lnt">5
+&lt;/span>&lt;span class="lnt">6
+&lt;/span>&lt;span class="lnt">7
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-json" data-lang="json">&lt;span class="line">&lt;span class="cl">&lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nt">&amp;#34;model&amp;#34;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="s2">&amp;#34;Qwen/Qwen2.5-7B-Instruct&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nt">&amp;#34;messages&amp;#34;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="p">[&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">{&lt;/span>&lt;span class="nt">&amp;#34;role&amp;#34;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="s2">&amp;#34;user&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nt">&amp;#34;content&amp;#34;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="s2">&amp;#34;...&amp;#34;&lt;/span>&lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">],&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nt">&amp;#34;temperature&amp;#34;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="mf">0.1&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>&lt;strong>Step 4: Parse Response &amp;amp; Confidence Threshold&lt;/strong>&lt;/p>
+&lt;p>After receiving the classification result from LLM, the plugin parses the JSON response to get the classification path and confidence score.&lt;/p>
+&lt;p>&lt;strong>Key Design: Confidence Threshold Mechanism&lt;/strong>&lt;/p>
+&lt;p>Users can configure a confidence threshold (default: 0.7). The plugin only automatically moves a paper when the LLM&amp;rsquo;s confidence score is &lt;strong>higher&lt;/strong> than the threshold. Otherwise, the paper stays in its original location, and the classification result is only logged.&lt;/p>
+&lt;p>This design is crucial:&lt;/p>
+&lt;ul>
+&lt;li>&lt;strong>Prevent Misclassification&lt;/strong>: Low confidence means AI is uncertain; forcing classification may cause errors&lt;/li>
+&lt;li>&lt;strong>User Control&lt;/strong>: By adjusting the threshold, users can balance between &amp;ldquo;automation level&amp;rdquo; and &amp;ldquo;accuracy&amp;rdquo;&lt;/li>
+&lt;li>&lt;strong>Progressive Optimization&lt;/strong>: Users can handle high-confidence results first, then review low-confidence ones later&lt;/li>
+&lt;/ul>
+&lt;p>&lt;strong>Step 5: Execute Classification&lt;/strong>&lt;/p>
+&lt;p>Based on the classification result, the plugin calls Zotero API to move the paper to the target folder:&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;span class="lnt">2
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-javascript" data-lang="javascript">&lt;span class="line">&lt;span class="cl">&lt;span class="c1">// Move item to target collection
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span>&lt;span class="kr">await&lt;/span> &lt;span class="nx">item&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">moveToCollection&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">collectionPath&lt;/span>&lt;span class="p">);&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;h4 id="technical-highlights">Technical Highlights
+&lt;/h4>&lt;ul>
+&lt;li>&lt;strong>Batch Processing&lt;/strong>: Supports selecting multiple papers, processes them serially to avoid API rate limits&lt;/li>
+&lt;li>&lt;strong>Real-time Progress&lt;/strong>: Updates UI after each paper, showing real-time progress&lt;/li>
+&lt;li>&lt;strong>Error Tolerance&lt;/strong>: Failure on one paper doesn&amp;rsquo;t affect others; continues processing remaining papers&lt;/li>
+&lt;li>&lt;strong>Async Tasks&lt;/strong>: Classification runs in background without blocking Zotero&amp;rsquo;s main interface&lt;/li>
+&lt;/ul>
+&lt;hr>
+&lt;h3 id="22-save--restore-classification-structure">2.2 Save &amp;amp; Restore Classification Structure
+&lt;/h3>&lt;p>This feature backs up and restores your literature classification system, preventing loss due to misoperations.&lt;/p>
+&lt;h4 id="implementation-principles-1">Implementation Principles
+&lt;/h4>&lt;p>&lt;strong>Saving Structure&lt;/strong>&lt;/p>
+&lt;p>The plugin traverses all collections in Zotero, recursively extracts the folder hierarchy, and serializes it to a JSON file.&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;span class="lnt">11
+&lt;/span>&lt;span class="lnt">12
+&lt;/span>&lt;span class="lnt">13
+&lt;/span>&lt;span class="lnt">14
+&lt;/span>&lt;span class="lnt">15
+&lt;/span>&lt;span class="lnt">16
+&lt;/span>&lt;span class="lnt">17
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-javascript" data-lang="javascript">&lt;span class="line">&lt;span class="cl">&lt;span class="c1">// Pseudo-code: Save structure
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span>&lt;span class="kd">function&lt;/span> &lt;span class="nx">saveStructure&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="kr">const&lt;/span> &lt;span class="nx">collections&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nx">Zotero&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Collections&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">get&lt;/span>&lt;span class="p">();&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="kr">const&lt;/span> &lt;span class="nx">structure&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nx">traverseCollections&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">collections&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="kc">null&lt;/span>&lt;span class="p">);&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="kr">const&lt;/span> &lt;span class="nx">json&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nx">JSON&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">stringify&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">structure&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="kc">null&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">2&lt;/span>&lt;span class="p">);&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">saveToFile&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">json&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">backupPath&lt;/span>&lt;span class="p">);&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">// Recursively traverse collections
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span>&lt;span class="kd">function&lt;/span> &lt;span class="nx">traverseCollections&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">collections&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">parentId&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">return&lt;/span> &lt;span class="nx">collections&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">.&lt;/span>&lt;span class="nx">filter&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">c&lt;/span> &lt;span class="p">=&amp;gt;&lt;/span> &lt;span class="nx">c&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">parentID&lt;/span> &lt;span class="o">===&lt;/span> &lt;span class="nx">parentId&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">.&lt;/span>&lt;span class="nx">map&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">c&lt;/span> &lt;span class="p">=&amp;gt;&lt;/span> &lt;span class="p">({&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">name&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="nx">c&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">name&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">children&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="nx">traverseCollections&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">collections&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">c&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">id&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}));&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>&lt;strong>Restoring Structure&lt;/strong>&lt;/p>
+&lt;p>Reads the backup JSON file and recursively creates collections:&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;span class="lnt">11
+&lt;/span>&lt;span class="lnt">12
+&lt;/span>&lt;span class="lnt">13
+&lt;/span>&lt;span class="lnt">14
+&lt;/span>&lt;span class="lnt">15
+&lt;/span>&lt;span class="lnt">16
+&lt;/span>&lt;span class="lnt">17
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-javascript" data-lang="javascript">&lt;span class="line">&lt;span class="cl">&lt;span class="c1">// Pseudo-code: Restore structure
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span>&lt;span class="kd">function&lt;/span> &lt;span class="nx">restoreStructure&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">json&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="kr">const&lt;/span> &lt;span class="nx">structure&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nx">JSON&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">parse&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">json&lt;/span>&lt;span class="p">);&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">createCollections&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">structure&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="kc">null&lt;/span>&lt;span class="p">);&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kd">function&lt;/span> &lt;span class="nx">createCollections&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">nodes&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">parentId&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">nodes&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">forEach&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">node&lt;/span> &lt;span class="p">=&amp;gt;&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="kr">const&lt;/span> &lt;span class="nx">collection&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nx">Zotero&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Collections&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">create&lt;/span>&lt;span class="p">({&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">name&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="nx">node&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">name&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">parentID&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="nx">parentId&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">});&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">if&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="nx">node&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">children&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">createCollections&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">node&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">children&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">collection&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">id&lt;/span>&lt;span class="p">);&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">});&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;h4 id="notes">Notes
+&lt;/h4>&lt;ul>
+&lt;li>&lt;strong>Restore Structure&lt;/strong>: Uses &lt;strong>additive mode&lt;/strong>, only adding folders that exist in the backup but not in the current structure. It won&amp;rsquo;t delete existing collections or affect already-classified papers.&lt;/li>
+&lt;li>&lt;strong>Import from TXT&lt;/strong>: Will &lt;strong>clear all existing collections&lt;/strong> before rebuilding (papers themselves won&amp;rsquo;t be deleted).&lt;/li>
+&lt;li>The plugin prompts for confirmation before importing; proceed with caution.&lt;/li>
+&lt;/ul>
+&lt;hr>
+&lt;h3 id="23-export-paper-data">2.3 Export Paper Data
+&lt;/h3>&lt;p>This feature exports paper titles, abstracts, or keywords to JSON files for further analysis or migration.&lt;/p>
+&lt;h4 id="implementation-principles-2">Implementation Principles
+&lt;/h4>&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;span class="lnt">11
+&lt;/span>&lt;span class="lnt">12
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-javascript" data-lang="javascript">&lt;span class="line">&lt;span class="cl">&lt;span class="c1">// Pseudo-code: Export data
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span>&lt;span class="kd">function&lt;/span> &lt;span class="nx">exportData&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">type&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="kr">const&lt;/span> &lt;span class="nx">items&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nx">Zotero&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Items&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">getAll&lt;/span>&lt;span class="p">();&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="kr">const&lt;/span> &lt;span class="nx">data&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nx">items&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">map&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">item&lt;/span> &lt;span class="p">=&amp;gt;&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">switch&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">type&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">case&lt;/span> &lt;span class="s1">&amp;#39;title&amp;#39;&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="k">return&lt;/span> &lt;span class="nx">item&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">getField&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;title&amp;#39;&lt;/span>&lt;span class="p">);&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">case&lt;/span> &lt;span class="s1">&amp;#39;abstract&amp;#39;&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="k">return&lt;/span> &lt;span class="nx">item&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">getField&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;abstractNote&amp;#39;&lt;/span>&lt;span class="p">);&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">case&lt;/span> &lt;span class="s1">&amp;#39;keywords&amp;#39;&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="k">return&lt;/span> &lt;span class="nx">item&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">getTags&lt;/span>&lt;span class="p">().&lt;/span>&lt;span class="nx">map&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">t&lt;/span> &lt;span class="p">=&amp;gt;&lt;/span> &lt;span class="nx">t&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">tag&lt;/span>&lt;span class="p">);&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">});&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">saveToFile&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">JSON&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">stringify&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">data&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="kc">null&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">2&lt;/span>&lt;span class="p">),&lt;/span> &lt;span class="nx">exportPath&lt;/span>&lt;span class="p">);&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>Export format example (titles):&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;span class="lnt">2
+&lt;/span>&lt;span class="lnt">3
+&lt;/span>&lt;span class="lnt">4
+&lt;/span>&lt;span class="lnt">5
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-json" data-lang="json">&lt;span class="line">&lt;span class="cl">&lt;span class="p">[&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="s2">&amp;#34;Deep Learning for Scientific Discovery&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="s2">&amp;#34;A Survey of Natural Language Processing&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="s2">&amp;#34;Quantum Computing: Principles and Applications&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">]&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;hr>
+&lt;h3 id="24-import-hierarchy-from-txt">2.4 Import Hierarchy from TXT
+&lt;/h3>&lt;p>This feature allows batch creation of folder structures from text files, perfect for establishing a complete classification system at once.&lt;/p>
+&lt;h4 id="implementation-principles-3">Implementation Principles
+&lt;/h4>&lt;p>&lt;strong>TXT File Format&lt;/strong>&lt;/p>
+&lt;p>The plugin supports hierarchical indentation format:&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-fallback" data-lang="fallback">&lt;span class="line">&lt;span class="cl">1. Physics
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">1.1 Quantum Mechanics
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">1.2 Thermodynamics
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">1.3 Relativity
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">1.3.1 General Relativity
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">1.3.2 Special Relativity
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">2. Chemistry
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">2.1 Organic Chemistry
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">2.2 Inorganic Chemistry
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">2.3 Analytical Chemistry
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>Indentation can use spaces or tabs; number prefixes are used for sorting.&lt;/p>
+&lt;p>&lt;strong>Parsing Logic&lt;/strong>&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;span class="lnt">11
+&lt;/span>&lt;span class="lnt">12
+&lt;/span>&lt;span class="lnt">13
+&lt;/span>&lt;span class="lnt">14
+&lt;/span>&lt;span class="lnt">15
+&lt;/span>&lt;span class="lnt">16
+&lt;/span>&lt;span class="lnt">17
+&lt;/span>&lt;span class="lnt">18
+&lt;/span>&lt;span class="lnt">19
+&lt;/span>&lt;span class="lnt">20
+&lt;/span>&lt;span class="lnt">21
+&lt;/span>&lt;span class="lnt">22
+&lt;/span>&lt;span class="lnt">23
+&lt;/span>&lt;span class="lnt">24
+&lt;/span>&lt;span class="lnt">25
+&lt;/span>&lt;span class="lnt">26
+&lt;/span>&lt;span class="lnt">27
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-javascript" data-lang="javascript">&lt;span class="line">&lt;span class="cl">&lt;span class="c1">// Pseudo-code: Parse TXT
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span>&lt;span class="kd">function&lt;/span> &lt;span class="nx">parseHierarchy&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">text&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="kr">const&lt;/span> &lt;span class="nx">lines&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nx">text&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">split&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;\n&amp;#39;&lt;/span>&lt;span class="p">);&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="kr">const&lt;/span> &lt;span class="nx">stack&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">[];&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">lines&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">forEach&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">line&lt;/span> &lt;span class="p">=&amp;gt;&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="kr">const&lt;/span> &lt;span class="nx">match&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nx">line&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">match&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="sr">/^(\s*)(\d+\.)?\s*(.+)/&lt;/span>&lt;span class="p">);&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">if&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="o">!&lt;/span>&lt;span class="nx">match&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="k">return&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="kr">const&lt;/span> &lt;span class="nx">indent&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nx">match&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">].&lt;/span>&lt;span class="nx">length&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="kr">const&lt;/span> &lt;span class="nx">name&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nx">match&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="mi">3&lt;/span>&lt;span class="p">];&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="kr">const&lt;/span> &lt;span class="nx">level&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nb">Math&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">floor&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">indent&lt;/span> &lt;span class="o">/&lt;/span> &lt;span class="mi">2&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="mi">1&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="c1">// Determine parent based on indentation level
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span> &lt;span class="k">while&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="nx">stack&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">length&lt;/span> &lt;span class="o">&amp;gt;=&lt;/span> &lt;span class="nx">level&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="nx">stack&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">pop&lt;/span>&lt;span class="p">();&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="kr">const&lt;/span> &lt;span class="nx">node&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">{&lt;/span> &lt;span class="nx">name&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">children&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="p">[]&lt;/span> &lt;span class="p">};&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">if&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="nx">stack&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">length&lt;/span> &lt;span class="o">===&lt;/span> &lt;span class="mi">0&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">root&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">push&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">node&lt;/span>&lt;span class="p">);&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span> &lt;span class="k">else&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">stack&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="nx">stack&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">length&lt;/span> &lt;span class="o">-&lt;/span> &lt;span class="mi">1&lt;/span>&lt;span class="p">].&lt;/span>&lt;span class="nx">children&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">push&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">node&lt;/span>&lt;span class="p">);&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">stack&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">push&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">node&lt;/span>&lt;span class="p">);&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">});&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">return&lt;/span> &lt;span class="nx">root&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>&lt;strong>Create Collections&lt;/strong>&lt;/p>
+&lt;p>After parsing, recursively call Zotero API to create collections:&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;span class="lnt">2
+&lt;/span>&lt;span class="lnt">3
+&lt;/span>&lt;span class="lnt">4
+&lt;/span>&lt;span class="lnt">5
+&lt;/span>&lt;span class="lnt">6
+&lt;/span>&lt;span class="lnt">7
+&lt;/span>&lt;span class="lnt">8
+&lt;/span>&lt;span class="lnt">9
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-javascript" data-lang="javascript">&lt;span class="line">&lt;span class="cl">&lt;span class="kd">function&lt;/span> &lt;span class="nx">createCollections&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">nodes&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">parentId&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">nodes&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">forEach&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">node&lt;/span> &lt;span class="p">=&amp;gt;&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="kr">const&lt;/span> &lt;span class="nx">collection&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nx">Zotero&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Collections&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">create&lt;/span>&lt;span class="p">({&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">name&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="nx">node&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">name&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">parentID&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="nx">parentId&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">});&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">createCollections&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">node&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">children&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">collection&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">id&lt;/span>&lt;span class="p">);&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">});&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;h4 id="notes-1">Notes
+&lt;/h4>&lt;ul>
+&lt;li>Importing hierarchy will &lt;strong>clear all existing collections&lt;/strong> before rebuilding (papers in collections won&amp;rsquo;t be deleted, but will become unfiled)&lt;/li>
+&lt;li>The plugin prompts for confirmation before importing; proceed with caution&lt;/li>
+&lt;/ul>
+&lt;hr>
+&lt;h3 id="25-stop-classification-task">2.5 Stop Classification Task
+&lt;/h3>&lt;p>When processing large numbers of papers, users may need to stop the classification process midway. This feature safely interrupts ongoing classification tasks.&lt;/p>
+&lt;h4 id="implementation-principles-4">Implementation Principles
+&lt;/h4>&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;span class="lnt">11
+&lt;/span>&lt;span class="lnt">12
+&lt;/span>&lt;span class="lnt">13
+&lt;/span>&lt;span class="lnt">14
+&lt;/span>&lt;span class="lnt">15
+&lt;/span>&lt;span class="lnt">16
+&lt;/span>&lt;span class="lnt">17
+&lt;/span>&lt;span class="lnt">18
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-javascript" data-lang="javascript">&lt;span class="line">&lt;span class="cl">&lt;span class="c1">// Use flag to control task
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span>&lt;span class="kd">let&lt;/span> &lt;span class="nx">isStopping&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="kc">false&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kr">async&lt;/span> &lt;span class="kd">function&lt;/span> &lt;span class="nx">classifyPapers&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">items&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">for&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="kr">const&lt;/span> &lt;span class="nx">item&lt;/span> &lt;span class="k">of&lt;/span> &lt;span class="nx">items&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">if&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="nx">isStopping&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">console&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">log&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;Classification stopped&amp;#34;&lt;/span>&lt;span class="p">);&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">break&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="kr">await&lt;/span> &lt;span class="nx">classifyOnePaper&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">item&lt;/span>&lt;span class="p">);&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">updateProgress&lt;/span>&lt;span class="p">();&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kd">function&lt;/span> &lt;span class="nx">stopClassification&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">isStopping&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="kc">true&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;h4 id="design-considerations">Design Considerations
+&lt;/h4>&lt;ul>
+&lt;li>&lt;strong>Graceful Stop&lt;/strong>: Instead of forcefully terminating threads, it sets a flag to allow natural exit after current batch completes&lt;/li>
+&lt;li>&lt;strong>State Reset&lt;/strong>: The flag needs to be reset after stopping so the next classification task can run normally&lt;/li>
+&lt;/ul>
+&lt;hr>
+&lt;h3 id="26-privacy-first-local-storage">2.6 Privacy-First: Local Storage
+&lt;/h3>&lt;p>AI Classifier is designed with strong privacy considerations, ensuring your API key and literature data remain secure.&lt;/p>
+&lt;h4 id="implementation-principles-5">Implementation Principles
+&lt;/h4>&lt;p>&lt;strong>Config File Location&lt;/strong>&lt;/p>
+&lt;p>All configuration (including API Key) is stored in a JSON file within the Zotero data directory:&lt;/p>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>OS&lt;/th>
+&lt;th>Path&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>Windows&lt;/td>
+&lt;td>&lt;code>%APPDATA%\Zotero\zotero_ai_config.json&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>macOS&lt;/td>
+&lt;td>&lt;code>~/Library/Application Support/Zotero/zotero_ai_config.json&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Linux&lt;/td>
+&lt;td>&lt;code>~/.config/zotero/zotero_ai_config.json&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;p>&lt;strong>Data Flow&lt;/strong>&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;span class="lnt">2
+&lt;/span>&lt;span class="lnt">3
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-fallback" data-lang="fallback">&lt;span class="line">&lt;span class="cl">User → Plugin → LLM API → Return result
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> ↓
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> Local config file (API Key)
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>&lt;strong>Key Points&lt;/strong>:&lt;/p>
+&lt;ul>
+&lt;li>API Key &lt;strong>only exists in local config files&lt;/strong>, not transmitted through any third-party servers&lt;/li>
+&lt;li>When calling LLM API, the plugin communicates directly with the API provider (e.g., SiliconFlow, OpenAI)&lt;/li>
+&lt;li>The plugin itself doesn&amp;rsquo;t run any backend services and doesn&amp;rsquo;t collect any user data&lt;/li>
+&lt;li>Paper content (title, abstract, keywords) is only sent to LLM API during classification; no copies are stored&lt;/li>
+&lt;/ul>
+&lt;hr>
+&lt;h2 id="3-configuration-guide">3. Configuration Guide
+&lt;/h2>&lt;h3 id="31-config-file-structure">3.1 Config File Structure
+&lt;/h3>&lt;p>&lt;code>zotero_ai_config.json&lt;/code> contains the following fields:&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;span class="lnt">2
+&lt;/span>&lt;span class="lnt">3
+&lt;/span>&lt;span class="lnt">4
+&lt;/span>&lt;span class="lnt">5
+&lt;/span>&lt;span class="lnt">6
+&lt;/span>&lt;span class="lnt">7
+&lt;/span>&lt;span class="lnt">8
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-json" data-lang="json">&lt;span class="line">&lt;span class="cl">&lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nt">&amp;#34;apiUrl&amp;#34;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="s2">&amp;#34;https://api.siliconflow.cn/v1/chat/completions&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nt">&amp;#34;apiKey&amp;#34;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="s2">&amp;#34;your-api-key-here&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nt">&amp;#34;model&amp;#34;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="s2">&amp;#34;Qwen/Qwen2.5-7B-Instruct&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nt">&amp;#34;logPath&amp;#34;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="s2">&amp;#34;/path/to/log/file.log&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nt">&amp;#34;confidenceThreshold&amp;#34;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="mf">0.7&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nt">&amp;#34;customPrompt&amp;#34;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="s2">&amp;#34;&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;h3 id="32-supported-llm-providers">3.2 Supported LLM Providers
+&lt;/h3>&lt;p>Theoretically supports all OpenAI API-compatible providers. Common choices:&lt;/p>
+&lt;ul>
+&lt;li>&lt;strong>SiliconFlow&lt;/strong>: Fast access in China, affordable pricing&lt;/li>
+&lt;li>&lt;strong>OpenAI&lt;/strong>: Official service, reliable quality&lt;/li>
+&lt;li>&lt;strong>Anthropic&lt;/strong>: Claude series models&lt;/li>
+&lt;li>&lt;strong>Local Deployment&lt;/strong>: Ollama, LM Studio, etc.&lt;/li>
+&lt;/ul>
+&lt;h3 id="33-custom-prompts">3.3 Custom Prompts
+&lt;/h3>&lt;p>Under &amp;ldquo;Settings&amp;rdquo; → &amp;ldquo;Prompt Configuration&amp;rdquo;, users can customize the prompt sent to the LLM. Advanced users can optimize prompts based on their field to improve classification accuracy.&lt;/p>
+&lt;hr>
+&lt;h2 id="4-getting-started">4. Getting Started
+&lt;/h2>&lt;h3 id="41-installation">4.1 Installation
+&lt;/h3>&lt;ol>
+&lt;li>Download the latest &lt;code>.xpi&lt;/code> file from &lt;a class="link" href="https://github.com/KeqiYe/Zotero-AI-Classifier/releases" target="_blank" rel="noopener"
+>GitHub Releases&lt;/a>&lt;/li>
+&lt;li>Open Zotero, click &lt;strong>Tools&lt;/strong> → &lt;strong>Add-ons&lt;/strong>&lt;/li>
+&lt;li>Click the gear icon → &lt;strong>Install Add-on From File&amp;hellip;&lt;/strong>&lt;/li>
+&lt;li>Select the downloaded &lt;code>.xpi&lt;/code> file&lt;/li>
+&lt;li>Restart Zotero&lt;/li>
+&lt;/ol>
+&lt;h3 id="42-initial-configuration">4.2 Initial Configuration
+&lt;/h3>&lt;ol>
+&lt;li>Click &lt;strong>Tools&lt;/strong> → &lt;strong>AI Classifier&lt;/strong> → &lt;strong>Set Log File Location&lt;/strong> to choose log save path&lt;/li>
+&lt;li>Click &lt;strong>Tools&lt;/strong> → &lt;strong>AI Classifier&lt;/strong> → &lt;strong>Settings&lt;/strong> → &lt;strong>API Configuration&lt;/strong>&lt;/li>
+&lt;li>Fill in:
+&lt;ul>
+&lt;li>&lt;strong>API URL&lt;/strong>: e.g., &lt;code>https://api.siliconflow.cn/v1/chat/completions&lt;/code>&lt;/li>
+&lt;li>&lt;strong>API Key&lt;/strong>: Your key&lt;/li>
+&lt;li>&lt;strong>Model Name&lt;/strong>: e.g., &lt;code>Qwen/Qwen2.5-7B-Instruct&lt;/code>&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>Click &amp;ldquo;Test Connection&amp;rdquo;, then save&lt;/li>
+&lt;/ol>
+&lt;h3 id="43-complete-workflow">4.3 Complete Workflow
+&lt;/h3>&lt;p>&lt;strong>Step 1: Create Classification Hierarchy&lt;/strong>&lt;/p>
+&lt;p>Create a TXT file with your classification structure:&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;span class="lnt">11
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-fallback" data-lang="fallback">&lt;span class="line">&lt;span class="cl">1. Machine Learning
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">1.1 Deep Learning
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">1.2 Reinforcement Learning
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">1.3 Natural Language Processing
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">2. Computer Vision
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">2.1 Image Classification
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">2.2 Object Detection
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">2.3 Image Segmentation
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">3. Physics
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">3.1 Quantum Mechanics
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">3.2 Fluid Dynamics
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;blockquote>
+&lt;p>💡 &lt;strong>Tip&lt;/strong>: If you&amp;rsquo;re unsure how to build your classification hierarchy, you can first use the plugin&amp;rsquo;s &amp;ldquo;Export&amp;rdquo; feature to export your library information (titles, abstracts, etc.), then submit it to an AI to get recommendations for a reasonable classification structure. This is more efficient than brainstorming on your own.&lt;/p>
+&lt;/blockquote>
+&lt;p>&lt;strong>Step 2: Import Hierarchy&lt;/strong>&lt;/p>
+&lt;p>Click &lt;strong>AI Classifier&lt;/strong> → &lt;strong>Import Hierarchy from TXT&lt;/strong>, select the TXT file.&lt;/p>
+&lt;p>&lt;strong>Step 3: Select Papers and Classify&lt;/strong>&lt;/p>
+&lt;ol>
+&lt;li>Select multiple papers to classify in Zotero&lt;/li>
+&lt;li>Click &lt;strong>AI Classifier&lt;/strong> → &lt;strong>LLM Model Classification&lt;/strong>&lt;/li>
+&lt;li>Set confidence threshold (e.g., 0.7)&lt;/li>
+&lt;li>Start classification and watch progress&lt;/li>
+&lt;/ol>
+&lt;p>&lt;strong>Step 4: Backup Structure&lt;/strong>&lt;/p>
+&lt;p>Before important operations, click &lt;strong>Save Current Structure&lt;/strong> to backup.&lt;/p>
+&lt;hr>
+&lt;h2 id="5-faq">5. FAQ
+&lt;/h2>&lt;h3 id="q1-classification-results-are-inaccurate-what-should-i-do">Q1: Classification results are inaccurate. What should I do?
+&lt;/h3>&lt;ol>
+&lt;li>Adjust confidence threshold - lowering it classifies more papers but may increase errors&lt;/li>
+&lt;li>Customize prompts to provide more detailed classification guidance&lt;/li>
+&lt;li>Use a more powerful LLM model&lt;/li>
+&lt;/ol>
+&lt;h3 id="q2-classification-is-too-slow-what-should-i-do">Q2: Classification is too slow. What should I do?
+&lt;/h3>&lt;ol>
+&lt;li>Choose an API provider with faster response (e.g., SiliconFlow)&lt;/li>
+&lt;li>Use smaller models (e.g., Qwen2.5-3B)&lt;/li>
+&lt;li>Reduce the number of papers per classification batch&lt;/li>
+&lt;/ol>
+&lt;h3 id="q3-api-calls-failing-what-should-i-do">Q3: API calls failing. What should I do?
+&lt;/h3>&lt;ol>
+&lt;li>Check if API Key is correct&lt;/li>
+&lt;li>Check network connection&lt;/li>
+&lt;li>Check logs (Tools → AI Classifier → Log Viewer) to troubleshoot&lt;/li>
+&lt;/ol>
+&lt;hr>
+&lt;h2 id="6-conclusion">6. Conclusion
+&lt;/h2>&lt;p>AI Classifier deeply integrates Large Language Models with Zotero&amp;rsquo;s literature management, enabling intelligent classification of academic papers. It not only has complete functionality but also carefully considers user privacy, data security, and user experience.&lt;/p>
+&lt;p>Understanding the implementation principles behind each feature helps you use the plugin more effectively and optimize it based on your needs. I hope this article helps you leverage AI Classifier to make literature management easier and more efficient.&lt;/p>
+&lt;hr>
+&lt;h2 id="related-links">Related Links
+&lt;/h2>&lt;ul>
+&lt;li>GitHub Repository: &lt;a class="link" href="https://github.com/KeqiYe/Zotero-AI-Classifier" target="_blank" rel="noopener"
+>https://github.com/KeqiYe/Zotero-AI-Classifier&lt;/a>&lt;/li>
+&lt;li>Author Profile: &lt;a class="link" href="https://github.com/KeqiYe" target="_blank" rel="noopener"
+>https://github.com/KeqiYe&lt;/a>&lt;/li>
+&lt;/ul></description></item></channel></rss>

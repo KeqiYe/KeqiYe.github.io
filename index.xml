@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Keqi的博客</title><link>https://keqiye.github.io/</link><description>Recent content on Keqi的博客</description><generator>Hugo -- gohugo.io</generator><language>zh-cn</language><managingEditor>plloningye@gmail.com (Keqi Ye)</managingEditor><webMaster>plloningye@gmail.com (Keqi Ye)</webMaster><copyright>Keqi Ye</copyright><lastBuildDate>Sun, 25 May 2025 00:00:00 +0000</lastBuildDate><atom:link href="https://keqiye.github.io/index.xml" rel="self" type="application/rss+xml"/><item><title>SPH基础(序): 概述与系列介绍</title><link>https://keqiye.github.io/posts/sphseries/sphseries-intro/</link><pubDate>Mon, 20 May 2024 00:00:00 +0000</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://keqiye.github.io/posts/sphseries/sphseries-intro/</guid><description>&lt;h1 id="sph-系列总览">SPH 系列总览
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Keqi的博客</title><link>https://keqiye.github.io/</link><description>Recent content on Keqi的博客</description><generator>Hugo -- gohugo.io</generator><language>zh-cn</language><managingEditor>plloningye@gmail.com (Keqi Ye)</managingEditor><webMaster>plloningye@gmail.com (Keqi Ye)</webMaster><copyright>Keqi Ye</copyright><lastBuildDate>Thu, 12 Mar 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://keqiye.github.io/index.xml" rel="self" type="application/rss+xml"/><item><title>SPH基础(序): 概述与系列介绍</title><link>https://keqiye.github.io/posts/sphseries/sphseries-intro/</link><pubDate>Mon, 20 May 2024 00:00:00 +0000</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://keqiye.github.io/posts/sphseries/sphseries-intro/</guid><description>&lt;h1 id="sph-系列总览">SPH 系列总览
 &lt;/h1>&lt;p>本系列文章旨在从零开始，系统介绍光滑粒子流体动力学（SPH, Smoothed Particle Hydrodynamics）方法的核心概念、数学原理以及实现技巧。通过本系列，你将能够：&lt;/p>
 &lt;ul>
 &lt;li>理解 SPH 方法的基本思想和应用场景。&lt;/li>
@@ -1466,7 +1466,649 @@ $$
 &lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">// `perform_rk45_step` 和 `calculate_error_rate` 分别实现了第3节的算法核心和误差控制。
 &lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
 &lt;/div>
-&lt;/div></description></item><item><title>7 Step Optimization of Parallel Reduction with CUDA</title><link>https://keqiye.github.io/posts/parallel-reduction-with-cuda/blog-parallel-reduction-with-cuda/</link><pubDate>Thu, 22 May 2025 00:00:00 +0000</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://keqiye.github.io/posts/parallel-reduction-with-cuda/blog-parallel-reduction-with-cuda/</guid><description>&lt;h2 id="写在前面">写在前面
+&lt;/div></description></item><item><title>AI Classifier - 功能介绍与实现原理</title><link>https://keqiye.github.io/posts/zotero-ai-classifier/</link><pubDate>Thu, 12 Mar 2026 00:00:00 +0000</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://keqiye.github.io/posts/zotero-ai-classifier/</guid><description>&lt;h1 id="ai-classifier---功能介绍与实现原理">AI Classifier - 功能介绍与实现原理
+&lt;/h1>&lt;p>作为科研工作者，你是否曾为管理大量文献而头疼？面对成百上千篇论文，如何高效地将它们分类到合适的文件夹成为一个难题。&lt;strong>AI Classifier&lt;/strong> 正是为解决这一问题而生的 Zotero 插件，它利用大语言模型（LLM）实现智能文献分类，让你的文献管理效率大幅提升。&lt;/p>
+&lt;p>本文将详细介绍 AI Classifier 的核心功能，并深入讲解每个功能的实现原理，帮助你更好地理解插件的工作机制。&lt;/p>
+&lt;hr>
+&lt;h2 id="一核心功能概览">一、核心功能概览
+&lt;/h2>&lt;p>AI Classifier 提供以下核心功能：&lt;/p>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>功能&lt;/th>
+&lt;th>说明&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>📂 智能归类&lt;/td>
+&lt;td>AI 自动阅读文献标题、摘要、关键词，按置信度阈值自动归类&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>💾 保存/恢复结构&lt;/td>
+&lt;td>备份当前分类结构，随时恢复&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>📤 导出数据&lt;/td>
+&lt;td>导出标题、摘要、关键词为 JSON&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>📥 导入层级&lt;/td>
+&lt;td>从 TXT 文件批量创建文件夹结构&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>🛑 停止归类&lt;/td>
+&lt;td>随时中断正在进行的分类任务&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>🛡️ 隐私优先&lt;/td>
+&lt;td>API Key 仅保存在本地，不上传服务器&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;hr>
+&lt;h2 id="二功能详解与实现原理">二、功能详解与实现原理
+&lt;/h2>&lt;h3 id="21-智能归类核心功能">2.1 智能归类（核心功能）
+&lt;/h3>&lt;p>这是 AI Classifier 最核心的功能。它利用 LLM 理解文献内容，自动将文献分类到预设的文件夹中。&lt;/p>
+&lt;h4 id="实现原理">实现原理
+&lt;/h4>&lt;p>&lt;strong>第一步：获取文献信息&lt;/strong>&lt;/p>
+&lt;p>插件通过 Zotero API 获取用户选中文献的以下信息：&lt;/p>
+&lt;ul>
+&lt;li>标题（Title）&lt;/li>
+&lt;li>摘要（Abstract）&lt;/li>
+&lt;li>关键词（Keywords）&lt;/li>
+&lt;/ul>
+&lt;p>这些信息构成了 LLM 理解文献内容的基础。&lt;/p>
+&lt;p>&lt;strong>第二步：构建提示词（Prompt）&lt;/strong>&lt;/p>
+&lt;p>插件将用户配置的分类目录结构和文献信息组合成提示词，发送给 LLM。提示词的核心逻辑如下：&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;span class="lnt">11
+&lt;/span>&lt;span class="lnt">12
+&lt;/span>&lt;span class="lnt">13
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-fallback" data-lang="fallback">&lt;span class="line">&lt;span class="cl">你是一个文献分类助手。以下是待分类文献的信息：
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">标题：{title}
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">摘要：{abstract}
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">关键词：{keywords}
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">可用的分类目录结构如下：
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">{folder_structure}
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">请根据文献内容，从上述目录中选择最合适的分类路径。
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">返回格式要求：JSON格式，包含以下字段：
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">- &amp;#34;path&amp;#34;: 最合适的分类路径
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">- &amp;#34;confidence&amp;#34;: 置信度（0-1之间的浮点数）
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">- &amp;#34;reason&amp;#34;: 简要说明分类理由
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>&lt;strong>第三步：调用 LLM API&lt;/strong>&lt;/p>
+&lt;p>插件通过 HTTP 请求调用用户配置的 LLM API（如 SiliconFlow、OpenAI 等），发送构建好的提示词，获取分类结果。&lt;/p>
+&lt;p>API 调用使用标准的 OpenAI 兼容格式：&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;span class="lnt">2
+&lt;/span>&lt;span class="lnt">3
+&lt;/span>&lt;span class="lnt">4
+&lt;/span>&lt;span class="lnt">5
+&lt;/span>&lt;span class="lnt">6
+&lt;/span>&lt;span class="lnt">7
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-json" data-lang="json">&lt;span class="line">&lt;span class="cl">&lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nt">&amp;#34;model&amp;#34;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="s2">&amp;#34;Qwen/Qwen2.5-7B-Instruct&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nt">&amp;#34;messages&amp;#34;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="p">[&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">{&lt;/span>&lt;span class="nt">&amp;#34;role&amp;#34;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="s2">&amp;#34;user&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nt">&amp;#34;content&amp;#34;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="s2">&amp;#34;...&amp;#34;&lt;/span>&lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">],&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nt">&amp;#34;temperature&amp;#34;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="mf">0.1&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>&lt;strong>第四步：解析响应与置信度判断&lt;/strong>&lt;/p>
+&lt;p>LLM 返回分类结果后，插件解析 JSON 响应，获取分类路径和置信度。&lt;/p>
+&lt;p>&lt;strong>关键设计：置信度阈值机制&lt;/strong>&lt;/p>
+&lt;p>用户可以配置置信度阈值（默认 0.7）。只有当 LLM 返回的置信度 &lt;strong>高于&lt;/strong> 阈值时，插件才会自动移动文献；否则，文献保持原位，分类结果仅记录在日志中。&lt;/p>
+&lt;p>这一设计有重要意义：&lt;/p>
+&lt;ul>
+&lt;li>&lt;strong>避免错误分类&lt;/strong>：低置信度意味着 AI 不确定，强制归类可能导致错误&lt;/li>
+&lt;li>&lt;strong>用户可控&lt;/strong>：通过调整阈值，用户可以在&amp;quot;自动化程度&amp;quot;和&amp;quot;准确率&amp;quot;之间权衡&lt;/li>
+&lt;li>&lt;strong>渐进优化&lt;/strong>：用户可以先处理高置信度结果，再回头检查低置信度结果&lt;/li>
+&lt;/ul>
+&lt;p>&lt;strong>第五步：执行分类&lt;/strong>&lt;/p>
+&lt;p>根据分类结果，插件调用 Zotero API 将文献移动到对应的文件夹：&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;span class="lnt">2
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-javascript" data-lang="javascript">&lt;span class="line">&lt;span class="cl">&lt;span class="c1">// 移动文献到目标集合
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span>&lt;span class="kr">await&lt;/span> &lt;span class="nx">item&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">moveToCollection&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">collectionPath&lt;/span>&lt;span class="p">);&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;h4 id="技术亮点">技术亮点
+&lt;/h4>&lt;ul>
+&lt;li>&lt;strong>批量处理&lt;/strong>：支持一次性选中多篇文献，串行调用 LLM API（避免并发过高导致 API 限流）&lt;/li>
+&lt;li>&lt;strong>增量进度&lt;/strong>：每完成一篇文献的分类，立即更新 UI，用户可以看到实时进度&lt;/li>
+&lt;li>&lt;strong>错误容忍&lt;/strong>：单篇文献分类失败不影响其他文献，继续处理后续文献&lt;/li>
+&lt;li>&lt;strong>异步任务&lt;/strong>：分类过程在后台运行，不阻塞 Zotero 主界面&lt;/li>
+&lt;/ul>
+&lt;hr>
+&lt;h3 id="22-保存与恢复分类结构">2.2 保存与恢复分类结构
+&lt;/h3>&lt;p>这一功能用于备份和恢复你的文献分类体系，防止因误操作导致分类结构丢失。&lt;/p>
+&lt;h4 id="实现原理-1">实现原理
+&lt;/h4>&lt;p>&lt;strong>保存结构&lt;/strong>&lt;/p>
+&lt;p>插件遍历 Zotero 中的所有收藏夹（Collections），递归提取文件夹层级结构，并序列化保存为 JSON 文件。&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;span class="lnt">11
+&lt;/span>&lt;span class="lnt">12
+&lt;/span>&lt;span class="lnt">13
+&lt;/span>&lt;span class="lnt">14
+&lt;/span>&lt;span class="lnt">15
+&lt;/span>&lt;span class="lnt">16
+&lt;/span>&lt;span class="lnt">17
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-javascript" data-lang="javascript">&lt;span class="line">&lt;span class="cl">&lt;span class="c1">// 伪代码：保存结构
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span>&lt;span class="kd">function&lt;/span> &lt;span class="nx">saveStructure&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="kr">const&lt;/span> &lt;span class="nx">collections&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nx">Zotero&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Collections&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">get&lt;/span>&lt;span class="p">();&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="kr">const&lt;/span> &lt;span class="nx">structure&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nx">traverseCollections&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">collections&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="kc">null&lt;/span>&lt;span class="p">);&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="kr">const&lt;/span> &lt;span class="nx">json&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nx">JSON&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">stringify&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">structure&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="kc">null&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">2&lt;/span>&lt;span class="p">);&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">saveToFile&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">json&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">backupPath&lt;/span>&lt;span class="p">);&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">// 递归遍历收藏夹
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span>&lt;span class="kd">function&lt;/span> &lt;span class="nx">traverseCollections&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">collections&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">parentId&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">return&lt;/span> &lt;span class="nx">collections&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">.&lt;/span>&lt;span class="nx">filter&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">c&lt;/span> &lt;span class="p">=&amp;gt;&lt;/span> &lt;span class="nx">c&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">parentID&lt;/span> &lt;span class="o">===&lt;/span> &lt;span class="nx">parentId&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">.&lt;/span>&lt;span class="nx">map&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">c&lt;/span> &lt;span class="p">=&amp;gt;&lt;/span> &lt;span class="p">({&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">name&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="nx">c&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">name&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">children&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="nx">traverseCollections&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">collections&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">c&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">id&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}));&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>&lt;strong>恢复结构&lt;/strong>&lt;/p>
+&lt;p>读取备份 JSON 文件，递归创建收藏夹：&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;span class="lnt">11
+&lt;/span>&lt;span class="lnt">12
+&lt;/span>&lt;span class="lnt">13
+&lt;/span>&lt;span class="lnt">14
+&lt;/span>&lt;span class="lnt">15
+&lt;/span>&lt;span class="lnt">16
+&lt;/span>&lt;span class="lnt">17
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-javascript" data-lang="javascript">&lt;span class="line">&lt;span class="cl">&lt;span class="c1">// 伪代码：恢复结构
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span>&lt;span class="kd">function&lt;/span> &lt;span class="nx">restoreStructure&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">json&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="kr">const&lt;/span> &lt;span class="nx">structure&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nx">JSON&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">parse&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">json&lt;/span>&lt;span class="p">);&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">createCollections&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">structure&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="kc">null&lt;/span>&lt;span class="p">);&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kd">function&lt;/span> &lt;span class="nx">createCollections&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">nodes&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">parentId&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">nodes&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">forEach&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">node&lt;/span> &lt;span class="p">=&amp;gt;&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="kr">const&lt;/span> &lt;span class="nx">collection&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nx">Zotero&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Collections&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">create&lt;/span>&lt;span class="p">({&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">name&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="nx">node&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">name&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">parentID&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="nx">parentId&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">});&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">if&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="nx">node&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">children&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">createCollections&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">node&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">children&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">collection&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">id&lt;/span>&lt;span class="p">);&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">});&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;h4 id="注意事项">注意事项
+&lt;/h4>&lt;ul>
+&lt;li>&lt;strong>恢复结构&lt;/strong>：采用&lt;strong>增量追加&lt;/strong>模式，只会补充备份中存在但当前不存在的文件夹，不会删除现有的分类结构，也不会影响已分类的文献&lt;/li>
+&lt;li>&lt;strong>从 TXT 导入&lt;/strong>：会&lt;strong>清空现有所有收藏夹&lt;/strong>后重建（文献本身不会被删除）&lt;/li>
+&lt;li>导入前插件会提示确认，请谨慎操作&lt;/li>
+&lt;/ul>
+&lt;hr>
+&lt;h3 id="23-导出文献数据">2.3 导出文献数据
+&lt;/h3>&lt;p>这一功能可以将文献的标题、摘要、关键词导出为 JSON 文件，方便后续分析或迁移。&lt;/p>
+&lt;h4 id="实现原理-2">实现原理
+&lt;/h4>&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;span class="lnt">11
+&lt;/span>&lt;span class="lnt">12
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-javascript" data-lang="javascript">&lt;span class="line">&lt;span class="cl">&lt;span class="c1">// 伪代码：导出数据
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span>&lt;span class="kd">function&lt;/span> &lt;span class="nx">exportData&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">type&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="kr">const&lt;/span> &lt;span class="nx">items&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nx">Zotero&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Items&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">getAll&lt;/span>&lt;span class="p">();&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="kr">const&lt;/span> &lt;span class="nx">data&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nx">items&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">map&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">item&lt;/span> &lt;span class="p">=&amp;gt;&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">switch&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">type&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">case&lt;/span> &lt;span class="s1">&amp;#39;title&amp;#39;&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="k">return&lt;/span> &lt;span class="nx">item&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">getField&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;title&amp;#39;&lt;/span>&lt;span class="p">);&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">case&lt;/span> &lt;span class="s1">&amp;#39;abstract&amp;#39;&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="k">return&lt;/span> &lt;span class="nx">item&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">getField&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;abstractNote&amp;#39;&lt;/span>&lt;span class="p">);&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">case&lt;/span> &lt;span class="s1">&amp;#39;keywords&amp;#39;&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="k">return&lt;/span> &lt;span class="nx">item&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">getTags&lt;/span>&lt;span class="p">().&lt;/span>&lt;span class="nx">map&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">t&lt;/span> &lt;span class="p">=&amp;gt;&lt;/span> &lt;span class="nx">t&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">tag&lt;/span>&lt;span class="p">);&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">});&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">saveToFile&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">JSON&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">stringify&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">data&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="kc">null&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">2&lt;/span>&lt;span class="p">),&lt;/span> &lt;span class="nx">exportPath&lt;/span>&lt;span class="p">);&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>导出格式示例（标题）：&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;span class="lnt">2
+&lt;/span>&lt;span class="lnt">3
+&lt;/span>&lt;span class="lnt">4
+&lt;/span>&lt;span class="lnt">5
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-json" data-lang="json">&lt;span class="line">&lt;span class="cl">&lt;span class="p">[&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="s2">&amp;#34;Deep Learning for Scientific Discovery&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="s2">&amp;#34;A Survey of Natural Language Processing&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="s2">&amp;#34;Quantum Computing: Principles and Applications&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">]&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;hr>
+&lt;h3 id="24-从-txt-导入层级">2.4 从 TXT 导入层级
+&lt;/h3>&lt;p>这一功能允许用户通过文本文件批量创建文件夹结构，非常适合一次性建立完整的分类体系。&lt;/p>
+&lt;h4 id="实现原理-3">实现原理
+&lt;/h4>&lt;p>&lt;strong>TXT 文件格式&lt;/strong>&lt;/p>
+&lt;p>插件支持层级缩进格式：&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-fallback" data-lang="fallback">&lt;span class="line">&lt;span class="cl">1. 物理学
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">1.1 量子力学
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">1.2 热力学
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">1.3 相对论
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">1.3.1 广义相对论
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">1.3.2 狭义相对论
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">2. 化学
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">2.1 有机化学
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">2.2 无机化学
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">2.3 分析化学
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>缩进可以使用空格或制表符，数字前缀用于排序。&lt;/p>
+&lt;p>&lt;strong>解析逻辑&lt;/strong>&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;span class="lnt">11
+&lt;/span>&lt;span class="lnt">12
+&lt;/span>&lt;span class="lnt">13
+&lt;/span>&lt;span class="lnt">14
+&lt;/span>&lt;span class="lnt">15
+&lt;/span>&lt;span class="lnt">16
+&lt;/span>&lt;span class="lnt">17
+&lt;/span>&lt;span class="lnt">18
+&lt;/span>&lt;span class="lnt">19
+&lt;/span>&lt;span class="lnt">20
+&lt;/span>&lt;span class="lnt">21
+&lt;/span>&lt;span class="lnt">22
+&lt;/span>&lt;span class="lnt">23
+&lt;/span>&lt;span class="lnt">24
+&lt;/span>&lt;span class="lnt">25
+&lt;/span>&lt;span class="lnt">26
+&lt;/span>&lt;span class="lnt">27
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-javascript" data-lang="javascript">&lt;span class="line">&lt;span class="cl">&lt;span class="c1">// 伪代码：解析 TXT
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span>&lt;span class="kd">function&lt;/span> &lt;span class="nx">parseHierarchy&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">text&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="kr">const&lt;/span> &lt;span class="nx">lines&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nx">text&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">split&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;\n&amp;#39;&lt;/span>&lt;span class="p">);&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="kr">const&lt;/span> &lt;span class="nx">stack&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">[];&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">lines&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">forEach&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">line&lt;/span> &lt;span class="p">=&amp;gt;&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="kr">const&lt;/span> &lt;span class="nx">match&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nx">line&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">match&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="sr">/^(\s*)(\d+\.)?\s*(.+)/&lt;/span>&lt;span class="p">);&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">if&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="o">!&lt;/span>&lt;span class="nx">match&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="k">return&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="kr">const&lt;/span> &lt;span class="nx">indent&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nx">match&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">].&lt;/span>&lt;span class="nx">length&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="kr">const&lt;/span> &lt;span class="nx">name&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nx">match&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="mi">3&lt;/span>&lt;span class="p">];&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="kr">const&lt;/span> &lt;span class="nx">level&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nb">Math&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">floor&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">indent&lt;/span> &lt;span class="o">/&lt;/span> &lt;span class="mi">2&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="mi">1&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="c1">// 根据缩进级别确定父节点
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span> &lt;span class="k">while&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="nx">stack&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">length&lt;/span> &lt;span class="o">&amp;gt;=&lt;/span> &lt;span class="nx">level&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="nx">stack&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">pop&lt;/span>&lt;span class="p">();&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="kr">const&lt;/span> &lt;span class="nx">node&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">{&lt;/span> &lt;span class="nx">name&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">children&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="p">[]&lt;/span> &lt;span class="p">};&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">if&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="nx">stack&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">length&lt;/span> &lt;span class="o">===&lt;/span> &lt;span class="mi">0&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">root&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">push&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">node&lt;/span>&lt;span class="p">);&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span> &lt;span class="k">else&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">stack&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="nx">stack&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">length&lt;/span> &lt;span class="o">-&lt;/span> &lt;span class="mi">1&lt;/span>&lt;span class="p">].&lt;/span>&lt;span class="nx">children&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">push&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">node&lt;/span>&lt;span class="p">);&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">stack&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">push&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">node&lt;/span>&lt;span class="p">);&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">});&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">return&lt;/span> &lt;span class="nx">root&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>&lt;strong>创建收藏夹&lt;/strong>&lt;/p>
+&lt;p>解析完成后，递归调用 Zotero API 创建收藏夹：&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;span class="lnt">2
+&lt;/span>&lt;span class="lnt">3
+&lt;/span>&lt;span class="lnt">4
+&lt;/span>&lt;span class="lnt">5
+&lt;/span>&lt;span class="lnt">6
+&lt;/span>&lt;span class="lnt">7
+&lt;/span>&lt;span class="lnt">8
+&lt;/span>&lt;span class="lnt">9
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-javascript" data-lang="javascript">&lt;span class="line">&lt;span class="cl">&lt;span class="kd">function&lt;/span> &lt;span class="nx">createCollections&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">nodes&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">parentId&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">nodes&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">forEach&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">node&lt;/span> &lt;span class="p">=&amp;gt;&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="kr">const&lt;/span> &lt;span class="nx">collection&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nx">Zotero&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Collections&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">create&lt;/span>&lt;span class="p">({&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">name&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="nx">node&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">name&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">parentID&lt;/span>&lt;span class="o">:&lt;/span> &lt;span class="nx">parentId&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">});&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">createCollections&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">node&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">children&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">collection&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">id&lt;/span>&lt;span class="p">);&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">});&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;h4 id="注意事项-1">注意事项
+&lt;/h4>&lt;ul>
+&lt;li>导入层级会&lt;strong>清空现有所有收藏夹&lt;/strong>（包括其中的文献，但文献本身不会被删除）&lt;/li>
+&lt;li>导入前插件会提示确认，请谨慎操作&lt;/li>
+&lt;/ul>
+&lt;hr>
+&lt;h3 id="25-停止分类任务">2.5 停止分类任务
+&lt;/h3>&lt;p>在处理大量文献时，用户可能需要中途停止分类进程。这一功能可以安全地中断正在进行的分类任务。&lt;/p>
+&lt;h4 id="实现原理-4">实现原理
+&lt;/h4>&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;span class="lnt">11
+&lt;/span>&lt;span class="lnt">12
+&lt;/span>&lt;span class="lnt">13
+&lt;/span>&lt;span class="lnt">14
+&lt;/span>&lt;span class="lnt">15
+&lt;/span>&lt;span class="lnt">16
+&lt;/span>&lt;span class="lnt">17
+&lt;/span>&lt;span class="lnt">18
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-javascript" data-lang="javascript">&lt;span class="line">&lt;span class="cl">&lt;span class="c1">// 使用标志位控制任务
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span>&lt;span class="kd">let&lt;/span> &lt;span class="nx">isStopping&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="kc">false&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kr">async&lt;/span> &lt;span class="kd">function&lt;/span> &lt;span class="nx">classifyPapers&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">items&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">for&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="kr">const&lt;/span> &lt;span class="nx">item&lt;/span> &lt;span class="k">of&lt;/span> &lt;span class="nx">items&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">if&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="nx">isStopping&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">console&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">log&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;分类任务已停止&amp;#34;&lt;/span>&lt;span class="p">);&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">break&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="kr">await&lt;/span> &lt;span class="nx">classifyOnePaper&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">item&lt;/span>&lt;span class="p">);&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">updateProgress&lt;/span>&lt;span class="p">();&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kd">function&lt;/span> &lt;span class="nx">stopClassification&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">isStopping&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="kc">true&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;h4 id="设计考量">设计考量
+&lt;/h4>&lt;ul>
+&lt;li>&lt;strong>优雅停止&lt;/strong>：不是强制终止线程，而是设置标志位，让当前批次完成后自然退出&lt;/li>
+&lt;li>&lt;strong>状态重置&lt;/strong>：停止后需要重置标志位，以便下次分类任务可以正常运行&lt;/li>
+&lt;/ul>
+&lt;hr>
+&lt;h3 id="26-隐私优先本地存储">2.6 隐私优先：本地存储
+&lt;/h3>&lt;p>AI Classifier 在隐私设计上非常谨慎，确保用户的 API Key 和文献数据安全。&lt;/p>
+&lt;h4 id="实现原理-5">实现原理
+&lt;/h4>&lt;p>&lt;strong>配置文件存储位置&lt;/strong>&lt;/p>
+&lt;p>所有配置信息（包括 API Key）保存在 Zotero 数据目录下的 JSON 文件中：&lt;/p>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>操作系统&lt;/th>
+&lt;th>路径&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>Windows&lt;/td>
+&lt;td>&lt;code>%APPDATA%\Zotero\zotero_ai_config.json&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>macOS&lt;/td>
+&lt;td>&lt;code>~/Library/Application Support/Zotero/zotero_ai_config.json&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Linux&lt;/td>
+&lt;td>&lt;code>~/.config/zotero/zotero_ai_config.json&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;p>&lt;strong>数据流向&lt;/strong>&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;span class="lnt">2
+&lt;/span>&lt;span class="lnt">3
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-fallback" data-lang="fallback">&lt;span class="line">&lt;span class="cl">用户 → 插件 → LLM API → 返回结果
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> ↓
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> 本地配置文件（API Key）
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>&lt;strong>关键点&lt;/strong>：&lt;/p>
+&lt;ul>
+&lt;li>API Key &lt;strong>只存在于本地配置文件&lt;/strong>，不经过任何第三方服务器&lt;/li>
+&lt;li>调用 LLM API 时，插件直接与 API 服务商通信（如 SiliconFlow、OpenAI）&lt;/li>
+&lt;li>插件本身不搭建任何后端服务，不收集任何用户数据&lt;/li>
+&lt;li>文献内容（标题、摘要、关键词）仅在分类过程中发送给 LLM API，不保存副本&lt;/li>
+&lt;/ul>
+&lt;hr>
+&lt;h2 id="三配置指南">三、配置指南
+&lt;/h2>&lt;h3 id="31-配置文件结构">3.1 配置文件结构
+&lt;/h3>&lt;p>&lt;code>zotero_ai_config.json&lt;/code> 包含以下字段：&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;span class="lnt">2
+&lt;/span>&lt;span class="lnt">3
+&lt;/span>&lt;span class="lnt">4
+&lt;/span>&lt;span class="lnt">5
+&lt;/span>&lt;span class="lnt">6
+&lt;/span>&lt;span class="lnt">7
+&lt;/span>&lt;span class="lnt">8
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-json" data-lang="json">&lt;span class="line">&lt;span class="cl">&lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nt">&amp;#34;apiUrl&amp;#34;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="s2">&amp;#34;https://api.siliconflow.cn/v1/chat/completions&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nt">&amp;#34;apiKey&amp;#34;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="s2">&amp;#34;your-api-key-here&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nt">&amp;#34;model&amp;#34;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="s2">&amp;#34;Qwen/Qwen2.5-7B-Instruct&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nt">&amp;#34;logPath&amp;#34;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="s2">&amp;#34;/path/to/log/file.log&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nt">&amp;#34;confidenceThreshold&amp;#34;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="mf">0.7&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nt">&amp;#34;customPrompt&amp;#34;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="s2">&amp;#34;&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;h3 id="32-支持的-llm-服务商">3.2 支持的 LLM 服务商
+&lt;/h3>&lt;p>理论上支持所有兼容 OpenAI API 格式的服务商，常见选择：&lt;/p>
+&lt;ul>
+&lt;li>&lt;strong>SiliconFlow&lt;/strong>：国内访问速度快，价格实惠&lt;/li>
+&lt;li>&lt;strong>OpenAI&lt;/strong>：官方服务，质量有保障&lt;/li>
+&lt;li>&lt;strong>Anthropic&lt;/strong>：Claude 系列模型&lt;/li>
+&lt;li>&lt;strong>本地部署&lt;/strong>：Ollama、LM Studio 等本地模型&lt;/li>
+&lt;/ul>
+&lt;h3 id="33-提示词自定义">3.3 提示词自定义
+&lt;/h3>&lt;p>在「设置」→「提示词配置」中，用户可以自定义发送给 LLM 的提示词。高级用户可以根据自己的学科特点优化提示词，提升分类准确率。&lt;/p>
+&lt;hr>
+&lt;h2 id="四快速入门">四、快速入门
+&lt;/h2>&lt;h3 id="41-安装步骤">4.1 安装步骤
+&lt;/h3>&lt;ol>
+&lt;li>前往 &lt;a class="link" href="https://github.com/KeqiYe/Zotero-AI-Classifier/releases" target="_blank" rel="noopener"
+>GitHub Releases&lt;/a> 下载最新 &lt;code>.xpi&lt;/code> 文件&lt;/li>
+&lt;li>打开 Zotero，点击 &lt;strong>工具&lt;/strong> → &lt;strong>附加组件&lt;/strong>&lt;/li>
+&lt;li>点击齿轮图标 → &lt;strong>从文件安装附加组件&lt;/strong>&lt;/li>
+&lt;li>选中下载的 &lt;code>.xpi&lt;/code> 文件&lt;/li>
+&lt;li>重启 Zotero&lt;/li>
+&lt;/ol>
+&lt;h3 id="42-首次配置">4.2 首次配置
+&lt;/h3>&lt;ol>
+&lt;li>点击 &lt;strong>工具&lt;/strong> → &lt;strong>AI Classifier&lt;/strong> → &lt;strong>设置日志保存位置&lt;/strong>，选择日志保存路径&lt;/li>
+&lt;li>点击 &lt;strong>工具&lt;/strong> → &lt;strong>AI Classifier&lt;/strong> → &lt;strong>设置&lt;/strong> → &lt;strong>API 参数配置&lt;/strong>&lt;/li>
+&lt;li>填写以下信息：
+&lt;ul>
+&lt;li>&lt;strong>API URL&lt;/strong>：如 &lt;code>https://api.siliconflow.cn/v1/chat/completions&lt;/code>&lt;/li>
+&lt;li>&lt;strong>API Key&lt;/strong>：你的密钥&lt;/li>
+&lt;li>&lt;strong>Model Name&lt;/strong>：如 &lt;code>Qwen/Qwen2.5-7B-Instruct&lt;/code>&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>点击「测试连接」，确认成功后保存&lt;/li>
+&lt;/ol>
+&lt;h3 id="43-完整工作流程">4.3 完整工作流程
+&lt;/h3>&lt;p>&lt;strong>第一步：创建分类层级&lt;/strong>&lt;/p>
+&lt;p>新建 TXT 文件，定义你的分类结构：&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;span class="lnt">11
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-fallback" data-lang="fallback">&lt;span class="line">&lt;span class="cl">1. 机器学习
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">1.1 深度学习
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">1.2 强化学习
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">1.3 自然语言处理
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">2. 计算机视觉
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">2.1 图像分类
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">2.2 目标检测
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">2.3 图像分割
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">3. 物理学
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">3.1 量子力学
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">3.2 流体力学
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;blockquote>
+&lt;p>💡 &lt;strong>提示&lt;/strong>：如果你不确定如何构建分类结构，可以先使用插件的「导出」功能将文献库信息（标题、摘要等）导出，然后提交给 AI，让 AI 根据你的文献内容推荐合理的分类层级。这样比自己冥思苦想更加高效。&lt;/p>
+&lt;/blockquote>
+&lt;p>&lt;strong>第二步：导入层级&lt;/strong>&lt;/p>
+&lt;p>点击 &lt;strong>AI Classifier&lt;/strong> → &lt;strong>从 TXT 导入层级&lt;/strong>，选择上述 TXT 文件。&lt;/p>
+&lt;p>&lt;strong>第三步：选择文献并分类&lt;/strong>&lt;/p>
+&lt;ol>
+&lt;li>在 Zotero 中选中多篇待分类文献&lt;/li>
+&lt;li>点击 &lt;strong>AI Classifier&lt;/strong> → &lt;strong>LLM 模型文献归类&lt;/strong>&lt;/li>
+&lt;li>设置置信度阈值（如 0.7）&lt;/li>
+&lt;li>开始分类，观察进度&lt;/li>
+&lt;/ol>
+&lt;p>&lt;strong>第四步：备份结构&lt;/strong>&lt;/p>
+&lt;p>重要操作前，点击 &lt;strong>保存当前分类结构&lt;/strong> 备份。&lt;/p>
+&lt;hr>
+&lt;h2 id="五常见问题">五、常见问题
+&lt;/h2>&lt;h3 id="q1-分类结果不准确怎么办">Q1: 分类结果不准确怎么办？
+&lt;/h3>&lt;ol>
+&lt;li>调整置信度阈值，降低阈值可以让更多文献被分类，但可能增加错误率&lt;/li>
+&lt;li>自定义提示词，提供更详细的分类指导&lt;/li>
+&lt;li>使用更强大的 LLM 模型&lt;/li>
+&lt;/ol>
+&lt;h3 id="q2-分类速度慢怎么办">Q2: 分类速度慢怎么办？
+&lt;/h3>&lt;ol>
+&lt;li>选择响应更快的 API 服务商（如 SiliconFlow）&lt;/li>
+&lt;li>使用更小的模型（如 Qwen2.5-3B）&lt;/li>
+&lt;li>减少单次分类的文献数量&lt;/li>
+&lt;/ol>
+&lt;h3 id="q3-api-调用失败怎么办">Q3: API 调用失败怎么办？
+&lt;/h3>&lt;ol>
+&lt;li>检查 API Key 是否正确&lt;/li>
+&lt;li>检查网络连接&lt;/li>
+&lt;li>查看日志文件（工具 → AI Classifier → 日志查看器）排查错误&lt;/li>
+&lt;/ol>
+&lt;hr>
+&lt;h2 id="六总结">六、总结
+&lt;/h2>&lt;p>AI Classifier 通过将大语言模型与 Zotero 文献管理深度结合，实现了科研文献的智能分类。它不仅功能完善，而且在实现上充分考虑了用户隐私、数据安全和使用体验。&lt;/p>
+&lt;p>理解每个功能的实现原理，有助于你更好地使用插件，并根据实际需求进行调优。希望本文能帮助你充分发挥 AI Classifier 的威力，让文献管理变得更加轻松高效。&lt;/p>
+&lt;hr>
+&lt;h2 id="相关链接">相关链接
+&lt;/h2>&lt;ul>
+&lt;li>GitHub 仓库：https://github.com/KeqiYe/Zotero-AI-Classifier&lt;/li>
+&lt;li>作者主页：https://github.com/KeqiYe&lt;/li>
+&lt;/ul></description></item><item><title>7 Step Optimization of Parallel Reduction with CUDA</title><link>https://keqiye.github.io/posts/parallel-reduction-with-cuda/blog-parallel-reduction-with-cuda/</link><pubDate>Thu, 22 May 2025 00:00:00 +0000</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://keqiye.github.io/posts/parallel-reduction-with-cuda/blog-parallel-reduction-with-cuda/</guid><description>&lt;h2 id="写在前面">写在前面
 &lt;/h2>&lt;blockquote>
 &lt;p>📚 &lt;strong>版权声明 | Copyright Notice&lt;/strong>&lt;/p>
 &lt;p>本文内容参考并部分翻译自以下两篇资料：&lt;/p>
