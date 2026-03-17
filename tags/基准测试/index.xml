@@ -1,0 +1,207 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>基准测试 on Keqi的博客</title><link>https://keqiye.github.io/tags/%E5%9F%BA%E5%87%86%E6%B5%8B%E8%AF%95/</link><description>Recent content in 基准测试 on Keqi的博客</description><generator>Hugo -- gohugo.io</generator><language>zh-cn</language><managingEditor>plloningye@gmail.com (Keqi Ye)</managingEditor><webMaster>plloningye@gmail.com (Keqi Ye)</webMaster><copyright>Keqi Ye</copyright><lastBuildDate>Tue, 17 Mar 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://keqiye.github.io/tags/%E5%9F%BA%E5%87%86%E6%B5%8B%E8%AF%95/index.xml" rel="self" type="application/rss+xml"/><item><title>1D Sod 激波管实验 - CUDA SPH 基准测试</title><link>https://keqiye.github.io/posts/gasphia/1d-shock-tube-zh-cn/</link><pubDate>Tue, 17 Mar 2026 00:00:00 +0000</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://keqiye.github.io/posts/gasphia/1d-shock-tube-zh-cn/</guid><description>&lt;h1 id="1d-sod-激波管实验">1D Sod 激波管实验
+&lt;/h1>&lt;h2 id="tldr">TL;DR
+&lt;/h2>&lt;p>本文使用从零自研的 CUDA SPH 物理引擎复现了经典的 1D Sod 激波管 (Shock Tube) 基准测试，主要验证引擎对强激波不连续面的捕捉能力。测试中解决了一个关键的数值陷阱：在处理初始阶跃密度场时，传统的连续性方程 (Continuity Density) 会导致严重的非物理震荡，而直接求和密度 (Summation Density) 展现出了极强的数值鲁棒性。&lt;/p>
+&lt;hr>
+&lt;h2 id="1-visual-impact">1. Visual Impact
+&lt;/h2>&lt;p>以下是两种密度计算方法的效果对比：&lt;/p>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">采用求和密度法 (成功)&lt;/th>
+&lt;th style="text-align:center">采用连续密度法 (失败)&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;div class="video-wrapper">
+&lt;video
+controls
+src="https://keqiye.github.io/images/GASPHiA/1DShockTube/1D_ShockTube_Evolution.mp4"
+>
+&lt;p>
+Your browser doesn't support HTML5 video. Here is a
+&lt;a href="https://keqiye.github.io/images/GASPHiA/1DShockTube/1D_ShockTube_Evolution.mp4">link to the video&lt;/a> instead.
+&lt;/p>
+&lt;/video>
+&lt;/div>
+&lt;/td>
+&lt;td style="text-align:center">&lt;div class="video-wrapper">
+&lt;video
+controls
+src="https://keqiye.github.io/images/GASPHiA/1DShockTube/1D_ShockTube_Evolution_lianxv.mp4"
+>
+&lt;p>
+Your browser doesn't support HTML5 video. Here is a
+&lt;a href="https://keqiye.github.io/images/GASPHiA/1DShockTube/1D_ShockTube_Evolution_lianxv.mp4">link to the video&lt;/a> instead.
+&lt;/p>
+&lt;/video>
+&lt;/div>
+&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;p>&lt;strong>左图 (成功)&lt;/strong>：采用求和密度法，可以清晰看到激波波前 (Shock front)、接触间断 (Contact discontinuity) 和稀疏波 (Rarefaction wave) 的光滑推进。&lt;/p>
+&lt;p>&lt;strong>右图 (失败)&lt;/strong>：采用连续密度法，在激波管的初始密度阶跃处产生了严重的界面不稳定性和杂乱的粒子分布。&lt;/p>
+&lt;hr>
+&lt;h2 id="2-问题背景">2. 问题背景
+&lt;/h2>&lt;h3 id="21-什么是-sod-激波管">2.1 什么是 Sod 激波管？
+&lt;/h3>&lt;p>Sod 激波管是流体力学中经典的基准测试问题，用于验证数值方法对激波、接触间断和稀疏波的捕捉能力。该问题模拟了一维管道中由薄膜分隔的两种不同状态气体的瞬时释放过程。&lt;/p>
+&lt;h3 id="22-物理模型">2.2 物理模型
+&lt;/h3>&lt;p>本模拟采用理想气体模型，方程组包括：&lt;/p>
+&lt;p>&lt;strong>连续性方程&lt;/strong>：
+&lt;/p>
+$$\frac{\partial \rho}{\partial t} + \nabla \cdot (\rho \mathbf{v}) = 0$$
+&lt;p>&lt;strong>动量方程&lt;/strong>：
+&lt;/p>
+$$\frac{\partial (\rho \mathbf{v})}{\partial t} + \nabla \cdot (\rho \mathbf{v} \otimes \mathbf{v}) = -\nabla p$$
+&lt;p>&lt;strong>能量方程&lt;/strong>：
+&lt;/p>
+$$\frac{\partial (\rho e)}{\partial t} + \nabla \cdot (\rho e \mathbf{v}) = -p \nabla \cdot \mathbf{v}$$
+&lt;p>&lt;strong>状态方程&lt;/strong>（理想气体）：
+&lt;/p>
+$$p = (\gamma - 1) \rho e$$
+&lt;p>其中 $\gamma = 5/3$ 为绝热指数。&lt;/p>
+&lt;hr>
+&lt;h2 id="3-初始条件">3. 初始条件
+&lt;/h2>&lt;p>初始时刻，激波管被位于 $x=0$ 的薄膜分为左右两个区域：&lt;/p>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">参数&lt;/th>
+&lt;th style="text-align:center">高密度区 (左)&lt;/th>
+&lt;th style="text-align:center">低密度区 (右)&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">密度 $\rho$&lt;/td>
+&lt;td style="text-align:center">1.0&lt;/td>
+&lt;td style="text-align:center">0.25&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">速度 $v$&lt;/td>
+&lt;td style="text-align:center">0.0&lt;/td>
+&lt;td style="text-align:center">0.0&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">内能 $e$&lt;/td>
+&lt;td style="text-align:center">2.5&lt;/td>
+&lt;td style="text-align:center">1.795&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">粒子间距 $\Delta x$&lt;/td>
+&lt;td style="text-align:center">0.001875&lt;/td>
+&lt;td style="text-align:center">0.0075&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">软化长度 $h$&lt;/td>
+&lt;td style="text-align:center">0.01&lt;/td>
+&lt;td style="text-align:center">0.01&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">区域范围&lt;/td>
+&lt;td style="text-align:center">$[-1.2, 0)$&lt;/td>
+&lt;td style="text-align:center">$(0, 1.2]$&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">粒子数&lt;/td>
+&lt;td style="text-align:center">640&lt;/td>
+&lt;td style="text-align:center">160&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;p>&lt;strong>总粒子数&lt;/strong>：800 个&lt;/p>
+&lt;p>初始条件设置使得左侧为高压高密度区，右侧为低压低密度区。薄膜移除后，左侧的高压气体会向右加速，形成激波、接触间断和稀疏波三种波结构。&lt;/p>
+&lt;hr>
+&lt;h2 id="4-数值方法">4. 数值方法
+&lt;/h2>&lt;h3 id="41-sph-密度计算方式">4.1 SPH 密度计算方式
+&lt;/h3>&lt;p>本测试对比了两种 SPH 密度计算方法：&lt;/p>
+&lt;p>&lt;strong>方法一：求和密度 (Summation Density)&lt;/strong>&lt;/p>
+$$\rho_i = \sum_j m_j W(r_{ij}, h)$$
+&lt;p>其中 $W(r, h)$ 为核函数，$h$ 为软化长度。这种方法直接对邻域粒子的质量进行求和，物理意义明确。&lt;/p>
+&lt;p>&lt;strong>方法二：连续密度 (Continuity Density)&lt;/strong>&lt;/p>
+$$\frac{d\rho_i}{dt} = \sum_j m_j (v_j - v_i) \cdot \nabla_i W(r_{ij}, h)$$
+&lt;p>该方程通过对动量方程进行散度运算得到，理论上与连续性方程等价。&lt;/p>
+&lt;h3 id="42-为什么连续密度法失效">4.2 为什么连续密度法失效？
+&lt;/h3>&lt;p>在初始时刻，激波管存在一个&lt;strong>阶跃密度场&lt;/strong>（左侧 $\rho=1.0$，右侧 $\rho=0.25$）。连续密度方程依赖于速度散度的计算：&lt;/p>
+&lt;ul>
+&lt;li>在密度阶跃处，速度散度需要精确捕捉微小变化&lt;/li>
+&lt;li>初始时刻所有粒子速度为零，导致 $v_j - v_i = 0$&lt;/li>
+&lt;li>数值误差被放大，在界面处产生非物理的密度扰动&lt;/li>
+&lt;li>这些扰动进一步影响压力计算，形成恶性循环&lt;/li>
+&lt;/ul>
+&lt;p>相比之下，求和密度法&lt;strong>直接计算&lt;/strong>密度，不依赖于速度场，因此在处理初始阶跃密度场时具有极强的数值鲁棒性。&lt;/p>
+&lt;h3 id="43-核函数">4.3 核函数
+&lt;/h3>&lt;p>本模拟采用三次样条核函数 (Cubic Spline Kernel)：&lt;/p>
+$$W(r, h) = \frac{1}{h^d} \begin{cases}
+1 - \frac{3}{2}q^2 + \frac{3}{4}q^3 &amp; 0 \leq q &lt; 1 \\
+\frac{1}{4}(2 - q)^3 &amp; 1 \leq q &lt; 2 \\
+0 &amp; q \geq 2
+\end{cases}$$
+&lt;p>其中 $q = r/h$，$d$ 为空间维度。&lt;/p>
+&lt;hr>
+&lt;h2 id="5-结果分析">5. 结果分析
+&lt;/h2>&lt;h3 id="51-与解析解对比">5.1 与解析解对比
+&lt;/h3>&lt;p>&lt;img src="https://keqiye.github.io/images/GASPHiA/1DShockTube/ShockTube_Validation_Zoom.png"
+loading="lazy"
+alt="验证对比图"
+>&lt;/p>
+&lt;p>&lt;strong>图 1&lt;/strong>：Sod 激波管密度分布对比。展示了三种方法在 $t=0.2$ 时刻的密度沿 $x$ 方向分布与解析解的对比。红色实线为解析解，蓝色点为求和密度法的数值结果，橙色点为连续密度法的数值结果。&lt;/p>
+&lt;p>从图中可以清晰看到：&lt;strong>求和密度法的结果与解析解高度吻合&lt;/strong>，成功捕捉到了激波波前的尖锐跳跃、接触间断处的密度平台，以及稀疏波区域的平滑过渡。而连续密度法在界面处产生了严重的非物理震荡，完全无法正确模拟流动结构。&lt;/p>
+&lt;h3 id="52-波结构识别">5.2 波结构识别
+&lt;/h3>&lt;p>激波管问题会形成三种典型的波结构：&lt;/p>
+&lt;ol>
+&lt;li>&lt;strong>激波 (Shock Front)&lt;/strong>：向右传播的间断面，速度和密度发生突变&lt;/li>
+&lt;li>&lt;strong>接触间断 (Contact Discontinuity)&lt;/strong>：密度发生跳跃但压力连续，跟随激波向右传播&lt;/li>
+&lt;li>&lt;strong>稀疏波 (Rarefaction Wave)&lt;/strong>：向左传播的膨胀波，速度和密度平滑下降&lt;/li>
+&lt;/ol>
+&lt;hr>
+&lt;h2 id="6-总结">6. 总结
+&lt;/h2>&lt;p>本文通过 1D Sod 激波管基准测试，验证了自研 CUDA SPH 引擎的核心算法。关键发现：&lt;/p>
+&lt;ol>
+&lt;li>&lt;strong>求和密度法&lt;/strong>在处理初始阶跃密度场时具有显著优势，避免了连续密度方程的数值不稳定性&lt;/li>
+&lt;li>引擎成功捕捉到了激波、接触间断和稀疏波三种波结构&lt;/li>
+&lt;li>数值解与解析解吻合良好&lt;/li>
+&lt;/ol>
+&lt;h3 id="后续计划">后续计划
+&lt;/h3>&lt;ul>
+&lt;li>2D 圆柱绕流模拟&lt;/li>
+&lt;li>3D 溃坝模拟&lt;/li>
+&lt;li>多相流界面稳定性分析&lt;/li>
+&lt;/ul>
+&lt;hr>
+&lt;h2 id="参考资料">参考资料
+&lt;/h2>&lt;ol>
+&lt;li>Sod, G. A. (1978). A survey of several finite difference methods for systems of nonlinear hyperbolic conservation laws. &lt;em>Journal of Computational Physics&lt;/em>, 27(1), 1-31.&lt;/li>
+&lt;li>Monaghan, J. J. (1992). Smoothed particle hydrodynamics. &lt;em>Annual Review of Astronomy and Astrophysics&lt;/em>, 30, 543-574.&lt;/li>
+&lt;li>Liu, G. R., &amp;amp; Liu, M. B. (2003). &lt;em>Smoothed particle hydrodynamics: a meshfree particle method&lt;/em>. World Scientific.&lt;/li>
+&lt;/ol></description></item><item><title>基于CUDA的SPH代码算例</title><link>https://keqiye.github.io/posts/gasphia/</link><pubDate>Tue, 17 Mar 2026 00:00:00 +0000</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://keqiye.github.io/posts/gasphia/</guid><description>&lt;h1 id="基于cuda的sph代码算例">基于CUDA的SPH代码算例
+&lt;/h1>&lt;p>本系列文章记录了我从零自研的 CUDA SPH (Smoothed Particle Hydrodynamics) 物理引擎的基准测试与验证过程。通过经典流体动力学问题的数值模拟，验证引擎的正确性与数值鲁棒性。&lt;/p>
+&lt;h2 id="系列目标">系列目标
+&lt;/h2>&lt;ul>
+&lt;li>验证 SPH 核心算法的正确性&lt;/li>
+&lt;li>测试引擎处理复杂流动问题的能力&lt;/li>
+&lt;li>探索数值方法的改进与优化&lt;/li>
+&lt;/ul>
+&lt;h2 id="核心方法求和密度-vs-连续密度">核心方法：求和密度 vs 连续密度
+&lt;/h2>&lt;p>在 SPH 方法中，密度计算有两种主要方式：&lt;/p>
+&lt;p>&lt;strong>求和密度 (Summation Density)&lt;/strong>：
+&lt;/p>
+$$\rho_i = \sum_j m_j W(r_{ij}, h)$$
+&lt;p>&lt;strong>连续密度 (Continuity Density)&lt;/strong>：
+&lt;/p>
+$$\frac{d\rho}{dt} = \sum_j m_j v_{ij} \cdot \nabla_i W_{ij}$$
+&lt;p>本系列将展示求和密度法在处理强不连续问题时的显著优势。&lt;/p>
+&lt;h2 id="系列目录">系列目录
+&lt;/h2>&lt;ol>
+&lt;li>&lt;strong>1D Sod 激波管实验&lt;/strong> - 验证引擎对强激波不连续面的捕捉能力&lt;/li>
+&lt;li>
+&lt;ul>
+&lt;li>(待续)&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;/ol>
+&lt;hr>
+&lt;blockquote>
+&lt;p>📁 &lt;strong>资源位置&lt;/strong>：本系列使用的视频和图片资源存放于 &lt;code>/static/images/GASPHiA/1DShockTube/&lt;/code> 目录&lt;/p>
+&lt;/blockquote></description></item></channel></rss>
