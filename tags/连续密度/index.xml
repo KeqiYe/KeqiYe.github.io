@@ -4,16 +4,10 @@
 &lt;hr>
 &lt;h2 id="1-visual-impact">1. Visual Impact
 &lt;/h2>&lt;p>以下是两种密度计算方法的效果对比：&lt;/p>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">采用求和密度法 (成功)&lt;/th>
-&lt;th style="text-align:center">采用连续密度法 (失败)&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">&lt;div class="video-wrapper">
+&lt;div style="display: flex; gap: 20px; flex-wrap: wrap;">
+&lt;div style="flex: 1; min-width: 300px;">
+&lt;h4 style="text-align: center;">求和密度法 (成功)&lt;/h4>
+&lt;div class="video-wrapper">
 &lt;video
 controls
 src="https://keqiye.github.io/images/GASPHiA/1DShockTube/1D_ShockTube_Evolution.mp4"
@@ -24,8 +18,10 @@ Your browser doesn't support HTML5 video. Here is a
 &lt;/p>
 &lt;/video>
 &lt;/div>
-&lt;/td>
-&lt;td style="text-align:center">&lt;div class="video-wrapper">
+&lt;/div>
+&lt;div style="flex: 1; min-width: 300px;">
+&lt;h4 style="text-align: center;">连续密度法 (失败)&lt;/h4>
+&lt;div class="video-wrapper">
 &lt;video
 controls
 src="https://keqiye.github.io/images/GASPHiA/1DShockTube/1D_ShockTube_Evolution_lianxv.mp4"
@@ -36,12 +32,12 @@ Your browser doesn't support HTML5 video. Here is a
 &lt;/p>
 &lt;/video>
 &lt;/div>
-&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;p>&lt;strong>左图 (成功)&lt;/strong>：采用求和密度法，可以清晰看到激波波前 (Shock front)、接触间断 (Contact discontinuity) 和稀疏波 (Rarefaction wave) 的光滑推进。&lt;/p>
-&lt;p>&lt;strong>右图 (失败)&lt;/strong>：采用连续密度法，在激波管的初始密度阶跃处产生了严重的界面不稳定性和杂乱的粒子分布。&lt;/p>
+&lt;/div>
+&lt;/div>
+&lt;ul>
+&lt;li>&lt;strong>左图 (成功)&lt;/strong>：采用求和密度法，可以清晰看到激波波前 (Shock front)、接触间断 (Contact discontinuity) 和稀疏波 (Rarefaction wave) 的光滑推进。&lt;/li>
+&lt;li>&lt;strong>右图 (失败)&lt;/strong>：采用连续密度法，在激波管的初始密度阶跃处产生了严重的界面不稳定性和杂乱的粒子分布。&lt;/li>
+&lt;/ul>
 &lt;hr>
 &lt;h2 id="2-问题背景">2. 问题背景
 &lt;/h2>&lt;h3 id="21-什么是-sod-激波管">2.1 什么是 Sod 激波管？
