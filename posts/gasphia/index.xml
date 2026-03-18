@@ -1,216 +1,108 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>基于CUDA的SPH代码算例 on Keqi的博客</title><link>https://keqiye.github.io/posts/gasphia/</link><description>Recent content in 基于CUDA的SPH代码算例 on Keqi的博客</description><generator>Hugo -- gohugo.io</generator><language>zh-cn</language><managingEditor>plloningye@gmail.com (Keqi Ye)</managingEditor><webMaster>plloningye@gmail.com (Keqi Ye)</webMaster><copyright>Keqi Ye</copyright><lastBuildDate>Tue, 17 Mar 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://keqiye.github.io/posts/gasphia/index.xml" rel="self" type="application/rss+xml"/><item><title>1D Sod Shock Tube Experiment - CUDA SPH Benchmark</title><link>https://keqiye.github.io/posts/gasphia/1d-shock-tube-en/</link><pubDate>Tue, 17 Mar 2026 00:00:00 +0000</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://keqiye.github.io/posts/gasphia/1d-shock-tube-en/</guid><description>&lt;h1 id="1d-sod-shock-tube-experiment">1D Sod Shock Tube Experiment
-&lt;/h1>&lt;h2 id="tldr">TL;DR
-&lt;/h2>&lt;p>This article presents a reproduction of the classic 1D Sod Shock Tube benchmark test using a custom-built CUDA SPH (Smoothed Particle Hydrodynamics) physics engine from scratch. The primary objective is to verify the engine&amp;rsquo;s capability to capture strong shock discontinuities. A critical numerical pitfall was identified and resolved: when handling initial step density fields, the traditional Continuity Density method causes severe non-physical oscillations, while the direct Summation Density method demonstrates excellent numerical robustness.&lt;/p>
-&lt;hr>
-&lt;h2 id="1-visual-impact">1. Visual Impact
-&lt;/h2>&lt;p>Comparison of two density calculation methods:&lt;/p>
-&lt;div style="display: flex; gap: 20px; flex-wrap: wrap;">
-&lt;div style="flex: 1; min-width: 300px;">
-&lt;h4 style="text-align: center;">Summation Density (Success)&lt;/h4>
-&lt;div class="video-wrapper">
-&lt;video
-controls
-src="https://keqiye.github.io/images/GASPHiA/1DShockTube/1D_ShockTube_Evolution.mp4"
->
-&lt;p>
-Your browser doesn't support HTML5 video. Here is a
-&lt;a href="https://keqiye.github.io/images/GASPHiA/1DShockTube/1D_ShockTube_Evolution.mp4">link to the video&lt;/a> instead.
-&lt;/p>
-&lt;/video>
-&lt;/div>
-&lt;/div>
-&lt;div style="flex: 1; min-width: 300px;">
-&lt;h4 style="text-align: center;">Continuity Density (Failure)&lt;/h4>
-&lt;div class="video-wrapper">
-&lt;video
-controls
-src="https://keqiye.github.io/images/GASPHiA/1DShockTube/1D_ShockTube_Evolution_lianxv.mp4"
->
-&lt;p>
-Your browser doesn't support HTML5 video. Here is a
-&lt;a href="https://keqiye.github.io/images/GASPHiA/1DShockTube/1D_ShockTube_Evolution_lianxv.mp4">link to the video&lt;/a> instead.
-&lt;/p>
-&lt;/video>
-&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;ul>
-&lt;li>&lt;strong>Left (Success)&lt;/strong>: Using summation density, the shock front, contact discontinuity, and rarefaction wave can be clearly observed propagating smoothly.&lt;/li>
-&lt;li>&lt;strong>Right (Failure)&lt;/strong>: Using continuity density, severe interface instability and chaotic particle distribution appear at the initial density jump in the shock tube.&lt;/li>
-&lt;/ul>
-&lt;hr>
-&lt;h2 id="2-problem-background">2. Problem Background
-&lt;/h2>&lt;h3 id="21-what-is-the-sod-shock-tube">2.1 What is the Sod Shock Tube?
-&lt;/h3>&lt;p>The Sod shock tube is a classic benchmark problem in fluid dynamics, used to verify numerical methods&amp;rsquo; capability to capture shocks, contact discontinuities, and rarefaction waves. This problem simulates the instantaneous release of two gases at different states separated by a membrane in a one-dimensional tube.&lt;/p>
-&lt;h3 id="22-physical-model">2.2 Physical Model
-&lt;/h3>&lt;p>This simulation uses the ideal gas model with the following governing equations:&lt;/p>
-&lt;p>&lt;strong>Continuity Equation&lt;/strong>:
-&lt;/p>
-$$\frac{\partial \rho}{\partial t} + \nabla \cdot (\rho \mathbf{v}) = 0$$
-&lt;p>&lt;strong>Momentum Equation&lt;/strong>:
-&lt;/p>
-$$\frac{\partial (\rho \mathbf{v})}{\partial t} + \nabla \cdot (\rho \mathbf{v} \otimes \mathbf{v}) = -\nabla p$$
-&lt;p>&lt;strong>Energy Equation&lt;/strong>:
-&lt;/p>
-$$\frac{\partial (\rho e)}{\partial t} + \nabla \cdot (\rho e \mathbf{v}) = -p \nabla \cdot \mathbf{v}$$
-&lt;p>&lt;strong>Equation of State&lt;/strong> (Ideal Gas):
-&lt;/p>
-$$p = (\gamma - 1) \rho e$$
-&lt;p>where $\gamma = 5/3$ is the adiabatic index.&lt;/p>
-&lt;hr>
-&lt;h2 id="3-initial-conditions">3. Initial Conditions
-&lt;/h2>&lt;p>At the initial time, the shock tube is divided into two regions by a membrane at $x=0$:&lt;/p>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">Parameter&lt;/th>
-&lt;th style="text-align:center">High Density Region (Left)&lt;/th>
-&lt;th style="text-align:center">Low Density Region (Right)&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">Density $\rho$&lt;/td>
-&lt;td style="text-align:center">1.0&lt;/td>
-&lt;td style="text-align:center">0.25&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td style="text-align:center">Velocity $v$&lt;/td>
-&lt;td style="text-align:center">0.0&lt;/td>
-&lt;td style="text-align:center">0.0&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td style="text-align:center">Internal Energy $e$&lt;/td>
-&lt;td style="text-align:center">2.5&lt;/td>
-&lt;td style="text-align:center">1.795&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td style="text-align:center">Particle Spacing $\Delta x$&lt;/td>
-&lt;td style="text-align:center">0.001875&lt;/td>
-&lt;td style="text-align:center">0.0075&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td style="text-align:center">Smoothing Length $h$&lt;/td>
-&lt;td style="text-align:center">0.01&lt;/td>
-&lt;td style="text-align:center">0.01&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td style="text-align:center">Region Range&lt;/td>
-&lt;td style="text-align:center">$[-1.2, 0)$&lt;/td>
-&lt;td style="text-align:center">$(0, 1.2]$&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td style="text-align:center">Number of Particles&lt;/td>
-&lt;td style="text-align:center">640&lt;/td>
-&lt;td style="text-align:center">160&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;p>&lt;strong>Total Particles&lt;/strong>: 800&lt;/p>
-&lt;p>The initial conditions set the left side as a high-pressure, high-density region and the right side as a low-pressure, low-density region. After the membrane is removed, the high-pressure gas on the left accelerates to the right, forming three wave structures: shock, contact discontinuity, and rarefaction wave.&lt;/p>
-&lt;hr>
-&lt;h2 id="4-numerical-methods">4. Numerical Methods
-&lt;/h2>&lt;h3 id="41-sph-density-calculation-approaches">4.1 SPH Density Calculation Approaches
-&lt;/h3>&lt;p>This benchmark compares two SPH density computation methods:&lt;/p>
-&lt;p>&lt;strong>Method 1: Summation Density&lt;/strong>&lt;/p>
-$$\rho_i = \sum_j m_j W(r_{ij}, h)$$
-&lt;p>where $W(r, h)$ is the kernel function and $h$ is the smoothing length. This method directly sums the masses of neighboring particles with clear physical meaning.&lt;/p>
-&lt;p>&lt;strong>Method 2: Continuity Density&lt;/strong>&lt;/p>
-$$\frac{d\rho_i}{dt} = \sum_j m_j (v_j - v_i) \cdot \nabla_i W(r_{ij}, h)$$
-&lt;p>This equation is derived from the divergence of the momentum equation and is theoretically equivalent to the continuity equation.&lt;/p>
-&lt;h3 id="42-why-does-continuity-density-fail">4.2 Why Does Continuity Density Fail?
-&lt;/h3>&lt;p>At the initial time, the shock tube has a &lt;strong>step density field&lt;/strong> (left: $\rho=1.0$, right: $\rho=0.25$). The continuity density equation relies on the computation of velocity divergence:&lt;/p>
-&lt;ul>
-&lt;li>At the density jump, velocity divergence requires precise capture of tiny variations&lt;/li>
-&lt;li>At the initial moment, all particle velocities are zero, causing $v_j - v_i = 0$&lt;/li>
-&lt;li>Numerical errors are amplified, generating non-physical density perturbations at the interface&lt;/li>
-&lt;li>These perturbations further affect pressure computation, creating a vicious cycle&lt;/li>
-&lt;/ul>
-&lt;p>In contrast, the summation density method &lt;strong>directly computes&lt;/strong> density without depending on the velocity field, thus exhibiting excellent numerical robustness when handling initial step density fields.&lt;/p>
-&lt;h3 id="43-kernel-function">4.3 Kernel Function
-&lt;/h3>&lt;p>This simulation uses the Cubic Spline Kernel:&lt;/p>
-$$W(r, h) = \frac{1}{h^d} \begin{cases}
-1 - \frac{3}{2}q^2 + \frac{3}{4}q^3 &amp; 0 \leq q &lt; 1 \\
-\frac{1}{4}(2 - q)^3 &amp; 1 \leq q &lt; 2 \\
-0 &amp; q \geq 2
-\end{cases}$$
-&lt;p>where $q = r/h$ and $d$ is the spatial dimension.&lt;/p>
-&lt;hr>
-&lt;h2 id="5-results-analysis">5. Results Analysis
-&lt;/h2>&lt;h3 id="51-comparison-with-analytical-solution">5.1 Comparison with Analytical Solution
-&lt;/h3>&lt;p>&lt;img src="https://keqiye.github.io/images/GASPHiA/1DShockTube/ShockTube_Validation_Zoom.png"
-loading="lazy"
-alt="Validation Comparison"
->&lt;/p>
-&lt;p>&lt;strong>Figure 1&lt;/strong>: Density distribution comparison for the Sod shock tube. Shows the density along the x-direction at $t=0.2$ for three methods compared with the analytical solution. The red solid line is the analytical solution, blue dots are numerical results from the summation density method, and orange dots are numerical results from the continuity density method.&lt;/p>
-&lt;p>As clearly shown in the figure: &lt;strong>the summation density method&amp;rsquo;s results closely match the analytical solution&lt;/strong>, successfully capturing the sharp jump at the shock front, the density plateau at the contact discontinuity, and the smooth transition in the rarefaction wave region. The continuity density method produces severe non-physical oscillations at the interface, completely failing to correctly simulate the flow structure.&lt;/p>
-&lt;h3 id="52-wave-structure-identification">5.2 Wave Structure Identification
-&lt;/h3>&lt;p>Three typical wave structures form in the shock tube problem:&lt;/p>
-&lt;ol>
-&lt;li>&lt;strong>Shock Front&lt;/strong>: A discontinuity propagating to the right with abrupt changes in velocity and density&lt;/li>
-&lt;li>&lt;strong>Contact Discontinuity&lt;/strong>: A density jump with continuous pressure, propagating to the right following the shock&lt;/li>
-&lt;li>&lt;strong>Rarefaction Wave&lt;/strong>: An expansion wave propagating to the left with smooth decreases in velocity and density&lt;/li>
-&lt;/ol>
-&lt;hr>
-&lt;h2 id="6-conclusion">6. Conclusion
-&lt;/h2>&lt;p>This article validates the core algorithms of the custom CUDA SPH engine through the 1D Sod shock tube benchmark. Key findings:&lt;/p>
-&lt;ol>
-&lt;li>&lt;strong>Summation Density&lt;/strong> exhibits significant advantages when handling initial step density fields, avoiding the numerical instability of the continuity density equation&lt;/li>
-&lt;li>The engine successfully captures all three wave structures: shock, contact discontinuity, and rarefaction wave&lt;/li>
-&lt;li>The numerical solution closely matches the analytical solution&lt;/li>
-&lt;/ol>
-&lt;h3 id="future-work">Future Work
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>基于CUDA加速的SPH模拟代码GASPHiA的一些应用 on Keqi的博客</title><link>https://keqiye.github.io/posts/gasphia/</link><description>Recent content in 基于CUDA加速的SPH模拟代码GASPHiA的一些应用 on Keqi的博客</description><generator>Hugo -- gohugo.io</generator><language>zh-cn</language><managingEditor>plloningye@gmail.com (Keqi Ye)</managingEditor><webMaster>plloningye@gmail.com (Keqi Ye)</webMaster><copyright>Keqi Ye</copyright><lastBuildDate>Tue, 17 Mar 2026 10:00:00 +0800</lastBuildDate><atom:link href="https://keqiye.github.io/posts/gasphia/index.xml" rel="self" type="application/rss+xml"/><item><title>GASPHiA: GPU加速的光滑粒子流体动力学（SPH）代码</title><link>https://keqiye.github.io/posts/gasphia/introduction/</link><pubDate>Tue, 17 Mar 2026 10:00:00 +0800</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://keqiye.github.io/posts/gasphia/introduction/</guid><description>&lt;h1 id="gasphia-gpu加速的光滑粒子流体动力学代码">GASPHiA: GPU加速的光滑粒子流体动力学代码
+&lt;/h1>&lt;p>GASPHiA 是一个高性能的三维 SPH（光滑粒子流体动力学）代码，由中山大学航空航天学院的叶科奇在其博士研究期间开发。该代码专为模拟复杂的流体动力学问题设计，特别是涉及材料强度、损伤和引力相互作用的问题。&lt;/p>
+&lt;h2 id="特性">特性
+&lt;/h2>&lt;h3 id="高性能与可扩展性">高性能与可扩展性
 &lt;/h3>&lt;ul>
-&lt;li>2D Cylinder Flow Simulation&lt;/li>
-&lt;li>3D Dam Break Simulation&lt;/li>
-&lt;li>Multi-phase Flow Interface Stability Analysis&lt;/li>
+&lt;li>&lt;strong>全并行CUDA加速&lt;/strong>：充分利用现代NVIDIA GPU的大规模计算能力。&lt;/li>
+&lt;li>&lt;strong>Barnes-Hut树算法&lt;/strong> [1-4]：实现邻居搜索（&lt;code>O(N log N)&lt;/code>）和自引力计算的加速，能够高效模拟大规模粒子系统。&lt;/li>
 &lt;/ul>
+&lt;h3 id="可配置与灵活性">可配置与灵活性
+&lt;/h3>&lt;ul>
+&lt;li>&lt;strong>可切换精度&lt;/strong>：轻松切换单精度（&lt;code>float&lt;/code>）和双精度（&lt;code>double&lt;/code>）计算。可以在消费级GPU上最大化性能（&lt;code>float&lt;/code>），或为科学应用确保高精度（&lt;code>double&lt;/code>）。&lt;/li>
+&lt;li>&lt;strong>维度&lt;/strong>：原生支持2D和3D模拟域。&lt;/li>
+&lt;/ul>
+&lt;h3 id="高级物理建模">高级物理建模
+&lt;/h3>&lt;ul>
+&lt;li>&lt;strong>引力模型&lt;/strong>：可选均匀外引力场或/和天体物理场景的N体自引力。&lt;/li>
+&lt;li>&lt;strong>强度与屈服模型&lt;/strong>：一套精细的本构模型来定义固体的弹性极限和后续塑性流动，包括：
+&lt;ul>
+&lt;li>&lt;strong>Von Mises&lt;/strong>：经典的压无关屈服准则，作为塑性流动的基本模型。&lt;/li>
+&lt;li>&lt;strong>Lundborg&lt;/strong>：具有强度饱和的压相关模型，适用于脆性材料。该实现基于 Lundborg（1968）[6] 最初提出的公式，后被 Collins 等人（2004）[7] 和 Jutzi（2015）[8] 采用。&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>&lt;strong>损伤与断裂模型&lt;/strong>：基于 Melosh 等人（1992）[9] 提出的概念的可选损伤模型，模拟拉伸应力下的材料弱化和失效。这对于模拟断裂和碎片化至关重要，遵循 Benz &amp;amp; Asphaug（1995）[5] 和 Collins 等人（2004）[7] 等开创的SPH方法。&lt;/li>
+&lt;li>&lt;strong>孔隙率模型&lt;/strong>：可选的 &lt;em>p-α&lt;/em> 孔隙率模型，用于模拟多孔地质材料（如浮石或风化层）的压碎，遵循 Jutzi 等人（2008）[10] 开发的经典框架。&lt;/li>
+&lt;/ul>
+&lt;h3 id="数值方法">数值方法
+&lt;/h3>&lt;ul>
+&lt;li>&lt;strong>时间积分&lt;/strong>：目前实现了预测矫正积分与自适应 Bogacki–Shampine RK23 [11]。&lt;/li>
+&lt;/ul>
+&lt;h3 id="用户友好工作流">用户友好工作流
+&lt;/h3>&lt;ul>
+&lt;li>&lt;strong>INI配置&lt;/strong>：通过可读的INI文件控制模拟参数，由轻量级 &lt;code>inih&lt;/code> 库解析。&lt;/li>
+&lt;li>&lt;strong>标准化输出&lt;/strong>：结果以广泛采用的HDF5格式写入，并生成配套的XDMF文件，可直接在 ParaView 和 VisIt 等科学软件中可视化。&lt;/li>
+&lt;/ul>
+&lt;h2 id="代码访问与使用政策">代码访问与使用政策
+&lt;/h2>&lt;p>GASPHiA 源代码仅向学术研究人员和合作者提供，仅供非商业、教育和研究目的使用。&lt;/p>
+&lt;p>&lt;strong>如需获取源代码，请发送电子邮件至：&lt;/strong>&lt;/p>
+&lt;ul>
+&lt;li>&lt;strong>叶科奇（作者）&lt;/strong>: &lt;code>yekq6@mail2.sysu.edu.cn&lt;/code> | &lt;code>plloningye@gmail.com&lt;/code>&lt;/li>
+&lt;li>&lt;strong>刘晓东教授（导师，中山大学航空航天学院）&lt;/strong>: &lt;code>liuxd36@mail.sysu.edu.cn&lt;/code>&lt;/li>
+&lt;/ul>
+&lt;p>请在请求中简要介绍您自己、您的机构以及您打算使用该代码的研究应用。&lt;/p>
+&lt;p>使用本代码必须遵守每个源文件开头版权声明中规定的条款。未经作者事先书面许可，严禁任何形式的再分发、商业目的的修改或使用。&lt;/p>
+&lt;h2 id="致谢">致谢
+&lt;/h2>&lt;p>我要衷心感谢我的导师&lt;strong>刘晓东教授&lt;/strong>在我博士研究期间的支持和指导。&lt;/p>
+&lt;p>GASPHiA 的开发也得益于开源社区。特别感谢以下项目的作者，他们的工作提供了重要的见解和架构灵感：&lt;/p>
+&lt;ul>
+&lt;li>&lt;strong>&lt;a class="link" href="https://github.com/christophmschaefer/miluphcuda" target="_blank" rel="noopener"
+>miluphcuda&lt;/a>&lt;/strong>&lt;/li>
+&lt;li>&lt;strong>&lt;a class="link" href="https://github.com/Patistar/Nbody-Barnes-Hut-CUDA" target="_blank" rel="noopener"
+>Nbody-Barnes-Hut-CUDA&lt;/a>&lt;/strong>&lt;/li>
+&lt;li>&lt;strong>&lt;a class="link" href="https://github.com/llnl/spheral" target="_blank" rel="noopener"
+>Spheral++&lt;/a>&lt;/strong>&lt;/li>
+&lt;/ul>
+&lt;p>本项目使用以下第三方库：&lt;/p>
+&lt;ul>
+&lt;li>&lt;strong>HDF5&lt;/strong>：高性能数据存储（&lt;a class="link" href="https://www.hdfgroup.org/" target="_blank" rel="noopener"
+>The HDF Group&lt;/a>）&lt;/li>
+&lt;li>&lt;strong>inih&lt;/strong>：解析INI配置文件（&lt;a class="link" href="https://github.com/benhoyt/inih" target="_blank" rel="noopener"
+>Ben Hoyt&lt;/a>）&lt;/li>
+&lt;/ul>
+&lt;h2 id="参考资料">参考资料
+&lt;/h2>&lt;p>[1] Schäfer, C., Riecker, S., Maindl, T. I., Schaal, K., &amp;amp; Speith, R. (2016). A smooth particle hydrodynamics code to model collisions between solid, self-gravitating objects. &lt;em>Astronomy &amp;amp; Astrophysics&lt;/em>, &lt;em>590&lt;/em>, A19.&lt;/p>
+&lt;p>[2] Barnes, J., &amp;amp; Hut, P. (1986). A hierarchical O(N log N) force-calculation algorithm. &lt;em>Nature&lt;/em>, &lt;em>324&lt;/em>(6096), 446–449.&lt;/p>
+&lt;p>[3] Nyland, L., Harris, M., &amp;amp; Prins, J. (2007). Fast n-body simulation with CUDA. &lt;em>GPU Gems&lt;/em>, 3, 62-66.&lt;/p>
+&lt;p>[4] Burtscher, M., &amp;amp; Pingali, K. (2011). An efficient CUDA implementation of the tree-based barnes hut n-body algorithm. In &lt;em>GPU Computing Gems Emerald Edition&lt;/em> (pp. 75-92). Morgan Kaufmann.&lt;/p>
+&lt;p>[5] Benz, W., &amp;amp; Asphaug, E. (1995). Simulations of brittle solids using smooth particle hydrodynamics. &lt;em>Computer Physics Communications&lt;/em>, &lt;em>87&lt;/em>(1-2), 253–265.&lt;/p>
+&lt;p>[6] Lundborg, N. (1968). Strength of rock-like materials. &lt;em>International Journal of Rock Mechanics and Mining Sciences &amp;amp; Geomechanics Abstracts&lt;/em>, &lt;em>5&lt;/em>(5), 427-454.&lt;/p>
+&lt;p>[7] Collins, G. S., Melosh, H. J., &amp;amp; Ivanov, B. A. (2004). Modeling damage and deformation in impact simulations. &lt;em>Meteoritics &amp;amp; Planetary Science&lt;/em>, &lt;em>39&lt;/em>(2), 217-231.&lt;/p>
+&lt;p>[8] Jutzi, M. (2015). SPH calculations of asteroid disruptions: The role of pressure dependent failure models. &lt;em>Icarus&lt;/em>, &lt;em>250&lt;/em>, 356-362.&lt;/p>
+&lt;p>[9] Melosh, H. J., Ryan, E. V., &amp;amp; Asphaug, E. (1992). Dynamic fragmentation in impacts: Hydrocode simulation of laboratory impacts. &lt;em>Journal of Geophysical Research: Planets&lt;/em>, &lt;em>97&lt;/em>(E9), 14735-14759.&lt;/p>
+&lt;p>[10] Jutzi, M., Benz, W., &amp;amp; Michel, P. (2008). Numerical simulations of impacts involving porous bodies: I. Implementing sub-resolution porosity in a 3D SPH hydrocode. &lt;em>Icarus&lt;/em>, &lt;em>198&lt;/em>(1), 242-255.&lt;/p>
+&lt;p>[11] Bogacki, P., &amp;amp; Shampine, L. F. (1989). A 3(2) pair of Runge-Kutta formulas. &lt;em>Applied Mathematics Letters&lt;/em>, 2(4), 321-325.&lt;/p>
+&lt;h2 id="版权">版权
+&lt;/h2>&lt;p>版权所有 (c) 2025 叶科奇。保留所有权利。&lt;/p></description></item><item><title>1D Sod 激波管实验 - CUDA SPH 基准测试</title><link>https://keqiye.github.io/posts/gasphia/1d-shock-tube/</link><pubDate>Tue, 17 Mar 2026 10:00:00 +0800</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://keqiye.github.io/posts/gasphia/1d-shock-tube/</guid><description>&lt;h1 id="1d-sod-激波管实验">1D Sod 激波管实验
+&lt;/h1>&lt;h2 id="省流">省流
+&lt;/h2>&lt;p>本文使用从零自研的 CUDA SPH 物理引擎复现了经典的 1D Sod 激波管 (Shock Tube) 基准测试，主要验证引擎对强激波不连续面的捕捉能力。测试中解决了一个关键的数值陷阱：在处理初始阶跃密度场时，传统的连续性方程 (Continuity Density) 会导致严重的非物理震荡，而直接求和密度 (Summation Density) 展现出了更好的鲁棒性。事实上，连续密度更适合用在高速冲击问题中。&lt;/p>
 &lt;hr>
-&lt;h2 id="references">References
-&lt;/h2>&lt;ol>
-&lt;li>Sod, G. A. (1978). A survey of several finite difference methods for systems of nonlinear hyperbolic conservation laws. &lt;em>Journal of Computational Physics&lt;/em>, 27(1), 1-31.&lt;/li>
-&lt;li>Monaghan, J. J. (1992). Smoothed particle hydrodynamics. &lt;em>Annual Review of Astronomy and Astrophysics&lt;/em>, 30, 543-574.&lt;/li>
-&lt;li>Liu, G. R., &amp;amp; Liu, M. B. (2003). &lt;em>Smoothed particle hydrodynamics: a meshfree particle method&lt;/em>. World Scientific.&lt;/li>
-&lt;/ol></description></item><item><title>1D Sod 激波管实验 - CUDA SPH 基准测试</title><link>https://keqiye.github.io/posts/gasphia/1d-shock-tube-zh-cn/</link><pubDate>Tue, 17 Mar 2026 00:00:00 +0000</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://keqiye.github.io/posts/gasphia/1d-shock-tube-zh-cn/</guid><description>&lt;h1 id="1d-sod-激波管实验">1D Sod 激波管实验
-&lt;/h1>&lt;h2 id="tldr">TL;DR
-&lt;/h2>&lt;p>本文使用从零自研的 CUDA SPH 物理引擎复现了经典的 1D Sod 激波管 (Shock Tube) 基准测试，主要验证引擎对强激波不连续面的捕捉能力。测试中解决了一个关键的数值陷阱：在处理初始阶跃密度场时，传统的连续性方程 (Continuity Density) 会导致严重的非物理震荡，而直接求和密度 (Summation Density) 展现出了极强的数值鲁棒性。&lt;/p>
-&lt;hr>
-&lt;h2 id="1-visual-impact">1. Visual Impact
+&lt;h2 id="1-模拟结果">1. 模拟结果
 &lt;/h2>&lt;p>以下是两种密度计算方法的效果对比：&lt;/p>
 &lt;div style="display: flex; gap: 20px; flex-wrap: wrap;">
 &lt;div style="flex: 1; min-width: 300px;">
 &lt;h4 style="text-align: center;">求和密度法 (成功)&lt;/h4>
-&lt;div class="video-wrapper">
-&lt;video
-controls
-src="https://keqiye.github.io/images/GASPHiA/1DShockTube/1D_ShockTube_Evolution.mp4"
->
-&lt;p>
-Your browser doesn't support HTML5 video. Here is a
-&lt;a href="https://keqiye.github.io/images/GASPHiA/1DShockTube/1D_ShockTube_Evolution.mp4">link to the video&lt;/a> instead.
-&lt;/p>
-&lt;/video>
-&lt;/div>
+&lt;img src="1D_ShockTube_Evolution.gif" alt="求和密度法" style="width: 100%;">
 &lt;/div>
 &lt;div style="flex: 1; min-width: 300px;">
 &lt;h4 style="text-align: center;">连续密度法 (失败)&lt;/h4>
-&lt;div class="video-wrapper">
-&lt;video
-controls
-src="https://keqiye.github.io/images/GASPHiA/1DShockTube/1D_ShockTube_Evolution_lianxv.mp4"
->
-&lt;p>
-Your browser doesn't support HTML5 video. Here is a
-&lt;a href="https://keqiye.github.io/images/GASPHiA/1DShockTube/1D_ShockTube_Evolution_lianxv.mp4">link to the video&lt;/a> instead.
-&lt;/p>
-&lt;/video>
-&lt;/div>
+&lt;img src="1D_ShockTube_Evolution_lianxv.gif" alt="连续密度法" style="width: 100%;">
 &lt;/div>
 &lt;/div>
 &lt;ul>
-&lt;li>&lt;strong>左图 (成功)&lt;/strong>：采用求和密度法，可以清晰看到激波波前 (Shock front)、接触间断 (Contact discontinuity) 和稀疏波 (Rarefaction wave) 的光滑推进。&lt;/li>
-&lt;li>&lt;strong>右图 (失败)&lt;/strong>：采用连续密度法，在激波管的初始密度阶跃处产生了严重的界面不稳定性和杂乱的粒子分布。&lt;/li>
+&lt;li>&lt;strong>左图 (成功)&lt;/strong>：采用求和密度法，可以清晰看到激波波前、接触间断和稀疏波的光滑推进。&lt;/li>
+&lt;li>&lt;strong>右图 (失败)&lt;/strong>：采用连续密度法，在激波管的初始密度阶跃处产生了震荡。&lt;/li>
 &lt;/ul>
+&lt;p>&lt;img src="https://keqiye.github.io/posts/gasphia/1d-shock-tube/ShockTube_Validation_Zoom.png"
+width="4200"
+height="3000"
+srcset="https://keqiye.github.io/posts/gasphia/1d-shock-tube/ShockTube_Validation_Zoom_hu9151086b508c9899954f9a200e59d7ed_626392_480x0_resize_box_3.png 480w, https://keqiye.github.io/posts/gasphia/1d-shock-tube/ShockTube_Validation_Zoom_hu9151086b508c9899954f9a200e59d7ed_626392_1024x0_resize_box_3.png 1024w"
+loading="lazy"
+alt="验证对比图"
+class="gallery-image"
+data-flex-grow="140"
+data-flex-basis="336px"
+>&lt;/p>
+&lt;p>&lt;strong>图 1&lt;/strong>：Sod 激波管密度分布对比。展示了三种方法在 $t=0.2$ 时刻的密度沿 $x$ 方向分布与解析解的对比。红色实线为解析解，蓝色点为求和密度法的数值结果，橙色点为连续密度法的数值结果。&lt;/p>
 &lt;hr>
 &lt;h2 id="2-问题背景">2. 问题背景
 &lt;/h2>&lt;h3 id="21-什么是-sod-激波管">2.1 什么是 Sod 激波管？
@@ -291,52 +183,10 @@ $$\rho_i = \sum_j m_j W(r_{ij}, h)$$
 &lt;p>&lt;strong>方法二：连续密度 (Continuity Density)&lt;/strong>&lt;/p>
 $$\frac{d\rho_i}{dt} = \sum_j m_j (v_j - v_i) \cdot \nabla_i W(r_{ij}, h)$$
 &lt;p>该方程通过对动量方程进行散度运算得到，理论上与连续性方程等价。&lt;/p>
-&lt;h3 id="42-为什么连续密度法失效">4.2 为什么连续密度法失效？
-&lt;/h3>&lt;p>在初始时刻，激波管存在一个&lt;strong>阶跃密度场&lt;/strong>（左侧 $\rho=1.0$，右侧 $\rho=0.25$）。连续密度方程依赖于速度散度的计算：&lt;/p>
-&lt;ul>
-&lt;li>在密度阶跃处，速度散度需要精确捕捉微小变化&lt;/li>
-&lt;li>初始时刻所有粒子速度为零，导致 $v_j - v_i = 0$&lt;/li>
-&lt;li>数值误差被放大，在界面处产生非物理的密度扰动&lt;/li>
-&lt;li>这些扰动进一步影响压力计算，形成恶性循环&lt;/li>
-&lt;/ul>
-&lt;p>相比之下，求和密度法&lt;strong>直接计算&lt;/strong>密度，不依赖于速度场，因此在处理初始阶跃密度场时具有极强的数值鲁棒性。&lt;/p>
-&lt;h3 id="43-核函数">4.3 核函数
-&lt;/h3>&lt;p>本模拟采用三次样条核函数 (Cubic Spline Kernel)：&lt;/p>
-$$W(r, h) = \frac{1}{h^d} \begin{cases}
-1 - \frac{3}{2}q^2 + \frac{3}{4}q^3 &amp; 0 \leq q &lt; 1 \\
-\frac{1}{4}(2 - q)^3 &amp; 1 \leq q &lt; 2 \\
-0 &amp; q \geq 2
-\end{cases}$$
-&lt;p>其中 $q = r/h$，$d$ 为空间维度。&lt;/p>
-&lt;hr>
-&lt;h2 id="5-结果分析">5. 结果分析
-&lt;/h2>&lt;h3 id="51-与解析解对比">5.1 与解析解对比
-&lt;/h3>&lt;p>&lt;img src="https://keqiye.github.io/images/GASPHiA/1DShockTube/ShockTube_Validation_Zoom.png"
-loading="lazy"
-alt="验证对比图"
->&lt;/p>
-&lt;p>&lt;strong>图 1&lt;/strong>：Sod 激波管密度分布对比。展示了三种方法在 $t=0.2$ 时刻的密度沿 $x$ 方向分布与解析解的对比。红色实线为解析解，蓝色点为求和密度法的数值结果，橙色点为连续密度法的数值结果。&lt;/p>
-&lt;p>从图中可以清晰看到：&lt;strong>求和密度法的结果与解析解高度吻合&lt;/strong>，成功捕捉到了激波波前的尖锐跳跃、接触间断处的密度平台，以及稀疏波区域的平滑过渡。而连续密度法在界面处产生了严重的非物理震荡，完全无法正确模拟流动结构。&lt;/p>
-&lt;h3 id="52-波结构识别">5.2 波结构识别
-&lt;/h3>&lt;p>激波管问题会形成三种典型的波结构：&lt;/p>
-&lt;ol>
-&lt;li>&lt;strong>激波 (Shock Front)&lt;/strong>：向右传播的间断面，速度和密度发生突变&lt;/li>
-&lt;li>&lt;strong>接触间断 (Contact Discontinuity)&lt;/strong>：密度发生跳跃但压力连续，跟随激波向右传播&lt;/li>
-&lt;li>&lt;strong>稀疏波 (Rarefaction Wave)&lt;/strong>：向左传播的膨胀波，速度和密度平滑下降&lt;/li>
-&lt;/ol>
-&lt;hr>
-&lt;h2 id="6-总结">6. 总结
-&lt;/h2>&lt;p>本文通过 1D Sod 激波管基准测试，验证了自研 CUDA SPH 引擎的核心算法。关键发现：&lt;/p>
-&lt;ol>
-&lt;li>&lt;strong>求和密度法&lt;/strong>在处理初始阶跃密度场时具有显著优势，避免了连续密度方程的数值不稳定性&lt;/li>
-&lt;li>引擎成功捕捉到了激波、接触间断和稀疏波三种波结构&lt;/li>
-&lt;li>数值解与解析解吻合良好&lt;/li>
-&lt;/ol>
 &lt;h3 id="后续计划">后续计划
 &lt;/h3>&lt;ul>
-&lt;li>2D 圆柱绕流模拟&lt;/li>
-&lt;li>3D 溃坝模拟&lt;/li>
-&lt;li>多相流界面稳定性分析&lt;/li>
+&lt;li>2/3D 溃坝模拟&lt;/li>
+&lt;li>带物质强度的模拟&lt;/li>
 &lt;/ul>
 &lt;hr>
 &lt;h2 id="参考资料">参考资料

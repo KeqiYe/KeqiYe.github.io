@@ -1,0 +1,227 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>SPH on Keqi's blog</title><link>https://keqiye.github.io/en/tags/sph/</link><description>Recent content in SPH on Keqi's blog</description><generator>Hugo -- gohugo.io</generator><language>en</language><managingEditor>plloningye@gmail.com (Keqi Ye)</managingEditor><webMaster>plloningye@gmail.com (Keqi Ye)</webMaster><copyright>Keqi Ye</copyright><lastBuildDate>Tue, 17 Mar 2026 10:00:00 +0800</lastBuildDate><atom:link href="https://keqiye.github.io/en/tags/sph/index.xml" rel="self" type="application/rss+xml"/><item><title>GASPHiA: A GPU-Accelerated Smoothed Particle Hydrodynamics (SPH) Code</title><link>https://keqiye.github.io/en/posts/gasphia/introduction/</link><pubDate>Tue, 17 Mar 2026 10:00:00 +0800</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://keqiye.github.io/en/posts/gasphia/introduction/</guid><description>&lt;h1 id="gasphia-a-gpu-accelerated-smoothed-particle-hydrodynamics-sph-code">GASPHiA: A GPU-Accelerated Smoothed Particle Hydrodynamics (SPH) Code
+&lt;/h1>&lt;p>GASPHiA is a high-performance, three-dimensional SPH (Smoothed Particle Hydrodynamics) code developed by Keqi Ye as part of his doctoral research at the School of Aeronautics and Astronautics, Sun Yat-sen University. The code is designed for simulating complex hydrodynamical problems, particularly those involving material strength, damage, and gravitational interactions.&lt;/p>
+&lt;h2 id="features">Features
+&lt;/h2>&lt;h3 id="high-performance--scalable">High-Performance &amp;amp; Scalable
+&lt;/h3>&lt;ul>
+&lt;li>&lt;strong>Fully parallelized with CUDA&lt;/strong>: Leverages the massive computational power of modern NVIDIA GPUs.&lt;/li>
+&lt;li>&lt;strong>Barnes-Hut tree algorithm&lt;/strong> [1-4]: Accelerates both neighbor search (&lt;code>O(N log N)&lt;/code>) and self-gravity force calculations, enabling efficient simulation of large particle systems.&lt;/li>
+&lt;/ul>
+&lt;h3 id="configurable--flexible">Configurable &amp;amp; Flexible
+&lt;/h3>&lt;ul>
+&lt;li>&lt;strong>Switchable Precision&lt;/strong>: Easily toggle between single-precision (&lt;code>float&lt;/code>) and double-precision (&lt;code>double&lt;/code>) calculations. Maximize performance on consumer-grade GPUs (&lt;code>float&lt;/code>) or ensure high accuracy for scientific applications (&lt;code>double&lt;/code>).&lt;/li>
+&lt;li>&lt;strong>Multi-Dimensional&lt;/strong>: Natively supports both 2D and 3D simulation domains.&lt;/li>
+&lt;/ul>
+&lt;h3 id="advanced-physics-modeling">Advanced Physics Modeling
+&lt;/h3>&lt;ul>
+&lt;li>&lt;strong>Gravity Models&lt;/strong>: Choose between uniform external gravity field and/or N-body self-gravity for astrophysical scenarios.&lt;/li>
+&lt;li>&lt;strong>Strength &amp;amp; Yield Models&lt;/strong>: A suite of sophisticated constitutive models to define the elastic limit and subsequent plastic flow of solids, including:
+&lt;ul>
+&lt;li>&lt;strong>Von Mises&lt;/strong>: A classic pressure-independent yield criterion, serving as a fundamental model for plastic flow.&lt;/li>
+&lt;li>&lt;strong>Lundborg&lt;/strong>: A pressure-dependent model with strength saturation for brittle materials. This implementation is based on the formulation originally proposed by Lundborg (1968) [6] and later adopted by Collins et al. (2004) [7] and Jutzi (2015) [8].&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>&lt;strong>Damage &amp;amp; Fracture Model&lt;/strong>: An optional damage model, based on the concepts proposed by Melosh et al. (1992) [9], simulates material weakening and failure under tensile stress. This is crucial for modeling fracture and fragmentation, following the SPH approaches pioneered by Benz &amp;amp; Asphaug (1995) [5] and Collins et al. (2004) [7].&lt;/li>
+&lt;li>&lt;strong>Porosity Model&lt;/strong>: An optional &lt;em>p-α&lt;/em> porosity model to simulate the crushing of porous geological materials like pumice or regolith, following the classic framework developed by Jutzi et al. (2008) [10].&lt;/li>
+&lt;/ul>
+&lt;h3 id="numerical-methods">Numerical Methods
+&lt;/h3>&lt;ul>
+&lt;li>&lt;strong>Time Integration&lt;/strong>: Currently implemented as predictor-corrector integration with adaptive Bogacki–Shampine RK23 [11].&lt;/li>
+&lt;/ul>
+&lt;h3 id="user-friendly-workflow">User-Friendly Workflow
+&lt;/h3>&lt;ul>
+&lt;li>&lt;strong>INI Configuration&lt;/strong>: Simulation parameters are controlled via readable INI files, parsed by the lightweight &lt;code>inih&lt;/code> library.&lt;/li>
+&lt;li>&lt;strong>Standardized Output&lt;/strong>: Results are written in the widely adopted HDF5 format, with accompanying XDMF files generated for direct visualization in scientific software like &lt;strong>ParaView&lt;/strong> and &lt;strong>VisIt&lt;/strong>.&lt;/li>
+&lt;/ul>
+&lt;h2 id="code-access-and-usage-policy">Code Access and Usage Policy
+&lt;/h2>&lt;p>GASPHiA source code is available to academic researchers and collaborators upon request, for non-commercial, educational, and research purposes only.&lt;/p>
+&lt;p>&lt;strong>To request access to the source code, please send an email to:&lt;/strong>&lt;/p>
+&lt;ul>
+&lt;li>&lt;strong>Keqi Ye&lt;/strong> (Author): &lt;code>yekq6@mail2.sysu.edu.cn&lt;/code> | &lt;code>plloningye@gmail.com&lt;/code>&lt;/li>
+&lt;li>&lt;strong>Prof. Xiaodong Liu&lt;/strong> (Supervisor, School of Aeronautics and Astronautics): &lt;code>liuxd36@mail.sysu.edu.cn&lt;/code>&lt;/li>
+&lt;/ul>
+&lt;p>In your request, please briefly introduce yourself, your institution, and your intended research application for the code.&lt;/p>
+&lt;p>All usage of this code must adhere to the terms specified in the copyright notice at the beginning of each source file. Any form of redistribution, modification for commercial purposes, or use without prior written permission from the authors is strictly prohibited.&lt;/p>
+&lt;h2 id="acknowledgements">Acknowledgements
+&lt;/h2>&lt;p>I would like to express my sincere gratitude to my supervisor, &lt;strong>Prof. Xiaodong Liu&lt;/strong>, for his support and guidance throughout my doctoral studies.&lt;/p>
+&lt;p>The development of GASPHiA has also benefited from the open-source community. Special thanks are extended to the authors of the following projects, whose work provided crucial insights and architectural inspiration:&lt;/p>
+&lt;ul>
+&lt;li>&lt;strong>&lt;a class="link" href="https://github.com/christophmschaefer/miluphcuda" target="_blank" rel="noopener"
+>miluphcuda&lt;/a>&lt;/strong>&lt;/li>
+&lt;li>&lt;strong>&lt;a class="link" href="https://github.com/Patistar/Nbody-Barnes-Hut-CUDA" target="_blank" rel="noopener"
+>Nbody-Barnes-Hut-CUDA&lt;/a>&lt;/strong>&lt;/li>
+&lt;li>&lt;strong>&lt;a class="link" href="https://github.com/llnl/spheral" target="_blank" rel="noopener"
+>Spheral++&lt;/a>&lt;/strong>&lt;/li>
+&lt;/ul>
+&lt;p>This project utilizes the following third-party libraries:&lt;/p>
+&lt;ul>
+&lt;li>&lt;strong>HDF5&lt;/strong>: For high-performance data storage (&lt;a class="link" href="https://www.hdfgroup.org/" target="_blank" rel="noopener"
+>The HDF Group&lt;/a>)&lt;/li>
+&lt;li>&lt;strong>inih&lt;/strong>: For parsing INI configuration files (&lt;a class="link" href="https://github.com/benhoyt/inih" target="_blank" rel="noopener"
+>Ben Hoyt&lt;/a>)&lt;/li>
+&lt;/ul>
+&lt;h2 id="references">References
+&lt;/h2>&lt;p>[1] Schäfer, C., Riecker, S., Maindl, T. I., Schaal, K., &amp;amp; Speith, R. (2016). A smooth particle hydrodynamics code to model collisions between solid, self-gravitating objects. &lt;em>Astronomy &amp;amp; Astrophysics&lt;/em>, &lt;em>590&lt;/em>, A19.&lt;/p>
+&lt;p>[2] Barnes, J., &amp;amp; Hut, P. (1986). A hierarchical O(N log N) force-calculation algorithm. &lt;em>Nature&lt;/em>, &lt;em>324&lt;/em>(6096), 446–449.&lt;/p>
+&lt;p>[3] Nyland, L., Harris, M., &amp;amp; Prins, J. (2007). Fast n-body simulation with CUDA. &lt;em>GPU Gems&lt;/em>, 3, 62-66.&lt;/p>
+&lt;p>[4] Burtscher, M., &amp;amp; Pingali, K. (2011). An efficient CUDA implementation of the tree-based barnes hut n-body algorithm. In &lt;em>GPU Computing Gems Emerald Edition&lt;/em> (pp. 75-92). Morgan Kaufmann.&lt;/p>
+&lt;p>[5] Benz, W., &amp;amp; Asphaug, E. (1995). Simulations of brittle solids using smooth particle hydrodynamics. &lt;em>Computer Physics Communications&lt;/em>, &lt;em>87&lt;/em>(1-2), 253–265.&lt;/p>
+&lt;p>[6] Lundborg, N. (1968). Strength of rock-like materials. &lt;em>International Journal of Rock Mechanics and Mining Sciences &amp;amp; Geomechanics Abstracts&lt;/em>, &lt;em>5&lt;/em>(5), 427-454.&lt;/p>
+&lt;p>[7] Collins, G. S., Melosh, H. J., &amp;amp; Ivanov, B. A. (2004). Modeling damage and deformation in impact simulations. &lt;em>Meteoritics &amp;amp; Planetary Science&lt;/em>, &lt;em>39&lt;/em>(2), 217-231.&lt;/p>
+&lt;p>[8] Jutzi, M. (2015). SPH calculations of asteroid disruptions: The role of pressure dependent failure models. &lt;em>Icarus&lt;/em>, &lt;em>250&lt;/em>, 356-362.&lt;/p>
+&lt;p>[9] Melosh, H. J., Ryan, E. V., &amp;amp; Asphaug, E. (1992). Dynamic fragmentation in impacts: Hydrocode simulation of laboratory impacts. &lt;em>Journal of Geophysical Research: Planets&lt;/em>, &lt;em>97&lt;/em>(E9), 14735-14759.&lt;/p>
+&lt;p>[10] Jutzi, M., Benz, W., &amp;amp; Michel, P. (2008). Numerical simulations of impacts involving porous bodies: I. Implementing sub-resolution porosity in a 3D SPH hydrocode. &lt;em>Icarus&lt;/em>, &lt;em>198&lt;/em>(1), 242-255.&lt;/p>
+&lt;p>[11] Bogacki, P., &amp;amp; Shampine, L. F. (1989). A 3(2) pair of Runge-Kutta formulas. &lt;em>Applied Mathematics Letters&lt;/em>, 2(4), 321-325.&lt;/p>
+&lt;h2 id="copyright">Copyright
+&lt;/h2>&lt;p>Copyright (c) 2025 Keqi Ye. All Rights Reserved.&lt;/p></description></item><item><title>Applications of CUDA-accelerated SPH Simulation Code GASPHiA</title><link>https://keqiye.github.io/en/posts/gasphia/</link><pubDate>Tue, 17 Mar 2026 00:00:00 +0000</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://keqiye.github.io/en/posts/gasphia/</guid><description>&lt;h1 id="cuda-based-sph-code-examples">CUDA-based SPH Code Examples
+&lt;/h1>&lt;p>This series documents the benchmark and validation process of a custom CUDA SPH (Smoothed Particle Hydrodynamics) physics engine built from scratch. Through numerical simulations of classical fluid dynamics and impact problems, we verify the engine&amp;rsquo;s correctness and numerical robustness.&lt;/p>
+&lt;h2 id="series-goals">Series Goals
+&lt;/h2>&lt;ul>
+&lt;li>Verify the correctness of SPH core algorithms&lt;/li>
+&lt;li>Test the engine&amp;rsquo;s capability to handle multi-physics and complex impact problems&lt;/li>
+&lt;li>Explore improvements and optimizations in numerical methods&lt;/li>
+&lt;/ul>
+&lt;h2 id="core-method-summation-density-vs-continuity-density">Core Method: Summation Density vs Continuity Density
+&lt;/h2>&lt;p>In SPH, there are two main approaches for density computation:&lt;/p>
+&lt;p>&lt;strong>Summation Density&lt;/strong>:
+&lt;/p>
+$$\rho_i = \sum_j m_j W(r_{ij}, h)$$
+&lt;p>&lt;strong>Continuity Density&lt;/strong>:
+&lt;/p>
+$$\frac{d\rho}{dt} = \sum_j m_j v_{ij} \cdot \nabla_i W_{ij}$$
+&lt;p>This series demonstrates the significant advantages of summation density in handling strong discontinuity problems.&lt;/p>
+&lt;h2 id="series-contents">Series Contents
+&lt;/h2>&lt;ol>
+&lt;li>&lt;strong>GASPHiA Code Introduction&lt;/strong> - Overview of features and capabilities of our custom CUDA SPH code&lt;/li>
+&lt;li>&lt;strong>1D Sod Shock Tube Experiment&lt;/strong> - Verifying the engine&amp;rsquo;s ability to capture strong shock discontinuities&lt;/li>
+&lt;li>
+&lt;ul>
+&lt;li>(To be continued)&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;/ol>
+&lt;hr>
+&lt;blockquote>
+&lt;p>📁 &lt;strong>Resources&lt;/strong>: Videos and images for this series are located in &lt;code>/images/GASPHiA/1DShockTube/&lt;/code>&lt;/p>
+&lt;/blockquote></description></item><item><title>1D Sod Shock Tube Experiment - CUDA SPH Benchmark</title><link>https://keqiye.github.io/en/posts/gasphia/1d-shock-tube/</link><pubDate>Tue, 17 Mar 2026 10:00:00 +0800</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://keqiye.github.io/en/posts/gasphia/1d-shock-tube/</guid><description>&lt;h1 id="1d-sod-shock-tube-experiment">1D Sod Shock Tube Experiment
+&lt;/h1>&lt;h2 id="tldr">TL;DR
+&lt;/h2>&lt;p>This article presents a reproduction of the classic 1D Sod Shock Tube benchmark test using a custom-built CUDA SPH (Smoothed Particle Hydrodynamics) physics engine from scratch. The primary objective is to verify the engine&amp;rsquo;s capability to capture strong shock discontinuities. A critical numerical pitfall was identified and resolved: when handling initial step density fields, the traditional Continuity Density method causes severe non-physical oscillations, while the direct Summation Density demonstrates better robustness. In fact, continuity density is more suitable for high-speed impact problems.&lt;/p>
+&lt;hr>
+&lt;h2 id="1-simulation-results">1. Simulation Results
+&lt;/h2>&lt;p>Comparison of two density calculation methods:&lt;/p>
+&lt;div style="display: flex; gap: 20px; flex-wrap: wrap;">
+&lt;div style="flex: 1; min-width: 300px;">
+&lt;h4 style="text-align: center;">Summation Density (Success)&lt;/h4>
+&lt;img src="1D_ShockTube_Evolution.gif" alt="Summation Density" style="width: 100%;">
+&lt;/div>
+&lt;div style="flex: 1; min-width: 300px;">
+&lt;h4 style="text-align: center;">Continuity Density (Failure)&lt;/h4>
+&lt;img src="1D_ShockTube_Evolution_lianxv.gif" alt="Continuity Density" style="width: 100%;">
+&lt;/div>
+&lt;/div>
+&lt;ul>
+&lt;li>&lt;strong>Left (Success)&lt;/strong>: Using summation density, the shock front, contact discontinuity, and rarefaction wave can be clearly observed propagating smoothly.&lt;/li>
+&lt;li>&lt;strong>Right (Failure)&lt;/strong>: Using continuity density, oscillations appear at the initial density jump in the shock tube.&lt;/li>
+&lt;/ul>
+&lt;p>&lt;img src="https://keqiye.github.io/posts/gasphia/1d-shock-tube/ShockTube_Validation_Zoom.png"
+width="4200"
+height="3000"
+srcset="https://keqiye.github.io/posts/gasphia/1d-shock-tube/ShockTube_Validation_Zoom_hu9151086b508c9899954f9a200e59d7ed_626392_480x0_resize_box_3.png 480w, https://keqiye.github.io/posts/gasphia/1d-shock-tube/ShockTube_Validation_Zoom_hu9151086b508c9899954f9a200e59d7ed_626392_1024x0_resize_box_3.png 1024w"
+loading="lazy"
+alt="Validation Comparison"
+class="gallery-image"
+data-flex-grow="140"
+data-flex-basis="336px"
+>&lt;/p>
+&lt;p>&lt;strong>Figure 1&lt;/strong>: Density distribution comparison for the Sod shock tube. Shows the density along the x-direction at $t=0.2$ for three methods compared with the analytical solution. The red solid line is the analytical solution, blue dots are numerical results from the summation density method, and orange dots are numerical results from the continuity density method.&lt;/p>
+&lt;hr>
+&lt;h2 id="2-problem-background">2. Problem Background
+&lt;/h2>&lt;h3 id="21-what-is-the-sod-shock-tube">2.1 What is the Sod Shock Tube?
+&lt;/h3>&lt;p>The Sod shock tube is a classic benchmark problem in fluid dynamics, used to verify numerical methods&amp;rsquo; capability to capture shocks, contact discontinuities, and rarefaction waves. This problem simulates the instantaneous release of two gases at different states separated by a membrane in a one-dimensional tube.&lt;/p>
+&lt;h3 id="22-physical-model">2.2 Physical Model
+&lt;/h3>&lt;p>This simulation uses the ideal gas model with the following governing equations:&lt;/p>
+&lt;p>&lt;strong>Continuity Equation&lt;/strong>:
+&lt;/p>
+$$\frac{\partial \rho}{\partial t} + \nabla \cdot (\rho \mathbf{v}) = 0$$
+&lt;p>&lt;strong>Momentum Equation&lt;/strong>:
+&lt;/p>
+$$\frac{\partial (\rho \mathbf{v})}{\partial t} + \nabla \cdot (\rho \mathbf{v} \otimes \mathbf{v}) = -\nabla p$$
+&lt;p>&lt;strong>Energy Equation&lt;/strong>:
+&lt;/p>
+$$\frac{\partial (\rho e)}{\partial t} + \nabla \cdot (\rho e \mathbf{v}) = -p \nabla \cdot \mathbf{v}$$
+&lt;p>&lt;strong>Equation of State&lt;/strong> (Ideal Gas):
+&lt;/p>
+$$p = (\gamma - 1) \rho e$$
+&lt;p>where $\gamma = 5/3$ is the adiabatic index.&lt;/p>
+&lt;hr>
+&lt;h2 id="3-initial-conditions">3. Initial Conditions
+&lt;/h2>&lt;p>At the initial time, the shock tube is divided into two regions by a membrane at $x=0$:&lt;/p>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Parameter&lt;/th>
+&lt;th style="text-align:center">High Density Region (Left)&lt;/th>
+&lt;th style="text-align:center">Low Density Region (Right)&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">Density $\rho$&lt;/td>
+&lt;td style="text-align:center">1.0&lt;/td>
+&lt;td style="text-align:center">0.25&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">Velocity $v$&lt;/td>
+&lt;td style="text-align:center">0.0&lt;/td>
+&lt;td style="text-align:center">0.0&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">Internal Energy $e$&lt;/td>
+&lt;td style="text-align:center">2.5&lt;/td>
+&lt;td style="text-align:center">1.795&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">Particle Spacing $\Delta x$&lt;/td>
+&lt;td style="text-align:center">0.001875&lt;/td>
+&lt;td style="text-align:center">0.0075&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">Smoothing Length $h$&lt;/td>
+&lt;td style="text-align:center">0.01&lt;/td>
+&lt;td style="text-align:center">0.01&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">Region Range&lt;/td>
+&lt;td style="text-align:center">$[-1.2, 0)$&lt;/td>
+&lt;td style="text-align:center">$(0, 1.2]$&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">Number of Particles&lt;/td>
+&lt;td style="text-align:center">640&lt;/td>
+&lt;td style="text-align:center">160&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;p>&lt;strong>Total Particles&lt;/strong>: 800&lt;/p>
+&lt;p>The initial conditions set the left side as a high-pressure, high-density region and the right side as a low-pressure, low-density region. After the membrane is removed, the high-pressure gas on the left accelerates to the right, forming three wave structures: shock, contact discontinuity, and rarefaction wave.&lt;/p>
+&lt;hr>
+&lt;h2 id="4-numerical-methods">4. Numerical Methods
+&lt;/h2>&lt;h3 id="41-sph-density-calculation-approaches">4.1 SPH Density Calculation Approaches
+&lt;/h3>&lt;p>This benchmark compares two SPH density computation methods:&lt;/p>
+&lt;p>&lt;strong>Method 1: Summation Density&lt;/strong>&lt;/p>
+$$\rho_i = \sum_j m_j W(r_{ij}, h)$$
+&lt;p>where $W(r, h)$ is the kernel function and $h$ is the smoothing length. This method directly sums the masses of neighboring particles with clear physical meaning.&lt;/p>
+&lt;p>&lt;strong>Method 2: Continuity Density&lt;/strong>&lt;/p>
+$$\frac{d\rho_i}{dt} = \sum_j m_j (v_j - v_i) \cdot \nabla_i W(r_{ij}, h)$$
+&lt;p>This equation is derived from the divergence of the momentum equation and is theoretically equivalent to the continuity equation.&lt;/p>
+&lt;h3 id="future-work">Future Work
+&lt;/h3>&lt;ul>
+&lt;li>2D/3D Dam Break Simulation&lt;/li>
+&lt;li>Simulations with Material Strength&lt;/li>
+&lt;/ul>
+&lt;hr>
+&lt;h2 id="references">References
+&lt;/h2>&lt;ol>
+&lt;li>Sod, G. A. (1978). A survey of several finite difference methods for systems of nonlinear hyperbolic conservation laws. &lt;em>Journal of Computational Physics&lt;/em>, 27(1), 1-31.&lt;/li>
+&lt;li>Monaghan, J. J. (1992). Smoothed particle hydrodynamics. &lt;em>Annual Review of Astronomy and Astrophysics&lt;/em>, 30, 543-574.&lt;/li>
+&lt;li>Liu, G. R., &amp;amp; Liu, M. B. (2003). &lt;em>Smoothed particle hydrodynamics: a meshfree particle method&lt;/em>. World Scientific.&lt;/li>
+&lt;/ol></description></item></channel></rss>
