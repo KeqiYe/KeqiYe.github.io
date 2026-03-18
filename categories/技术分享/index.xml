@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>技术分享 on Keqi的博客</title><link>https://keqiye.github.io/categories/%E6%8A%80%E6%9C%AF%E5%88%86%E4%BA%AB/</link><description>Recent content in 技术分享 on Keqi的博客</description><generator>Hugo -- gohugo.io</generator><language>zh-cn</language><managingEditor>plloningye@gmail.com (Keqi Ye)</managingEditor><webMaster>plloningye@gmail.com (Keqi Ye)</webMaster><copyright>Keqi Ye</copyright><lastBuildDate>Tue, 17 Mar 2026 10:00:00 +0800</lastBuildDate><atom:link href="https://keqiye.github.io/categories/%E6%8A%80%E6%9C%AF%E5%88%86%E4%BA%AB/index.xml" rel="self" type="application/rss+xml"/><item><title>GASPHiA: GPU加速的光滑粒子流体动力学（SPH）代码</title><link>https://keqiye.github.io/posts/gasphia/introduction/</link><pubDate>Tue, 17 Mar 2026 10:00:00 +0800</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://keqiye.github.io/posts/gasphia/introduction/</guid><description>&lt;h1 id="gasphia-gpu加速的光滑粒子流体动力学代码">GASPHiA: GPU加速的光滑粒子流体动力学代码
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>技术分享 on Keqi的博客</title><link>https://yekq.top/categories/%E6%8A%80%E6%9C%AF%E5%88%86%E4%BA%AB/</link><description>Recent content in 技术分享 on Keqi的博客</description><generator>Hugo -- gohugo.io</generator><language>zh-cn</language><managingEditor>plloningye@gmail.com (Keqi Ye)</managingEditor><webMaster>plloningye@gmail.com (Keqi Ye)</webMaster><copyright>Keqi Ye</copyright><lastBuildDate>Tue, 17 Mar 2026 10:00:00 +0800</lastBuildDate><atom:link href="https://yekq.top/categories/%E6%8A%80%E6%9C%AF%E5%88%86%E4%BA%AB/index.xml" rel="self" type="application/rss+xml"/><item><title>GASPHiA: GPU加速的光滑粒子流体动力学（SPH）代码</title><link>https://yekq.top/posts/gasphia/introduction/</link><pubDate>Tue, 17 Mar 2026 10:00:00 +0800</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://yekq.top/posts/gasphia/introduction/</guid><description>&lt;h1 id="gasphia-gpu加速的光滑粒子流体动力学代码">GASPHiA: GPU加速的光滑粒子流体动力学代码
 &lt;/h1>&lt;p>GASPHiA 是一个高性能的三维 SPH（光滑粒子流体动力学）代码，由中山大学航空航天学院的叶科奇在其博士研究期间开发。该代码专为模拟复杂的流体动力学问题设计，特别是涉及材料强度、损伤和引力相互作用的问题。&lt;/p>
 &lt;h2 id="特性">特性
 &lt;/h2>&lt;h3 id="高性能与可扩展性">高性能与可扩展性
@@ -72,7 +72,7 @@
 &lt;p>[10] Jutzi, M., Benz, W., &amp;amp; Michel, P. (2008). Numerical simulations of impacts involving porous bodies: I. Implementing sub-resolution porosity in a 3D SPH hydrocode. &lt;em>Icarus&lt;/em>, &lt;em>198&lt;/em>(1), 242-255.&lt;/p>
 &lt;p>[11] Bogacki, P., &amp;amp; Shampine, L. F. (1989). A 3(2) pair of Runge-Kutta formulas. &lt;em>Applied Mathematics Letters&lt;/em>, 2(4), 321-325.&lt;/p>
 &lt;h2 id="版权">版权
-&lt;/h2>&lt;p>版权所有 (c) 2025 叶科奇。保留所有权利。&lt;/p></description></item><item><title>基于CUDA加速的SPH模拟代码GASPHiA的一些应用</title><link>https://keqiye.github.io/posts/gasphia/</link><pubDate>Tue, 17 Mar 2026 00:00:00 +0000</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://keqiye.github.io/posts/gasphia/</guid><description>&lt;h1 id="基于cuda的sph代码算例">基于CUDA的SPH代码算例
+&lt;/h2>&lt;p>版权所有 (c) 2025 叶科奇。保留所有权利。&lt;/p></description></item><item><title>基于CUDA加速的SPH模拟代码GASPHiA的一些应用</title><link>https://yekq.top/posts/gasphia/</link><pubDate>Tue, 17 Mar 2026 00:00:00 +0000</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://yekq.top/posts/gasphia/</guid><description>&lt;h1 id="基于cuda的sph代码算例">基于CUDA的SPH代码算例
 &lt;/h1>&lt;p>本系列文章记录了我从零自研的 CUDA SPH (Smoothed Particle Hydrodynamics) 物理引擎的基准测试与验证过程。通过经典流体动力学问题的数值模拟，验证引擎的正确性与数值鲁棒性。&lt;/p>
 &lt;h2 id="系列目标">系列目标
 &lt;/h2>&lt;ul>
@@ -102,7 +102,7 @@ $$\frac{d\rho}{dt} = \sum_j m_j v_{ij} \cdot \nabla_i W_{ij}$$
 &lt;hr>
 &lt;blockquote>
 &lt;p>📁 &lt;strong>资源位置&lt;/strong>：本系列使用的视频和图片资源存放于 &lt;code>/static/images/GASPHiA/1DShockTube/&lt;/code> 目录&lt;/p>
-&lt;/blockquote></description></item><item><title>1D Sod 激波管实验 - CUDA SPH 基准测试</title><link>https://keqiye.github.io/posts/gasphia/1d-shock-tube/</link><pubDate>Tue, 17 Mar 2026 10:00:00 +0800</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://keqiye.github.io/posts/gasphia/1d-shock-tube/</guid><description>&lt;h1 id="1d-sod-激波管实验">1D Sod 激波管实验
+&lt;/blockquote></description></item><item><title>1D Sod 激波管实验 - CUDA SPH 基准测试</title><link>https://yekq.top/posts/gasphia/1d-shock-tube/</link><pubDate>Tue, 17 Mar 2026 10:00:00 +0800</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://yekq.top/posts/gasphia/1d-shock-tube/</guid><description>&lt;h1 id="1d-sod-激波管实验">1D Sod 激波管实验
 &lt;/h1>&lt;h2 id="省流">省流
 &lt;/h2>&lt;p>本文使用从零自研的 CUDA SPH 物理引擎复现了经典的 1D Sod 激波管 (Shock Tube) 基准测试，主要验证引擎对强激波不连续面的捕捉能力。测试中解决了一个关键的数值陷阱：在处理初始阶跃密度场时，传统的连续性方程 (Continuity Density) 会导致严重的非物理震荡，而直接求和密度 (Summation Density) 展现出了更好的鲁棒性。事实上，连续密度更适合用在高速冲击问题中。&lt;/p>
 &lt;hr>
@@ -122,10 +122,10 @@ $$\frac{d\rho}{dt} = \sum_j m_j v_{ij} \cdot \nabla_i W_{ij}$$
 &lt;li>&lt;strong>左图 (成功)&lt;/strong>：采用求和密度法，可以清晰看到激波波前、接触间断和稀疏波的光滑推进。&lt;/li>
 &lt;li>&lt;strong>右图 (失败)&lt;/strong>：采用连续密度法，在激波管的初始密度阶跃处产生了震荡。&lt;/li>
 &lt;/ul>
-&lt;p>&lt;img src="https://keqiye.github.io/posts/gasphia/1d-shock-tube/ShockTube_Validation_Zoom.png"
+&lt;p>&lt;img src="https://yekq.top/posts/gasphia/1d-shock-tube/ShockTube_Validation_Zoom.png"
 width="4200"
 height="3000"
-srcset="https://keqiye.github.io/posts/gasphia/1d-shock-tube/ShockTube_Validation_Zoom_hu9151086b508c9899954f9a200e59d7ed_626392_480x0_resize_box_3.png 480w, https://keqiye.github.io/posts/gasphia/1d-shock-tube/ShockTube_Validation_Zoom_hu9151086b508c9899954f9a200e59d7ed_626392_1024x0_resize_box_3.png 1024w"
+srcset="https://yekq.top/posts/gasphia/1d-shock-tube/ShockTube_Validation_Zoom_hu9151086b508c9899954f9a200e59d7ed_626392_480x0_resize_box_3.png 480w, https://yekq.top/posts/gasphia/1d-shock-tube/ShockTube_Validation_Zoom_hu9151086b508c9899954f9a200e59d7ed_626392_1024x0_resize_box_3.png 1024w"
 loading="lazy"
 alt="验证对比图"
 class="gallery-image"
@@ -224,7 +224,7 @@ $$\frac{d\rho_i}{dt} = \sum_j m_j (v_j - v_i) \cdot \nabla_i W(r_{ij}, h)$$
 &lt;li>Sod, G. A. (1978). A survey of several finite difference methods for systems of nonlinear hyperbolic conservation laws. &lt;em>Journal of Computational Physics&lt;/em>, 27(1), 1-31.&lt;/li>
 &lt;li>Monaghan, J. J. (1992). Smoothed particle hydrodynamics. &lt;em>Annual Review of Astronomy and Astrophysics&lt;/em>, 30, 543-574.&lt;/li>
 &lt;li>Liu, G. R., &amp;amp; Liu, M. B. (2003). &lt;em>Smoothed particle hydrodynamics: a meshfree particle method&lt;/em>. World Scientific.&lt;/li>
-&lt;/ol></description></item><item><title>SPH基础(序): 概述与系列介绍</title><link>https://keqiye.github.io/posts/sphseries/sphseries-intro/</link><pubDate>Mon, 20 May 2024 00:00:00 +0000</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://keqiye.github.io/posts/sphseries/sphseries-intro/</guid><description>&lt;h1 id="sph-系列总览">SPH 系列总览
+&lt;/ol></description></item><item><title>SPH基础(序): 概述与系列介绍</title><link>https://yekq.top/posts/sphseries/sphseries-intro/</link><pubDate>Mon, 20 May 2024 00:00:00 +0000</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://yekq.top/posts/sphseries/sphseries-intro/</guid><description>&lt;h1 id="sph-系列总览">SPH 系列总览
 &lt;/h1>&lt;p>本系列文章旨在从零开始，系统介绍光滑粒子流体动力学（SPH, Smoothed Particle Hydrodynamics）方法的核心概念、数学原理以及实现技巧。通过本系列，你将能够：&lt;/p>
 &lt;ul>
 &lt;li>理解 SPH 方法的基本思想和应用场景。&lt;/li>
@@ -257,7 +257,7 @@ SPH 的基本原理、流体模拟的数学模型和物理背景。&lt;/p>
 &lt;/li>
 &lt;/ol>
 &lt;hr>
-&lt;p>阅读本篇文章后，你可以从各个子文章入手，逐步深入理解 SPH 模型和实现细节。本系列适合有一定编程基础和物理背景的读者，但也会从基础讲起，让新手逐步掌握方法。&lt;/p></description></item><item><title>SPH基础(一): 核函数与导数近似</title><link>https://keqiye.github.io/posts/sphseries/1-kernel-approximation/</link><pubDate>Tue, 21 May 2024 10:00:00 +0800</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://keqiye.github.io/posts/sphseries/1-kernel-approximation/</guid><description>&lt;p>欢迎来到“SPH 系列教程”系列！&lt;/p>
+&lt;p>阅读本篇文章后，你可以从各个子文章入手，逐步深入理解 SPH 模型和实现细节。本系列适合有一定编程基础和物理背景的读者，但也会从基础讲起，让新手逐步掌握方法。&lt;/p></description></item><item><title>SPH基础(一): 核函数与导数近似</title><link>https://yekq.top/posts/sphseries/1-kernel-approximation/</link><pubDate>Tue, 21 May 2024 10:00:00 +0800</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://yekq.top/posts/sphseries/1-kernel-approximation/</guid><description>&lt;p>欢迎来到“SPH 系列教程”系列！&lt;/p>
 &lt;p>光滑粒子流体动力学（Smoothed Particle Hydrodynamics, SPH）是一种无网格的拉格朗日粒子法。与传统的基于网格的方法不同，SPH 通过一系列离散的粒子来代表连续的流体，极大地简化了对大变形、自由表面等问题的处理。&lt;/p>
 &lt;p>本系列的第一篇文章，我们将从 SPH 的两个最核心的概念——&lt;strong>核函数近似&lt;/strong>与&lt;strong>导数近似&lt;/strong>——开始。&lt;/p>
 &lt;h2 id="什么是核函数近似">什么是核函数近似？
@@ -369,7 +369,7 @@ $$
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c">% ... (代码其余部分和上面提供的一样)&lt;/span>
 &lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
 &lt;/div>
-&lt;/div></description></item><item><title>SPH基础(二): 网格法邻居搜索</title><link>https://keqiye.github.io/posts/sphseries/2-grid-neighbor-search/</link><pubDate>Fri, 09 May 2025 00:00:00 +0000</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://keqiye.github.io/posts/sphseries/2-grid-neighbor-search/</guid><description>&lt;h1 id="sph-粒子领域搜索">SPH 粒子领域搜索
+&lt;/div></description></item><item><title>SPH基础(二): 网格法邻居搜索</title><link>https://yekq.top/posts/sphseries/2-grid-neighbor-search/</link><pubDate>Fri, 09 May 2025 00:00:00 +0000</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://yekq.top/posts/sphseries/2-grid-neighbor-search/</guid><description>&lt;h1 id="sph-粒子领域搜索">SPH 粒子领域搜索
 &lt;/h1>&lt;h2 id="问题描述">问题描述
 &lt;/h2>&lt;p>在光滑粒子流体动力学（Smoothed Particle Hydrodynamics，简称 SPH）方法中，“邻居搜索”（Neighbor Search）是一个至关重要的计算任务。它直接影响到模拟的效率与精度，尤其在涉及上百万粒子的三维问题中，计算瓶颈往往出现在如何高效查找每个粒子周围的邻居上。&lt;/p>
 &lt;p>由于 SPH 是一种无网格方法，天然适合处理自由表面、大变形和断裂等复杂物理现象，因此被广泛应用于天体物理、流体力学、固体力学等领域。我主要从事小行星撞击问题的数值模拟研究，并开发了一套针对该问题的 SPH 代码。虽然不同领域在实现细节上存在差异，但“邻居搜索”作为核心模块，其数学模型相对简单，却几乎在所有 SPH 实现中都不可或缺。&lt;/p>
@@ -676,9 +676,9 @@ $$
 &lt;hr>
 &lt;h4 id="a2按网格顺序遍历粒子">A2：按网格顺序遍历粒子
 &lt;/h4>&lt;p>（此处补充 A2 的实现简介和性能特点。）
-更多关于树搜索的内容可以参见[树搜索]更多关于树搜索的内容可以参见&lt;a class="link" href="https://keqiye.github.io/posts/SPH_neighbor_search/tree_search/" >树搜索&lt;/a>.&lt;/p>
+更多关于树搜索的内容可以参见[树搜索]更多关于树搜索的内容可以参见&lt;a class="link" href="https://yekq.top/posts/SPH_neighbor_search/tree_search/" >树搜索&lt;/a>.&lt;/p>
 &lt;h3 id="缺陷">缺陷
-&lt;/h3>&lt;p>网格搜索我个人感觉效率是比树搜索好的，尤其是当粒子的光滑长度都一致或者差不多的时候。缺点在于，如果粒子在空间中分散的非常广泛，比如撞击引起的dust喷发。这会导致网格数量激增，显存很快就会用光，导致计算失败。因此网格搜索还是适合模拟空间分布稳定的问题，比如溃坝。&lt;/p></description></item><item><title>SPH基础(三): 树结构邻居搜索</title><link>https://keqiye.github.io/posts/sphseries/3-tree-neighbor-search/</link><pubDate>Mon, 12 May 2025 00:00:00 +0000</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://keqiye.github.io/posts/sphseries/3-tree-neighbor-search/</guid><description>&lt;h1 id="树结构基于根据-burtscher-和-pingali-的研究">树结构（基于根据 Burtscher 和 Pingali 的研究）
+&lt;/h3>&lt;p>网格搜索我个人感觉效率是比树搜索好的，尤其是当粒子的光滑长度都一致或者差不多的时候。缺点在于，如果粒子在空间中分散的非常广泛，比如撞击引起的dust喷发。这会导致网格数量激增，显存很快就会用光，导致计算失败。因此网格搜索还是适合模拟空间分布稳定的问题，比如溃坝。&lt;/p></description></item><item><title>SPH基础(三): 树结构邻居搜索</title><link>https://yekq.top/posts/sphseries/3-tree-neighbor-search/</link><pubDate>Mon, 12 May 2025 00:00:00 +0000</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://yekq.top/posts/sphseries/3-tree-neighbor-search/</guid><description>&lt;h1 id="树结构基于根据-burtscher-和-pingali-的研究">树结构（基于根据 Burtscher 和 Pingali 的研究）
 &lt;/h1>&lt;p>本文将介绍广泛用于 SPH 代码和 N 体模拟中的树结构（Tree Structure）。这种数据结构主要应用于以下两个核心问题：&lt;/p>
 &lt;h3 id="1-粒子领域搜索neighbor-search">1. 粒子领域搜索（Neighbor Search）
 &lt;/h3>&lt;p>在 SPH（光滑粒子流体力学）模拟中，每个粒子需要在核尺度 \( h \) 范围内查找邻居粒子，以便计算密度、压强梯度、粘性等物理量。树结构能够加速邻域搜索，尤其适用于粒子分布高度非均匀的情形。&lt;/p>
@@ -686,7 +686,7 @@ $$
 &lt;/h3>&lt;p>在引力主导的粒子系统（如星系模拟、星体碰撞）中，粒子间存在万有引力作用。直接计算所有粒子对的引力开销为 \( \mathcal{O}(N^2) \)，不可接受。基于树的近似方法（如 Barnes-Hut 算法）可将计算复杂度降至 \( \mathcal{O}(N \log N) \)，同时保持较高精度。&lt;/p>
 &lt;hr>
 &lt;p>接下来的章节将分别介绍树结构在上述两个问题中的构建方法、搜索策略和性能优化。&lt;/p>
-&lt;p>关于传统的 &lt;strong>链表法（Linked-List）&lt;/strong> 粒子领域搜索，请参考我另一篇博文： 👉 &lt;a class="link" href="https://keqiye.github.io/posts/SPH_neighbor_search/" >使用链表进行 SPH 邻域搜索&lt;/a>&lt;/p>
+&lt;p>关于传统的 &lt;strong>链表法（Linked-List）&lt;/strong> 粒子领域搜索，请参考我另一篇博文： 👉 &lt;a class="link" href="https://yekq.top/posts/SPH_neighbor_search/" >使用链表进行 SPH 邻域搜索&lt;/a>&lt;/p>
 &lt;h1 id="实现步骤">实现步骤
 &lt;/h1>&lt;p>根据相关文献，每次执行自引力计算或粒子邻域搜索时，通常需要以下四个步骤：&lt;/p>
 &lt;ol>
@@ -1343,7 +1343,7 @@ draft: false
 &lt;/ul>
 &lt;p>与稀疏存储相比，稠密存储在 GPU 环境下通常能获得更高的性能与更低的内存消耗，尤其是在节点数量接近粒子数量时优势明显。&lt;/p>
 &lt;hr>
-&lt;p>&lt;strong>参考实现&lt;/strong>：本文的构建思路源自 CUDA 并行 Barnes-Hut 树构建的常见模式，并结合了你的原始代码进行稠密化处理。&lt;/p></description></item><item><title>SPH基础(四): 状态方程与压力计算</title><link>https://keqiye.github.io/posts/sphseries/4-equation-of-state/</link><pubDate>Sun, 25 May 2025 00:00:00 +0000</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://keqiye.github.io/posts/sphseries/4-equation-of-state/</guid><description>&lt;p>在 SPH 方法中，状态方程（Equation of State, EOS）用于将粒子的密度与压强建立联系，进而计算作用于粒子间的力。&lt;/p>
+&lt;p>&lt;strong>参考实现&lt;/strong>：本文的构建思路源自 CUDA 并行 Barnes-Hut 树构建的常见模式，并结合了你的原始代码进行稠密化处理。&lt;/p></description></item><item><title>SPH基础(四): 状态方程与压力计算</title><link>https://yekq.top/posts/sphseries/4-equation-of-state/</link><pubDate>Sun, 25 May 2025 00:00:00 +0000</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://yekq.top/posts/sphseries/4-equation-of-state/</guid><description>&lt;p>在 SPH 方法中，状态方程（Equation of State, EOS）用于将粒子的密度与压强建立联系，进而计算作用于粒子间的力。&lt;/p>
 &lt;p>最常用的状态方程是 Tait 方程，其形式为：&lt;/p>
 $$
 P = B\left[\left(\frac{\rho}{\rho_0}\right)^\gamma - 1\right]
@@ -1355,7 +1355,7 @@ $$
 &lt;li>\( \gamma \) 为多项式指数（通常为 7），&lt;/li>
 &lt;li>\( B \) 为常数，决定压缩性。&lt;/li>
 &lt;/ul>
-&lt;p>合理选取 EOS 参数对于模拟结果的稳定性和准确性至关重要。&lt;/p></description></item><item><title>SPH基础(五): Runge-Kutta自适应时间积分</title><link>https://keqiye.github.io/posts/sphseries/5-adaptive-timestepping/</link><pubDate>Fri, 24 May 2024 11:00:00 +0800</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://keqiye.github.io/posts/sphseries/5-adaptive-timestepping/</guid><description>&lt;h2 id="1-引言">1. 引言
+&lt;p>合理选取 EOS 参数对于模拟结果的稳定性和准确性至关重要。&lt;/p></description></item><item><title>SPH基础(五): Runge-Kutta自适应时间积分</title><link>https://yekq.top/posts/sphseries/5-adaptive-timestepping/</link><pubDate>Fri, 24 May 2024 11:00:00 +0800</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://yekq.top/posts/sphseries/5-adaptive-timestepping/</guid><description>&lt;h2 id="1-引言">1. 引言
 &lt;/h2>&lt;p>在流体动力学乃至更广泛的科学计算领域中，光滑粒子流体动力学（Smoothed Particle Hydrodynamics, SPH）是一种强大的无网格拉格朗日方法。SPH模拟的核心之一是对描述系统演化的常微分方程组（ODEs）进行时间积分，以更新每个粒子的物理状态（如位置、速度、内能等）。&lt;/p>
 &lt;p>传统的时间积分方案（如简单的欧拉法或固定步长的龙格-库塔法）虽然实现简单，但在处理复杂动态过程时面临效率与稳定性的两难困境：&lt;/p>
 &lt;ul>

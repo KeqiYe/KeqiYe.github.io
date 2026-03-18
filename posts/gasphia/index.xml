@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>基于CUDA加速的SPH模拟代码GASPHiA的一些应用 on Keqi的博客</title><link>https://keqiye.github.io/posts/gasphia/</link><description>Recent content in 基于CUDA加速的SPH模拟代码GASPHiA的一些应用 on Keqi的博客</description><generator>Hugo -- gohugo.io</generator><language>zh-cn</language><managingEditor>plloningye@gmail.com (Keqi Ye)</managingEditor><webMaster>plloningye@gmail.com (Keqi Ye)</webMaster><copyright>Keqi Ye</copyright><lastBuildDate>Tue, 17 Mar 2026 10:00:00 +0800</lastBuildDate><atom:link href="https://keqiye.github.io/posts/gasphia/index.xml" rel="self" type="application/rss+xml"/><item><title>GASPHiA: GPU加速的光滑粒子流体动力学（SPH）代码</title><link>https://keqiye.github.io/posts/gasphia/introduction/</link><pubDate>Tue, 17 Mar 2026 10:00:00 +0800</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://keqiye.github.io/posts/gasphia/introduction/</guid><description>&lt;h1 id="gasphia-gpu加速的光滑粒子流体动力学代码">GASPHiA: GPU加速的光滑粒子流体动力学代码
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>基于CUDA加速的SPH模拟代码GASPHiA的一些应用 on Keqi的博客</title><link>https://yekq.top/posts/gasphia/</link><description>Recent content in 基于CUDA加速的SPH模拟代码GASPHiA的一些应用 on Keqi的博客</description><generator>Hugo -- gohugo.io</generator><language>zh-cn</language><managingEditor>plloningye@gmail.com (Keqi Ye)</managingEditor><webMaster>plloningye@gmail.com (Keqi Ye)</webMaster><copyright>Keqi Ye</copyright><lastBuildDate>Tue, 17 Mar 2026 10:00:00 +0800</lastBuildDate><atom:link href="https://yekq.top/posts/gasphia/index.xml" rel="self" type="application/rss+xml"/><item><title>GASPHiA: GPU加速的光滑粒子流体动力学（SPH）代码</title><link>https://yekq.top/posts/gasphia/introduction/</link><pubDate>Tue, 17 Mar 2026 10:00:00 +0800</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://yekq.top/posts/gasphia/introduction/</guid><description>&lt;h1 id="gasphia-gpu加速的光滑粒子流体动力学代码">GASPHiA: GPU加速的光滑粒子流体动力学代码
 &lt;/h1>&lt;p>GASPHiA 是一个高性能的三维 SPH（光滑粒子流体动力学）代码，由中山大学航空航天学院的叶科奇在其博士研究期间开发。该代码专为模拟复杂的流体动力学问题设计，特别是涉及材料强度、损伤和引力相互作用的问题。&lt;/p>
 &lt;h2 id="特性">特性
 &lt;/h2>&lt;h3 id="高性能与可扩展性">高性能与可扩展性
@@ -72,7 +72,7 @@
 &lt;p>[10] Jutzi, M., Benz, W., &amp;amp; Michel, P. (2008). Numerical simulations of impacts involving porous bodies: I. Implementing sub-resolution porosity in a 3D SPH hydrocode. &lt;em>Icarus&lt;/em>, &lt;em>198&lt;/em>(1), 242-255.&lt;/p>
 &lt;p>[11] Bogacki, P., &amp;amp; Shampine, L. F. (1989). A 3(2) pair of Runge-Kutta formulas. &lt;em>Applied Mathematics Letters&lt;/em>, 2(4), 321-325.&lt;/p>
 &lt;h2 id="版权">版权
-&lt;/h2>&lt;p>版权所有 (c) 2025 叶科奇。保留所有权利。&lt;/p></description></item><item><title>1D Sod 激波管实验 - CUDA SPH 基准测试</title><link>https://keqiye.github.io/posts/gasphia/1d-shock-tube/</link><pubDate>Tue, 17 Mar 2026 10:00:00 +0800</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://keqiye.github.io/posts/gasphia/1d-shock-tube/</guid><description>&lt;h1 id="1d-sod-激波管实验">1D Sod 激波管实验
+&lt;/h2>&lt;p>版权所有 (c) 2025 叶科奇。保留所有权利。&lt;/p></description></item><item><title>1D Sod 激波管实验 - CUDA SPH 基准测试</title><link>https://yekq.top/posts/gasphia/1d-shock-tube/</link><pubDate>Tue, 17 Mar 2026 10:00:00 +0800</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://yekq.top/posts/gasphia/1d-shock-tube/</guid><description>&lt;h1 id="1d-sod-激波管实验">1D Sod 激波管实验
 &lt;/h1>&lt;h2 id="省流">省流
 &lt;/h2>&lt;p>本文使用从零自研的 CUDA SPH 物理引擎复现了经典的 1D Sod 激波管 (Shock Tube) 基准测试，主要验证引擎对强激波不连续面的捕捉能力。测试中解决了一个关键的数值陷阱：在处理初始阶跃密度场时，传统的连续性方程 (Continuity Density) 会导致严重的非物理震荡，而直接求和密度 (Summation Density) 展现出了更好的鲁棒性。事实上，连续密度更适合用在高速冲击问题中。&lt;/p>
 &lt;hr>
@@ -92,10 +92,10 @@
 &lt;li>&lt;strong>左图 (成功)&lt;/strong>：采用求和密度法，可以清晰看到激波波前、接触间断和稀疏波的光滑推进。&lt;/li>
 &lt;li>&lt;strong>右图 (失败)&lt;/strong>：采用连续密度法，在激波管的初始密度阶跃处产生了震荡。&lt;/li>
 &lt;/ul>
-&lt;p>&lt;img src="https://keqiye.github.io/posts/gasphia/1d-shock-tube/ShockTube_Validation_Zoom.png"
+&lt;p>&lt;img src="https://yekq.top/posts/gasphia/1d-shock-tube/ShockTube_Validation_Zoom.png"
 width="4200"
 height="3000"
-srcset="https://keqiye.github.io/posts/gasphia/1d-shock-tube/ShockTube_Validation_Zoom_hu9151086b508c9899954f9a200e59d7ed_626392_480x0_resize_box_3.png 480w, https://keqiye.github.io/posts/gasphia/1d-shock-tube/ShockTube_Validation_Zoom_hu9151086b508c9899954f9a200e59d7ed_626392_1024x0_resize_box_3.png 1024w"
+srcset="https://yekq.top/posts/gasphia/1d-shock-tube/ShockTube_Validation_Zoom_hu9151086b508c9899954f9a200e59d7ed_626392_480x0_resize_box_3.png 480w, https://yekq.top/posts/gasphia/1d-shock-tube/ShockTube_Validation_Zoom_hu9151086b508c9899954f9a200e59d7ed_626392_1024x0_resize_box_3.png 1024w"
 loading="lazy"
 alt="验证对比图"
 class="gallery-image"

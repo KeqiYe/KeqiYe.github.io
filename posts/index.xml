@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Posts on Keqi的博客</title><link>https://keqiye.github.io/posts/</link><description>Recent content in Posts on Keqi的博客</description><generator>Hugo -- gohugo.io</generator><language>zh-cn</language><managingEditor>plloningye@gmail.com (Keqi Ye)</managingEditor><webMaster>plloningye@gmail.com (Keqi Ye)</webMaster><copyright>Keqi Ye</copyright><lastBuildDate>Thu, 12 Mar 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://keqiye.github.io/posts/index.xml" rel="self" type="application/rss+xml"/><item><title>AI Classifier - 功能介绍与实现原理</title><link>https://keqiye.github.io/posts/zotero-ai-classifier/</link><pubDate>Thu, 12 Mar 2026 00:00:00 +0000</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://keqiye.github.io/posts/zotero-ai-classifier/</guid><description>&lt;h1 id="ai-classifier---功能介绍与实现原理">AI Classifier - 功能介绍与实现原理
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Posts on Keqi的博客</title><link>https://yekq.top/posts/</link><description>Recent content in Posts on Keqi的博客</description><generator>Hugo -- gohugo.io</generator><language>zh-cn</language><managingEditor>plloningye@gmail.com (Keqi Ye)</managingEditor><webMaster>plloningye@gmail.com (Keqi Ye)</webMaster><copyright>Keqi Ye</copyright><lastBuildDate>Thu, 12 Mar 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://yekq.top/posts/index.xml" rel="self" type="application/rss+xml"/><item><title>AI Classifier - 功能介绍与实现原理</title><link>https://yekq.top/posts/zotero-ai-classifier/</link><pubDate>Thu, 12 Mar 2026 00:00:00 +0000</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://yekq.top/posts/zotero-ai-classifier/</guid><description>&lt;h1 id="ai-classifier---功能介绍与实现原理">AI Classifier - 功能介绍与实现原理
 &lt;/h1>&lt;p>作为科研工作者，你是否曾为管理大量文献而头疼？面对成百上千篇论文，如何高效地将它们分类到合适的文件夹成为一个难题。&lt;strong>AI Classifier&lt;/strong> 正是为解决这一问题而生的 Zotero 插件，它利用大语言模型（LLM）实现智能文献分类，让你的文献管理效率大幅提升。&lt;/p>
 &lt;p>本文将详细介绍 AI Classifier 的核心功能，并深入讲解每个功能的实现原理，帮助你更好地理解插件的工作机制。&lt;/p>
 &lt;hr>
@@ -640,7 +640,7 @@
 &lt;/h2>&lt;ul>
 &lt;li>GitHub 仓库：https://github.com/KeqiYe/Zotero-AI-Classifier&lt;/li>
 &lt;li>作者主页：https://github.com/KeqiYe&lt;/li>
-&lt;/ul></description></item><item><title>7 Step Optimization of Parallel Reduction with CUDA</title><link>https://keqiye.github.io/posts/parallel-reduction-with-cuda/blog-parallel-reduction-with-cuda/</link><pubDate>Thu, 22 May 2025 00:00:00 +0000</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://keqiye.github.io/posts/parallel-reduction-with-cuda/blog-parallel-reduction-with-cuda/</guid><description>&lt;h2 id="写在前面">写在前面
+&lt;/ul></description></item><item><title>7 Step Optimization of Parallel Reduction with CUDA</title><link>https://yekq.top/posts/parallel-reduction-with-cuda/blog-parallel-reduction-with-cuda/</link><pubDate>Thu, 22 May 2025 00:00:00 +0000</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://yekq.top/posts/parallel-reduction-with-cuda/blog-parallel-reduction-with-cuda/</guid><description>&lt;h2 id="写在前面">写在前面
 &lt;/h2>&lt;blockquote>
 &lt;p>📚 &lt;strong>版权声明 | Copyright Notice&lt;/strong>&lt;/p>
 &lt;p>本文内容参考并部分翻译自以下两篇资料：&lt;/p>
@@ -672,7 +672,7 @@
 &lt;p>📌 &lt;strong>更实用的方案是：Kernel 分解（Kernel Decomposition）&lt;/strong>&lt;/p>
 &lt;h3 id="kernel-分解kernel-decomposition">Kernel 分解（Kernel Decomposition）
 &lt;/h3>&lt;p>为了更高效地传递线程块间的中间结果，我们可以将一个大的 kernel 拆分为多个小 kernel。这种做法被称为 &lt;strong>Kernel 分解&lt;/strong>。&lt;/p>
-&lt;p>&lt;img src="https://keqiye.github.io/images/tree-reduction.png"
+&lt;p>&lt;img src="https://yekq.top/images/tree-reduction.png"
 loading="lazy"
 alt="Tree-based Reduction"
 >&lt;/p>
@@ -860,7 +860,7 @@ if (tid % 32 == 0): 在Warp 0 (线程0-31)中，只有线程0在工作。
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">}
 &lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
 &lt;/div>
-&lt;/div></description></item><item><title>Hugo多语言博客搭建与维护指南</title><link>https://keqiye.github.io/posts/blog-post-1/</link><pubDate>Fri, 09 May 2025 00:00:00 +0000</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://keqiye.github.io/posts/blog-post-1/</guid><description>&lt;!-- git push source main -->
+&lt;/div></description></item><item><title>Hugo多语言博客搭建与维护指南</title><link>https://yekq.top/posts/blog-post-1/</link><pubDate>Fri, 09 May 2025 00:00:00 +0000</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://yekq.top/posts/blog-post-1/</guid><description>&lt;!-- git push source main -->
 &lt;h1 id="博客搭建和管理流程">博客搭建和管理流程
 &lt;/h1>&lt;p>本指南详细记录了如何在 GitHub Pages 上撰写、上传、删除中英文博客的步骤，以及相关 Git 命令。&lt;/p>
 &lt;h2 id="1-博客内容撰写包括中英文">1. 博客内容撰写（包括中英文）

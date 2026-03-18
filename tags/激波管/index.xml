@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>激波管 on Keqi的博客</title><link>https://keqiye.github.io/tags/%E6%BF%80%E6%B3%A2%E7%AE%A1/</link><description>Recent content in 激波管 on Keqi的博客</description><generator>Hugo -- gohugo.io</generator><language>zh-cn</language><managingEditor>plloningye@gmail.com (Keqi Ye)</managingEditor><webMaster>plloningye@gmail.com (Keqi Ye)</webMaster><copyright>Keqi Ye</copyright><lastBuildDate>Tue, 17 Mar 2026 10:00:00 +0800</lastBuildDate><atom:link href="https://keqiye.github.io/tags/%E6%BF%80%E6%B3%A2%E7%AE%A1/index.xml" rel="self" type="application/rss+xml"/><item><title>1D Sod 激波管实验 - CUDA SPH 基准测试</title><link>https://keqiye.github.io/posts/gasphia/1d-shock-tube/</link><pubDate>Tue, 17 Mar 2026 10:00:00 +0800</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://keqiye.github.io/posts/gasphia/1d-shock-tube/</guid><description>&lt;h1 id="1d-sod-激波管实验">1D Sod 激波管实验
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>激波管 on Keqi的博客</title><link>https://yekq.top/tags/%E6%BF%80%E6%B3%A2%E7%AE%A1/</link><description>Recent content in 激波管 on Keqi的博客</description><generator>Hugo -- gohugo.io</generator><language>zh-cn</language><managingEditor>plloningye@gmail.com (Keqi Ye)</managingEditor><webMaster>plloningye@gmail.com (Keqi Ye)</webMaster><copyright>Keqi Ye</copyright><lastBuildDate>Tue, 17 Mar 2026 10:00:00 +0800</lastBuildDate><atom:link href="https://yekq.top/tags/%E6%BF%80%E6%B3%A2%E7%AE%A1/index.xml" rel="self" type="application/rss+xml"/><item><title>1D Sod 激波管实验 - CUDA SPH 基准测试</title><link>https://yekq.top/posts/gasphia/1d-shock-tube/</link><pubDate>Tue, 17 Mar 2026 10:00:00 +0800</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://yekq.top/posts/gasphia/1d-shock-tube/</guid><description>&lt;h1 id="1d-sod-激波管实验">1D Sod 激波管实验
 &lt;/h1>&lt;h2 id="省流">省流
 &lt;/h2>&lt;p>本文使用从零自研的 CUDA SPH 物理引擎复现了经典的 1D Sod 激波管 (Shock Tube) 基准测试，主要验证引擎对强激波不连续面的捕捉能力。测试中解决了一个关键的数值陷阱：在处理初始阶跃密度场时，传统的连续性方程 (Continuity Density) 会导致严重的非物理震荡，而直接求和密度 (Summation Density) 展现出了更好的鲁棒性。事实上，连续密度更适合用在高速冲击问题中。&lt;/p>
 &lt;hr>
@@ -18,10 +18,10 @@
 &lt;li>&lt;strong>左图 (成功)&lt;/strong>：采用求和密度法，可以清晰看到激波波前、接触间断和稀疏波的光滑推进。&lt;/li>
 &lt;li>&lt;strong>右图 (失败)&lt;/strong>：采用连续密度法，在激波管的初始密度阶跃处产生了震荡。&lt;/li>
 &lt;/ul>
-&lt;p>&lt;img src="https://keqiye.github.io/posts/gasphia/1d-shock-tube/ShockTube_Validation_Zoom.png"
+&lt;p>&lt;img src="https://yekq.top/posts/gasphia/1d-shock-tube/ShockTube_Validation_Zoom.png"
 width="4200"
 height="3000"
-srcset="https://keqiye.github.io/posts/gasphia/1d-shock-tube/ShockTube_Validation_Zoom_hu9151086b508c9899954f9a200e59d7ed_626392_480x0_resize_box_3.png 480w, https://keqiye.github.io/posts/gasphia/1d-shock-tube/ShockTube_Validation_Zoom_hu9151086b508c9899954f9a200e59d7ed_626392_1024x0_resize_box_3.png 1024w"
+srcset="https://yekq.top/posts/gasphia/1d-shock-tube/ShockTube_Validation_Zoom_hu9151086b508c9899954f9a200e59d7ed_626392_480x0_resize_box_3.png 480w, https://yekq.top/posts/gasphia/1d-shock-tube/ShockTube_Validation_Zoom_hu9151086b508c9899954f9a200e59d7ed_626392_1024x0_resize_box_3.png 1024w"
 loading="lazy"
 alt="验证对比图"
 class="gallery-image"

@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Optimization on Keqi的博客</title><link>https://keqiye.github.io/categories/optimization/</link><description>Recent content in Optimization on Keqi的博客</description><generator>Hugo -- gohugo.io</generator><language>zh-cn</language><managingEditor>plloningye@gmail.com (Keqi Ye)</managingEditor><webMaster>plloningye@gmail.com (Keqi Ye)</webMaster><copyright>Keqi Ye</copyright><lastBuildDate>Thu, 22 May 2025 00:00:00 +0000</lastBuildDate><atom:link href="https://keqiye.github.io/categories/optimization/index.xml" rel="self" type="application/rss+xml"/><item><title>7 Step Optimization of Parallel Reduction with CUDA</title><link>https://keqiye.github.io/posts/parallel-reduction-with-cuda/blog-parallel-reduction-with-cuda/</link><pubDate>Thu, 22 May 2025 00:00:00 +0000</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://keqiye.github.io/posts/parallel-reduction-with-cuda/blog-parallel-reduction-with-cuda/</guid><description>&lt;h2 id="写在前面">写在前面
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Optimization on Keqi的博客</title><link>https://yekq.top/categories/optimization/</link><description>Recent content in Optimization on Keqi的博客</description><generator>Hugo -- gohugo.io</generator><language>zh-cn</language><managingEditor>plloningye@gmail.com (Keqi Ye)</managingEditor><webMaster>plloningye@gmail.com (Keqi Ye)</webMaster><copyright>Keqi Ye</copyright><lastBuildDate>Thu, 22 May 2025 00:00:00 +0000</lastBuildDate><atom:link href="https://yekq.top/categories/optimization/index.xml" rel="self" type="application/rss+xml"/><item><title>7 Step Optimization of Parallel Reduction with CUDA</title><link>https://yekq.top/posts/parallel-reduction-with-cuda/blog-parallel-reduction-with-cuda/</link><pubDate>Thu, 22 May 2025 00:00:00 +0000</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://yekq.top/posts/parallel-reduction-with-cuda/blog-parallel-reduction-with-cuda/</guid><description>&lt;h2 id="写在前面">写在前面
 &lt;/h2>&lt;blockquote>
 &lt;p>📚 &lt;strong>版权声明 | Copyright Notice&lt;/strong>&lt;/p>
 &lt;p>本文内容参考并部分翻译自以下两篇资料：&lt;/p>
@@ -30,7 +30,7 @@
 &lt;p>📌 &lt;strong>更实用的方案是：Kernel 分解（Kernel Decomposition）&lt;/strong>&lt;/p>
 &lt;h3 id="kernel-分解kernel-decomposition">Kernel 分解（Kernel Decomposition）
 &lt;/h3>&lt;p>为了更高效地传递线程块间的中间结果，我们可以将一个大的 kernel 拆分为多个小 kernel。这种做法被称为 &lt;strong>Kernel 分解&lt;/strong>。&lt;/p>
-&lt;p>&lt;img src="https://keqiye.github.io/images/tree-reduction.png"
+&lt;p>&lt;img src="https://yekq.top/images/tree-reduction.png"
 loading="lazy"
 alt="Tree-based Reduction"
 >&lt;/p>
