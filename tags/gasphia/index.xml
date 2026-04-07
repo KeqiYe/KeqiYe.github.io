@@ -103,16 +103,14 @@ $$\frac{d\rho}{dt} = \sum_j m_j v_{ij} \cdot \nabla_i W_{ij}$$
 &lt;blockquote>
 &lt;p>📁 &lt;strong>资源位置&lt;/strong>：本系列使用的视频和图片资源存放于 &lt;code>/static/images/GASPHiA/1DShockTube/&lt;/code> 目录&lt;/p>
 &lt;/blockquote></description></item><item><title>P-alpha 孔隙度模型的实现与踩坑记录</title><link>https://yekq.top/posts/gasphia/p-alpha-porosity-model/</link><pubDate>Tue, 07 Apr 2026 14:00:00 +0800</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://yekq.top/posts/gasphia/p-alpha-porosity-model/</guid><description>&lt;h1 id="p-alpha-孔隙度模型的实现与踩的一些坑">P-alpha 孔隙度模型的实现与踩的一些坑
-&lt;/h1>&lt;!-- [[pumice.mp4]] -->
-&lt;video width="100%" controls>
-&lt;source src="./pumice.mp4" type="video/mp4">
-您的浏览器不支持视频标签。
-&lt;/video>
-&lt;!-- [[output_no_cor.mp4]] -->
-&lt;video width="100%" controls>
-&lt;source src="./output_no_cor.mp4" type="video/mp4">
-您的浏览器不支持视频标签。
-&lt;/video>
+&lt;/h1>&lt;iframe src="//player.bilibili.com/player.html?isOutside=true&amp;bvid=BV1t7DeBiEEv&amp;p=1&amp;high_quality=1&amp;danmaku=0"
+scrolling="no" border="0" frameborder="no" framespacing="0" allowfullscreen="true"
+style="width: 100%; aspect-ratio: 16/9; border-radius: 8px; margin-bottom: 20px;">
+&lt;/iframe>
+&lt;iframe src="//player.bilibili.com/player.html?isOutside=true&amp;bvid=BV1t7DeBiEEv&amp;p=2&amp;high_quality=1&amp;danmaku=0"
+scrolling="no" border="0" frameborder="no" framespacing="0" allowfullscreen="true"
+style="width: 100%; aspect-ratio: 16/9; border-radius: 8px; margin-bottom: 20px;">
+&lt;/iframe>
 &lt;p>上面展示的两个动画是 GASPHiA 模拟弹丸以 2.58 km/s 的速度撞击高孔隙率浮石靶体的模拟结果。上方开启了核矫正和 Balsara 开关，下方的模拟保持经典的 SPH 理论。撞击结果与论文给出的一致，证明了 GASPHiA 中关于损伤模型和 P-alpha 孔隙度模型实现的准确性。&lt;/p>
 &lt;hr>
 &lt;p>GASPHiA 实现了以下两篇论文描述的 P-alpha 模型：&lt;/p>
