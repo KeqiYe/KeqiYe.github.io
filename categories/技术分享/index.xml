@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>技术分享 on Keqi的博客</title><link>https://yekq.top/categories/%E6%8A%80%E6%9C%AF%E5%88%86%E4%BA%AB/</link><description>Recent content in 技术分享 on Keqi的博客</description><generator>Hugo -- gohugo.io</generator><language>zh-cn</language><managingEditor>plloningye@gmail.com (Keqi Ye)</managingEditor><webMaster>plloningye@gmail.com (Keqi Ye)</webMaster><copyright>Keqi Ye</copyright><lastBuildDate>Tue, 17 Mar 2026 10:00:00 +0800</lastBuildDate><atom:link href="https://yekq.top/categories/%E6%8A%80%E6%9C%AF%E5%88%86%E4%BA%AB/index.xml" rel="self" type="application/rss+xml"/><item><title>GASPHiA: GPU加速的光滑粒子流体动力学（SPH）代码</title><link>https://yekq.top/posts/gasphia/introduction/</link><pubDate>Tue, 17 Mar 2026 10:00:00 +0800</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://yekq.top/posts/gasphia/introduction/</guid><description>&lt;h1 id="gasphia-gpu加速的光滑粒子流体动力学代码">GASPHiA: GPU加速的光滑粒子流体动力学代码
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>技术分享 on Keqi的博客</title><link>https://yekq.top/categories/%E6%8A%80%E6%9C%AF%E5%88%86%E4%BA%AB/</link><description>Recent content in 技术分享 on Keqi的博客</description><generator>Hugo -- gohugo.io</generator><language>zh-cn</language><managingEditor>plloningye@gmail.com (Keqi Ye)</managingEditor><webMaster>plloningye@gmail.com (Keqi Ye)</webMaster><copyright>Keqi Ye</copyright><lastBuildDate>Tue, 07 Apr 2026 14:00:00 +0800</lastBuildDate><atom:link href="https://yekq.top/categories/%E6%8A%80%E6%9C%AF%E5%88%86%E4%BA%AB/index.xml" rel="self" type="application/rss+xml"/><item><title>GASPHiA: GPU加速的光滑粒子流体动力学（SPH）代码</title><link>https://yekq.top/posts/gasphia/introduction/</link><pubDate>Tue, 17 Mar 2026 10:00:00 +0800</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://yekq.top/posts/gasphia/introduction/</guid><description>&lt;h1 id="gasphia-gpu加速的光滑粒子流体动力学代码">GASPHiA: GPU加速的光滑粒子流体动力学代码
 &lt;/h1>&lt;p>GASPHiA 是一个高性能的三维 SPH（光滑粒子流体动力学）代码，由中山大学航空航天学院的叶科奇在其博士研究期间开发。该代码专为模拟复杂的流体动力学问题设计，特别是涉及材料强度、损伤和引力相互作用的问题。&lt;/p>
 &lt;h2 id="特性">特性
 &lt;/h2>&lt;h3 id="高性能与可扩展性">高性能与可扩展性
@@ -102,6 +102,385 @@ $$\frac{d\rho}{dt} = \sum_j m_j v_{ij} \cdot \nabla_i W_{ij}$$
 &lt;hr>
 &lt;blockquote>
 &lt;p>📁 &lt;strong>资源位置&lt;/strong>：本系列使用的视频和图片资源存放于 &lt;code>/static/images/GASPHiA/1DShockTube/&lt;/code> 目录&lt;/p>
+&lt;/blockquote></description></item><item><title>P-alpha 孔隙度模型的实现与踩坑记录</title><link>https://yekq.top/posts/gasphia/p-alpha-porosity-model/</link><pubDate>Tue, 07 Apr 2026 14:00:00 +0800</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://yekq.top/posts/gasphia/p-alpha-porosity-model/</guid><description>&lt;h1 id="p-alpha-孔隙度模型的实现与踩的一些坑">P-alpha 孔隙度模型的实现与踩的一些坑
+&lt;/h1>&lt;!-- [[pumice.mp4]] -->
+&lt;video width="100%" controls>
+&lt;source src="pumice.mp4" type="video/mp4">
+您的浏览器不支持视频标签。
+&lt;/video>
+&lt;!-- [[output_no_cor.mp4]] -->
+&lt;video width="100%" controls>
+&lt;source src="output_no_cor.mp4" type="video/mp4">
+您的浏览器不支持视频标签。
+&lt;/video>
+&lt;p>上面展示的两个动画是 GASPHiA 模拟弹丸以 2.58 km/s 的速度撞击高孔隙率浮石靶体的模拟结果。上方开启了核矫正和 Balsara 开关，下方的模拟保持经典的 SPH 理论。撞击结果与论文给出的一致，证明了 GASPHiA 中关于损伤模型和 P-alpha 孔隙度模型实现的准确性。&lt;/p>
+&lt;hr>
+&lt;p>GASPHiA 实现了以下两篇论文描述的 P-alpha 模型：&lt;/p>
+&lt;ul>
+&lt;li>Numerical simulations of impacts involving porous bodies I. Implementing sub-resolution porosity in a 3D SPH hydrocode&lt;/li>
+&lt;li>Numerical simulations of impacts involving porous bodies: II. Comparison with laboratory experiments&lt;/li>
+&lt;/ul>
+&lt;p>下面就实现过程遇到的问题做一个笔记。&lt;/p>
+&lt;hr>
+&lt;h2 id="1-物理问题定义p-alpha-模型">1. 物理问题定义：P-alpha 模型
+&lt;/h2>&lt;p>在多孔材料（如rubble pile、浮石）的冲击动力学中，宏观压力 $P$ 与固相压力 $P_{\text{eos}}$ 以及孔隙度 $\alpha$（也称&lt;strong>膨胀度&lt;/strong>）满足关系：&lt;/p>
+$$P = \frac{P_{\text{eos}}(\rho_s, e)}{\alpha}$$
+&lt;p>其中 $\rho_s = \alpha \rho$ 是&lt;strong>固相密度&lt;/strong>，$\rho$ 是&lt;strong>宏观密度&lt;/strong>，$e$ 是&lt;strong>内能&lt;/strong>。&lt;/p>
+&lt;blockquote>
+&lt;p>&lt;strong>注意&lt;/strong>：$\alpha$ 必须大于 1，等于 1 代表这个粒子代表的空间没有空隙。&lt;/p>
+&lt;/blockquote>
+&lt;hr>
+&lt;h3 id="压实曲线-compaction-curve">压实曲线 (Compaction Curve)
+&lt;/h3>&lt;p>材料的压缩过程遵循压实曲线 $\alpha_{\text{curve}}(P)$，定义如下：&lt;/p>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:left">阶段&lt;/th>
+&lt;th style="text-align:center">压力范围&lt;/th>
+&lt;th style="text-align:left">公式&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:left">&lt;strong>弹性阶段&lt;/strong>&lt;/td>
+&lt;td style="text-align:center">$P \le P_e$&lt;/td>
+&lt;td style="text-align:left">$\alpha = \alpha_0$&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">&lt;strong>塑性压溃阶段&lt;/strong>&lt;/td>
+&lt;td style="text-align:center">$P_e &amp;lt; P &amp;lt; P_s$&lt;/td>
+&lt;td style="text-align:left">$\displaystyle \alpha = 1.0 + (\alpha_0 - 1.0) \left( \frac{P_s - P}{P_s - P_e} \right)^2$&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">&lt;strong>完全压实阶段&lt;/strong>&lt;/td>
+&lt;td style="text-align:center">$P \ge P_s$&lt;/td>
+&lt;td style="text-align:left">$\alpha = 1.0$&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;blockquote>
+&lt;p>另外需要注意，孔隙压实是塑性不可逆的。若当前压力导致的理论 $\alpha$ 大于历史最小孔隙度 $\alpha_{\text{old}}$，则取 $\alpha = \alpha_{\text{old}}$。&lt;/p>
+&lt;/blockquote>
+&lt;hr>
+&lt;h2 id="2-非线性方程">2. 非线性方程
+&lt;/h2>&lt;p>我们需要寻找一个 $\alpha$，使得它既满足状态方程（EOS）产生的压力，又落在压实曲线上。定义目标函数：&lt;/p>
+$$F(\alpha) = \alpha - \min\left( \alpha_{\text{curve}}\left( \frac{P_{\text{eos}}(\alpha \rho, e)}{\alpha} \right), \alpha_{\text{old}} \right) = 0$$
+&lt;blockquote>
+&lt;p>式中，$\alpha_{\text{curve}}$ 指的就是压实曲线。&lt;/p>
+&lt;/blockquote>
+&lt;hr>
+&lt;h2 id="3-二分法-bisection-method">3. 二分法 (Bisection Method)
+&lt;/h2>&lt;p>最简单直观想到的方案就是二分，只是二分法的运行时间可能会稍长一点。&lt;/p>
+&lt;h3 id="31-迭代次数分析">3.1 迭代次数分析
+&lt;/h3>&lt;p>假设对于一个高孔隙材料，初始孔隙度 $\alpha = 4$，对应的物理孔隙率为 $\phi = 1 - 1/\alpha$，即 &lt;strong>75%&lt;/strong>。如果要求迭代最后的收敛精度：&lt;/p>
+$$\alpha_{n+1} - \alpha_n &lt; \text{tol} = 10^{-12}$$
+&lt;p>那么最坏的情况下需要迭代：&lt;/p>
+$$n \ge \log_2 \left( \frac{L_0}{\text{tol}} \right) = \log_2 \left( \frac{4-1}{10^{-12}} \right)=42$$
+&lt;h3 id="32-精度要求">3.2 精度要求
+&lt;/h3>&lt;p>值得注意的是：EOS 对密度极度敏感，实际测试过 &lt;strong>tol 必须小于 1e-7&lt;/strong>，这样损伤场才不会产生虚假震荡。这对单精度计算来说是很难达到的，因此GASPH iA的孔隙度模型强制运行在双精度上，但是写回的时候会进行精度调整，适配整体的计算流程。&lt;/p>
+&lt;h3 id="33-性能测试结果">3.3 性能测试结果
+&lt;/h3>&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;span class="lnt">11
+&lt;/span>&lt;span class="lnt">12
+&lt;/span>&lt;span class="lnt">13
+&lt;/span>&lt;span class="lnt">14
+&lt;/span>&lt;span class="lnt">15
+&lt;/span>&lt;span class="lnt">16
+&lt;/span>&lt;span class="lnt">17
+&lt;/span>&lt;span class="lnt">18
+&lt;/span>&lt;span class="lnt">19
+&lt;/span>&lt;span class="lnt">20
+&lt;/span>&lt;span class="lnt">21
+&lt;/span>&lt;span class="lnt">22
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-bash" data-lang="bash">&lt;span class="line">&lt;span class="cl">$ grep &lt;span class="s2">&amp;#34;calPressureSoundSpeed execution time:&amp;#34;&lt;/span> run.log &lt;span class="p">|&lt;/span> tail -n &lt;span class="m">20&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">calPressureSoundSpeed execution time: 2.882 ms
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">calPressureSoundSpeed execution time: 2.807 ms
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">calPressureSoundSpeed execution time: 2.775 ms
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">calPressureSoundSpeed execution time: 2.766 ms
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">calPressureSoundSpeed execution time: 2.822 ms
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">calPressureSoundSpeed execution time: 2.873 ms
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">calPressureSoundSpeed execution time: 2.766 ms
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">calPressureSoundSpeed execution time: 2.765 ms
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">calPressureSoundSpeed execution time: 2.753 ms
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">calPressureSoundSpeed execution time: 2.774 ms
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">calPressureSoundSpeed execution time: 2.776 ms
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">calPressureSoundSpeed execution time: 2.756 ms
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">calPressureSoundSpeed execution time: 3.197 ms
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">calPressureSoundSpeed execution time: 2.786 ms
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">calPressureSoundSpeed execution time: 2.854 ms
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">calPressureSoundSpeed execution time: 2.885 ms
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">calPressureSoundSpeed execution time: 2.816 ms
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">calPressureSoundSpeed execution time: 2.799 ms
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">calPressureSoundSpeed execution time: 2.787 ms
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">calPressureSoundSpeed execution time: 2.891 ms
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">...
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;span class="lnt">2
+&lt;/span>&lt;span class="lnt">3
+&lt;/span>&lt;span class="lnt">4
+&lt;/span>&lt;span class="lnt">5
+&lt;/span>&lt;span class="lnt">6
+&lt;/span>&lt;span class="lnt">7
+&lt;/span>&lt;span class="lnt">8
+&lt;/span>&lt;span class="lnt">9
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-bash" data-lang="bash">&lt;span class="line">&lt;span class="cl">$ tail -n &lt;span class="m">10&lt;/span> run.log
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> └─ Sub2: 0.050 ms &lt;span class="o">(&lt;/span> 2.3%&lt;span class="o">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">calPressureSoundSpeed execution time: 2.891 ms
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="o">[&lt;/span>Step 2273&lt;span class="o">]&lt;/span> &lt;span class="nv">t&lt;/span>&lt;span class="o">=&lt;/span>3.200656e-05 &lt;span class="p">|&lt;/span> &lt;span class="nv">dt&lt;/span>&lt;span class="o">=&lt;/span>1.761e-08 &lt;span class="p">|&lt;/span> &lt;span class="nv">Tree&lt;/span>&lt;span class="o">=&lt;/span>5.467 ms &lt;span class="o">(&lt;/span>B: 0.536, S: 4.931, G: 0.000&lt;span class="o">)&lt;/span> &lt;span class="p">|&lt;/span> &lt;span class="nv">Step&lt;/span>&lt;span class="o">=&lt;/span>15.816 ms &lt;span class="p">|&lt;/span> &lt;span class="nv">Outputs&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="m">7&lt;/span> &lt;span class="p">|&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="o">[&lt;/span>computeRHS&lt;span class="o">]&lt;/span> Total: 2.263 ms
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> ├─ Corr: 0.956 ms &lt;span class="o">(&lt;/span>42.3%&lt;span class="o">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> ├─ Sub1: 1.256 ms &lt;span class="o">(&lt;/span>55.5%&lt;span class="o">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> └─ Sub2: 0.050 ms &lt;span class="o">(&lt;/span> 2.2%&lt;span class="o">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="o">[&lt;/span>computeRHS&lt;span class="o">]&lt;/span> Total: 2.227 ms
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;blockquote>
+&lt;p>二分法求解 EOS 的运行时间是不可接受的，已经要和计算右端项（单精度）的时间持平了，我们需要收敛更快的算法。&lt;/p>
+&lt;/blockquote>
+&lt;hr>
+&lt;h2 id="4-牛顿-拉夫逊法-newton-raphson">4. 牛顿-拉夫逊法 (Newton-Raphson)
+&lt;/h2>&lt;p>牛顿-拉夫逊法是一种高效的非线性方程求根近似算法。对于一般方程 $f(x) = 0$，假设已知其近似根 $x_n$ 且导数 $f&amp;rsquo;(x_n) \neq 0$，该方法通过在 $(x_n, f(x_n))$ 处作曲线的切线，用切线与 x 轴的交点作为下一个近似根。其标准的迭代格式为：&lt;/p>
+$$x_{n+1} = x_n - \frac{f(x_n)}{f'(x_n)}$$
+&lt;p>牛顿法在根的附近具有&lt;strong>二阶收敛&lt;/strong>的优良特性，即每次迭代的有效数字大约会翻倍，收敛速度远快于二分法。&lt;/p>
+&lt;p>回到我们的孔隙度模型中，我们要求解的目标方程是 $F(\alpha) = 0$，因此对应的牛顿迭代格式即为：&lt;/p>
+$$\alpha_{k+1} = \alpha_k - \frac{F(\alpha_k)}{F'(\alpha_k)}$$
+&lt;p>为了实现这一迭代过程，核心在于计算目标方程对孔隙度的非线性导数 $F&amp;rsquo;(\alpha) = \frac{dF}{d\alpha}$。利用链式法则将其展开：&lt;/p>
+$$\frac{dF}{d\alpha} = 1 - \frac{d\alpha_{\text{curve}}}{dP} \cdot \frac{dP}{d\alpha}$$
+&lt;hr>
+&lt;h3 id="41-压实曲线导数-displaystyle-fracdalpha_textcurvedp">4.1 压实曲线导数 $\displaystyle \frac{d\alpha_{\text{curve}}}{dP}$
+&lt;/h3>&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:left">阶段&lt;/th>
+&lt;th style="text-align:left">导数&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:left">弹性或完全压实阶段，或处于&lt;strong>卸载状态&lt;/strong>（$\alpha_{\text{curve}} &amp;gt; \alpha_{\text{old}}$）&lt;/td>
+&lt;td style="text-align:left">$\displaystyle \frac{d\alpha_{\text{curve}}}{dP} = 0$&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">塑性压溃阶段且处于&lt;strong>加载状态&lt;/strong>时&lt;/td>
+&lt;td style="text-align:left">$\displaystyle \frac{d\alpha_{\text{curve}}}{dP} = -2 \frac{(\alpha_0 - 1.0)(P_s - P)}{(P_s - P_e)^2}$&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;hr>
+&lt;h3 id="42-压力对孔隙度导数-displaystyle-fracdpdalpha">4.2 压力对孔隙度导数 $\displaystyle \frac{dP}{d\alpha}$
+&lt;/h3>&lt;p>已知 $P = \frac{P_{\text{eos}}(\alpha \rho, e)}{\alpha}$，对 $\alpha$ 求导：&lt;/p>
+$$\frac{dP}{d\alpha} = \frac{\alpha \cdot \frac{d P_{\text{eos}}}{d\alpha} - P_{\text{eos}}}{\alpha^2}$$
+&lt;p>根据链式法则，$\frac{d P_{\text{eos}}}{d\alpha} = \frac{\partial P_{\text{eos}}}{\partial \rho_s} \cdot \frac{d \rho_s}{d\alpha} = \frac{\partial P_{\text{eos}}}{\partial \rho_s} \cdot \rho$。&lt;/p>
+&lt;p>定义 $\frac{\partial P_{\text{eos}}}{\partial \rho_s}$ 为 &lt;code>dpdrho&lt;/code>（由 Tillotson EOS 直接提供），则：&lt;/p>
+$$\frac{dP}{d\alpha} = \frac{\text{dpdrho} \cdot \rho}{\alpha} - \frac{P}{\alpha}$$
+&lt;hr>
+&lt;h2 id="5-遇到的挑战震荡">5. 遇到的挑战：震荡
+&lt;/h2>&lt;p>&lt;strong>在撞击瞬间，粒子可能处于物理分界线（如弹性极限 $P_e$）附近。&lt;/strong>&lt;/p>
+&lt;h3 id="51-问题描述">5.1 问题描述
+&lt;/h3>&lt;ol>
+&lt;li>&lt;strong>加载步&lt;/strong>：压力大 $\to$ 导数大 $\to$ 牛顿步过大 $\to$ 跨过分界线进入卸载区。&lt;/li>
+&lt;li>&lt;strong>卸载步&lt;/strong>：进入卸载区 $\to$ 导数突变为 $0$ $\to$ 修正步直接弹回加载区。&lt;/li>
+&lt;/ol>
+&lt;blockquote>
+&lt;p>这种由于导数不连续导致的变化造成了牛顿法在两个点之间&lt;strong>无限循环&lt;/strong>，无法收敛。&lt;/p>
+&lt;/blockquote>
+&lt;p>&lt;img src="https://yekq.top/posts/gasphia/p-alpha-porosity-model/ns_pingpong.png"
+width="1398"
+height="921"
+srcset="https://yekq.top/posts/gasphia/p-alpha-porosity-model/ns_pingpong_hu91d1ca08882b7d836d9e5640233cbf66_66110_480x0_resize_box_3.png 480w, https://yekq.top/posts/gasphia/p-alpha-porosity-model/ns_pingpong_hu91d1ca08882b7d836d9e5640233cbf66_66110_1024x0_resize_box_3.png 1024w"
+loading="lazy"
+alt="牛顿迭代震荡"
+class="gallery-image"
+data-flex-grow="151"
+data-flex-basis="364px"
+>&lt;/p>
+&lt;p>图中展示的就是模拟初期，某些粒子受到一点点压力之后，牛顿迭代一直震荡无法收敛的情况。&lt;/p>
+&lt;hr>
+&lt;h2 id="6-解决方案安全牛顿法">6. 解决方案：安全牛顿法
+&lt;/h2>&lt;p>为了兼顾牛顿法的速度与二分法的稳定性，引入了&lt;strong>动态区间收缩&lt;/strong>的混合算法。&lt;/p>
+&lt;h3 id="61-算法逻辑">6.1 算法逻辑
+&lt;/h3>&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:left">步骤&lt;/th>
+&lt;th style="text-align:left">操作&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:left">1&lt;/td>
+&lt;td style="text-align:left">&lt;strong>维护区间&lt;/strong>：初始化安全区间 $[a, b] = [1.0, \alpha_{\text{old}}]$&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">2&lt;/td>
+&lt;td style="text-align:left">&lt;strong>区间收紧&lt;/strong>：若 $F(\alpha_k) &amp;gt; 0$，则令 $b = \alpha_k$；若 $F(\alpha_k) &amp;lt; 0$，则令 $a = \alpha_k$&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">3&lt;/td>
+&lt;td style="text-align:left">&lt;strong>决策拦截&lt;/strong>：计算牛顿步 $\alpha_{\text{new}} = \alpha_k - \frac{F(\alpha_k)}{F&amp;rsquo;(\alpha_k)}$，若 $\alpha_{\text{new}}$ 落在开区间 $(a, b)$ 之外，说明牛顿法失效&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">4&lt;/td>
+&lt;td style="text-align:left">&lt;strong>降级处理&lt;/strong>：此时强行执行二分法 $\alpha_{\text{new}} = \frac{a + b}{2}$&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">5&lt;/td>
+&lt;td style="text-align:left">&lt;strong>保底策略&lt;/strong>：要是牛顿法在规定的迭代步中没有找到解，那么求解器会调用二分法求解&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;p>&lt;img src="https://yekq.top/posts/gasphia/p-alpha-porosity-model/ns_final.png"
+width="1400"
+height="921"
+srcset="https://yekq.top/posts/gasphia/p-alpha-porosity-model/ns_final_hu058d968be20c8fd3b031241422de0152_83434_480x0_resize_box_3.png 480w, https://yekq.top/posts/gasphia/p-alpha-porosity-model/ns_final_hu058d968be20c8fd3b031241422de0152_83434_1024x0_resize_box_3.png 1024w"
+loading="lazy"
+alt="安全牛顿迭代"
+class="gallery-image"
+data-flex-grow="152"
+data-flex-basis="364px"
+>&lt;/p>
+&lt;blockquote>
+&lt;p>在相同的初始条件下，相比于震荡情况，现在求解器可以准确跳出震荡区间找到解了。&lt;/p>
+&lt;/blockquote>
+&lt;h3 id="62-性能对比">6.2 性能对比
+&lt;/h3>&lt;p>效率方面比二分法的 2.8ms 左右，&lt;strong>快了十倍&lt;/strong>。相较于求解 SPH 右端项函数的运行时间 2.4ms 左右，EOS 只需要花费其十分之一。&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;span class="lnt">11
+&lt;/span>&lt;span class="lnt">12
+&lt;/span>&lt;span class="lnt">13
+&lt;/span>&lt;span class="lnt">14
+&lt;/span>&lt;span class="lnt">15
+&lt;/span>&lt;span class="lnt">16
+&lt;/span>&lt;span class="lnt">17
+&lt;/span>&lt;span class="lnt">18
+&lt;/span>&lt;span class="lnt">19
+&lt;/span>&lt;span class="lnt">20
+&lt;/span>&lt;span class="lnt">21
+&lt;/span>&lt;span class="lnt">22
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-bash" data-lang="bash">&lt;span class="line">&lt;span class="cl">$ grep &lt;span class="s2">&amp;#34;calPressureSoundSpeed&amp;#34;&lt;/span> run.log &lt;span class="p">|&lt;/span> tail -n &lt;span class="m">20&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">calPressureSoundSpeed_newton execution time: 0.237 ms
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">calPressureSoundSpeed_newton execution time: 0.237 ms
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">calPressureSoundSpeed_newton execution time: 0.236 ms
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">calPressureSoundSpeed_newton execution time: 0.236 ms
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">calPressureSoundSpeed_newton execution time: 0.228 ms
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">calPressureSoundSpeed_newton execution time: 0.237 ms
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">calPressureSoundSpeed_newton execution time: 0.242 ms
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">calPressureSoundSpeed_newton execution time: 0.234 ms
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">calPressureSoundSpeed_newton execution time: 0.240 ms
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">calPressureSoundSpeed_newton execution time: 0.231 ms
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">calPressureSoundSpeed_newton execution time: 0.234 ms
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">calPressureSoundSpeed_newton execution time: 0.234 ms
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">calPressureSoundSpeed_newton execution time: 0.233 ms
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">calPressureSoundSpeed_newton execution time: 0.238 ms
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">calPressureSoundSpeed_newton execution time: 0.229 ms
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">calPressureSoundSpeed_newton execution time: 0.236 ms
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">calPressureSoundSpeed_newton execution time: 0.238 ms
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">calPressureSoundSpeed_newton execution time: 0.236 ms
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">calPressureSoundSpeed_newton execution time: 0.239 ms
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">calPressureSoundSpeed_newton execution time: 0.231 ms
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">...
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;span class="lnt">2
+&lt;/span>&lt;span class="lnt">3
+&lt;/span>&lt;span class="lnt">4
+&lt;/span>&lt;span class="lnt">5
+&lt;/span>&lt;span class="lnt">6
+&lt;/span>&lt;span class="lnt">7
+&lt;/span>&lt;span class="lnt">8
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-bash" data-lang="bash">&lt;span class="line">&lt;span class="cl">$ tail -n &lt;span class="m">10&lt;/span> run.log
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> └─ Sub2: 0.050 ms &lt;span class="o">(&lt;/span> 2.3%&lt;span class="o">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="o">[&lt;/span>computeRHS&lt;span class="o">]&lt;/span> Total: 2.420 ms
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> ├─ Press: 0.000 ms &lt;span class="o">(&lt;/span> 0.0%&lt;span class="o">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> ├─ Corr: 1.026 ms &lt;span class="o">(&lt;/span>42.4%&lt;span class="o">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> ├─ Sub1: 1.352 ms &lt;span class="o">(&lt;/span>55.9%&lt;span class="o">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> └─ Sub2: 0.042 ms &lt;span class="o">(&lt;/span> 1.7%&lt;span class="o">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">calPressureSoundSpeed_newton execution time: 0.207 ms
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;hr>
+&lt;h2 id="7-最终成果与物理验证">7. 最终成果与物理验证
+&lt;/h2>&lt;h3 id="71-压实曲线验证">7.1 压实曲线验证
+&lt;/h3>&lt;p>&lt;img src="https://yekq.top/posts/gasphia/p-alpha-porosity-model/crushcurvepng.png"
+width="1425"
+height="895"
+srcset="https://yekq.top/posts/gasphia/p-alpha-porosity-model/crushcurvepng_hu50877c013649b28d691f95bdd30bec23_52726_480x0_resize_box_3.png 480w, https://yekq.top/posts/gasphia/p-alpha-porosity-model/crushcurvepng_hu50877c013649b28d691f95bdd30bec23_52726_1024x0_resize_box_3.png 1024w"
+loading="lazy"
+alt="模拟成功复现了压实曲线"
+class="gallery-image"
+data-flex-grow="159"
+data-flex-basis="382px"
+>&lt;/p>
+&lt;p>图中红色虚线为理论压实曲线，散点为 GASPHiA 的模拟输出。随时间推进，压力导致孔隙正确压实；在压力卸载后，孔隙度严格保持不变，未出现非物理的回弹现象。这从底层印证了 P-alpha 模型的不可逆逻辑实现完全准确。&lt;/p>
+&lt;hr>
+&lt;h3 id="72-宏观实验对比">7.2 宏观实验对比
+&lt;/h3>&lt;p>&lt;img src="https://yekq.top/posts/gasphia/p-alpha-porosity-model/compare.png"
+width="2101"
+height="1934"
+srcset="https://yekq.top/posts/gasphia/p-alpha-porosity-model/compare_hub42f9538e017217e9cbae64569867e58_2164406_480x0_resize_box_3.png 480w, https://yekq.top/posts/gasphia/p-alpha-porosity-model/compare_hub42f9538e017217e9cbae64569867e58_2164406_1024x0_resize_box_3.png 1024w"
+loading="lazy"
+alt="对论文中撞击结果的复现和比较"
+class="gallery-image"
+data-flex-grow="108"
+data-flex-basis="260px"
+>&lt;/p>
+&lt;ul>
+&lt;li>图 a, b：Jutzi et al. 2009 论文中的实验结果和基准模拟结果。&lt;/li>
+&lt;li>图 c, d：GASPHiA 的模拟结果（图 d 为开启核矫正和 Balsara 开关后的结果，图 c 为默认配置下的结果）。&lt;/li>
+&lt;/ul>
+&lt;blockquote>
+&lt;p>可以看到，GASPHiA 输出的物理形态与原始实验及基准论文高度吻合。&lt;/p>
+&lt;/blockquote>
+&lt;p>&lt;img src="https://yekq.top/posts/gasphia/p-alpha-porosity-model/porous_cm.png"
+width="472"
+height="372"
+srcset="https://yekq.top/posts/gasphia/p-alpha-porosity-model/porous_cm_hu390938432d188224f48d787e440b4964_41680_480x0_resize_box_3.png 480w, https://yekq.top/posts/gasphia/p-alpha-porosity-model/porous_cm_hu390938432d188224f48d787e440b4964_41680_1024x0_resize_box_3.png 1024w"
+loading="lazy"
+alt="碎片质量累积分布曲线对比"
+class="gallery-image"
+data-flex-grow="126"
+data-flex-basis="304px"
+>&lt;/p>
+&lt;p>对撞击结果进行后处理分析，提取碎片累积质量分布数据：&lt;/p>
+&lt;blockquote>
+&lt;p>GASPHiA 计算得到的最大残余碎片质量占比为 8.35%，与实验室给出的真实实验数据 9.96% 误差极小，进一步验证了整个多孔材料求解器核心计算逻辑的可靠性。&lt;/p>
 &lt;/blockquote></description></item><item><title>1D Sod 激波管实验 - CUDA SPH 基准测试</title><link>https://yekq.top/posts/gasphia/1d-shock-tube/</link><pubDate>Tue, 17 Mar 2026 10:00:00 +0800</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://yekq.top/posts/gasphia/1d-shock-tube/</guid><description>&lt;h1 id="1d-sod-激波管实验">1D Sod 激波管实验
 &lt;/h1>&lt;h2 id="省流">省流
 &lt;/h2>&lt;p>本文使用从零自研的 CUDA SPH 物理引擎复现了经典的 1D Sod 激波管 (Shock Tube) 基准测试，主要验证引擎对强激波不连续面的捕捉能力。测试中解决了一个关键的数值陷阱：在处理初始阶跃密度场时，传统的连续性方程 (Continuity Density) 会导致严重的非物理震荡，而直接求和密度 (Summation Density) 展现出了更好的鲁棒性。事实上，连续密度更适合用在高速冲击问题中。&lt;/p>
