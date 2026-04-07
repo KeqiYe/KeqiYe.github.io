@@ -1,14 +1,12 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Technical Sharing on Keqi's blog</title><link>https://yekq.top/en/categories/technical-sharing/</link><description>Recent content in Technical Sharing on Keqi's blog</description><generator>Hugo -- gohugo.io</generator><language>en</language><managingEditor>plloningye@gmail.com (Keqi Ye)</managingEditor><webMaster>plloningye@gmail.com (Keqi Ye)</webMaster><copyright>Keqi Ye</copyright><lastBuildDate>Tue, 07 Apr 2026 14:00:00 +0800</lastBuildDate><atom:link href="https://yekq.top/en/categories/technical-sharing/index.xml" rel="self" type="application/rss+xml"/><item><title>Implementation and Pitfalls of the P-alpha Porosity Model</title><link>https://yekq.top/en/posts/gasphia/p-alpha-porosity-model/</link><pubDate>Tue, 07 Apr 2026 14:00:00 +0800</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://yekq.top/en/posts/gasphia/p-alpha-porosity-model/</guid><description>&lt;h1 id="implementation-and-pitfalls-of-the-p-alpha-porosity-model">Implementation and Pitfalls of the P-alpha Porosity Model
-&lt;/h1>&lt;!-- [[pumice.mp4]] -->
-&lt;video width="100%" controls>
-&lt;source src="pumice.mp4" type="video/mp4">
-Your browser does not support the video tag.
-&lt;/video>
-&lt;!-- [[output_no_cor.mp4]] -->
-&lt;video width="100%" controls>
-&lt;source src="output_no_cor.mp4" type="video/mp4">
-Your browser does not support the video tag.
-&lt;/video>
+&lt;/h1>&lt;iframe src="//player.bilibili.com/player.html?isOutside=true&amp;bvid=BV1t7DeBiEEv&amp;p=1&amp;high_quality=1&amp;danmaku=0"
+scrolling="no" border="0" frameborder="no" framespacing="0" allowfullscreen="true"
+style="width: 100%; aspect-ratio: 16/9; border-radius: 8px; margin-bottom: 20px;">
+&lt;/iframe>
+&lt;iframe src="//player.bilibili.com/player.html?isOutside=true&amp;bvid=BV1t7DeBiEEv&amp;p=2&amp;high_quality=1&amp;danmaku=0"
+scrolling="no" border="0" frameborder="no" framespacing="0" allowfullscreen="true"
+style="width: 100%; aspect-ratio: 16/9; border-radius: 8px; margin-bottom: 20px;">
+&lt;/iframe>
 &lt;p>The two animations above show simulation results from GASPHiA of a projectile impacting a high-porosity pumice target at 2.58 km/s. The upper animation has kernel correction and the Balsara switch enabled, while the lower animation uses the classical SPH theory. The impact results are consistent with those given in the paper, demonstrating the accuracy of the damage model and P-alpha porosity model implementation in GASPHiA.&lt;/p>
 &lt;hr>
 &lt;p>GASPHiA implements the P-alpha model described in the following two papers:&lt;/p>
