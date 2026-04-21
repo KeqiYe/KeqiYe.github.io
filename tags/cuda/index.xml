@@ -70,7 +70,7 @@ $$
 $$
 \frac{d\epsilon_V}{dt} = \left( \frac{d\epsilon_V}{dt} \right)_{\mathrm{total}} - \frac{\Gamma_{s0}}{c_{s0}^2} \frac{dE}{dt}
 $$
-&lt;p>其中，$\left( \frac{d\epsilon_V}{dt} \right)&lt;em>{\mathrm{total}}$ 为由速度散度计算得到的总���变率，$\Gamma&lt;/em>{s0}$ 为基质材料的初始 Grüneisen 参数，$c_{s0}$ 为基质材料的初始体声速，$E$ 为单位质量的内能。&lt;/p>
+&lt;p>其中，$\left( \frac{d\epsilon_V}{dt} \right)&lt;em>{\mathrm{total}}$ 为由速度散度计算得到的应变率，$\Gamma&lt;/em>{s0}$ 为基质材料的初始 Grüneisen 参数，$c_{s0}$ 为基质材料的初始体声速，$E$ 为单位质量的内能。&lt;/p>
 &lt;p>在每个时间步中，根据当前的 $\epsilon_V$ 判断所处的压实阶段，进而计算对应的 $\alpha$ 值。&lt;/p>
 &lt;h3 id="41-指数压实段主要压实">4.1 指数压实段（主要压实）
 &lt;/h3>&lt;p>当 $\epsilon_V &amp;lt; \epsilon_X$ 时：&lt;/p>
