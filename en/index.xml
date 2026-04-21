@@ -1,4 +1,166 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Keqi's blog</title><link>https://yekq.top/en/</link><description>Recent content on Keqi's blog</description><generator>Hugo -- gohugo.io</generator><language>en</language><managingEditor>plloningye@gmail.com (Keqi Ye)</managingEditor><webMaster>plloningye@gmail.com (Keqi Ye)</webMaster><copyright>Keqi Ye</copyright><lastBuildDate>Tue, 07 Apr 2026 14:00:00 +0800</lastBuildDate><atom:link href="https://yekq.top/en/index.xml" rel="self" type="application/rss+xml"/><item><title>GASPHiA: A GPU-Accelerated Smoothed Particle Hydrodynamics (SPH) Code</title><link>https://yekq.top/en/posts/gasphia/introduction/</link><pubDate>Tue, 17 Mar 2026 10:00:00 +0800</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://yekq.top/en/posts/gasphia/introduction/</guid><description>&lt;h1 id="gasphia-a-gpu-accelerated-smoothed-particle-hydrodynamics-sph-code">GASPHiA: A GPU-Accelerated Smoothed Particle Hydrodynamics (SPH) Code
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Keqi's blog</title><link>https://yekq.top/en/</link><description>Recent content on Keqi's blog</description><generator>Hugo -- gohugo.io</generator><language>en</language><managingEditor>plloningye@gmail.com (Keqi Ye)</managingEditor><webMaster>plloningye@gmail.com (Keqi Ye)</webMaster><copyright>Keqi Ye</copyright><lastBuildDate>Fri, 17 Apr 2026 10:00:00 +0800</lastBuildDate><atom:link href="https://yekq.top/en/index.xml" rel="self" type="application/rss+xml"/><item><title>Strain-Based Porosity Model (ε-α Model)</title><link>https://yekq.top/en/posts/gasphia/eplison-alpha-porosity-model/</link><pubDate>Fri, 17 Apr 2026 10:00:00 +0800</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://yekq.top/en/posts/gasphia/eplison-alpha-porosity-model/</guid><description>&lt;h2 id="1-what-problem-does-the-model-solve">1. What Problem Does the Model Solve?
+&lt;/h2>&lt;p>Under impact (e.g., meteorite impact) or explosive loading, porous materials (sand, asteroid material, foam, etc.) behave completely differently from dense materials. Most of the pressure is used for pore compaction, and the pore compaction releases large amounts of heat, causing expansion. In summary, when impacting porous materials, the following characteristics are observed:&lt;/p>
+&lt;ul>
+&lt;li>Absorbs large amounts of energy&lt;/li>
+&lt;li>Generates localized high temperatures&lt;/li>
+&lt;li>Significantly weakens shock wave strength&lt;/li>
+&lt;li>Ultimately affects crater size and morphology&lt;/li>
+&lt;/ul>
+&lt;p>The traditional P-α model uses pressure P directly to drive compaction, requiring iterative solving of α and P (though I have implemented an iterative-free P-α model based on the literature).&lt;/p>
+&lt;p>&lt;strong>Core feature of the ε-α model&lt;/strong>: Uses volumetric strain $\epsilon_V$ to directly drive compaction, decoupling α from P — first update α, then calculate P.&lt;/p>
+&lt;h2 id="2-basic-physical-quantities">2. Basic Physical Quantities
+&lt;/h2>&lt;p>Since astronomical impacts involve high pressures and large volumetric strains, the elastic compaction phase is generally ignored, and plastic compaction (irreversible) is entered directly. For more details on the elastic compaction phase, refer to papers [1][2].&lt;/p>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>Symbol&lt;/th>
+&lt;th>Meaning&lt;/th>
+&lt;th>Formula&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>$\phi$&lt;/td>
+&lt;td>Porosity&lt;/td>
+&lt;td>$\phi = V_{\mathrm{V}} / V$&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>$\alpha$&lt;/td>
+&lt;td>Distension&lt;/td>
+&lt;td>$\alpha = 1/(1-\phi) = \rho_{\mathrm{S}} / \rho$&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>$\rho$&lt;/td>
+&lt;td>Bulk density&lt;/td>
+&lt;td>$\rho = \rho_{\mathrm{S}} / \alpha$&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>$\epsilon_V$&lt;/td>
+&lt;td>Volumetric strain&lt;/td>
+&lt;td>$\epsilon_V = \ln(V/V_0)$&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;p>Notes:&lt;/p>
+&lt;ul>
+&lt;li>No porosity: $\alpha = 1$&lt;/li>
+&lt;li>50% porosity: $\alpha = 2$&lt;/li>
+&lt;li>Under compression, V decreases → $\epsilon_V &amp;lt; 0$&lt;/li>
+&lt;/ul>
+&lt;h2 id="3-basic-assumptions-of-the-model">3. Basic Assumptions of the Model
+&lt;/h2>&lt;ol>
+&lt;li>&lt;strong>Compaction is irreversible&lt;/strong>: α remains unchanged during unloading (no rebound)&lt;/li>
+&lt;li>&lt;strong>Compaction rate controlled by strain&lt;/strong>: $\mathrm{d}\alpha/\mathrm{d}\epsilon_V$ does not directly depend on pressure&lt;/li>
+&lt;li>&lt;strong>Compaction first, then solid compression&lt;/strong>: Solid compression phase only begins after pores are fully closed&lt;/li>
+&lt;/ol>
+&lt;p>Phases:&lt;/p>
+&lt;ul>
+&lt;li>Exponential compaction (particle rearrangement)&lt;/li>
+&lt;li>Power-law compaction (particle crushing)&lt;/li>
+&lt;/ul>
+&lt;h2 id="4-core-formulas">4. Core Formulas
+&lt;/h2>&lt;p>Since pore compaction is driven by volumetric strain, we first need to understand how to calculate volumetric strain. In SPH calculations, the volumetric strain rate $\dot{\epsilon}_V$ can be computed from velocity divergence:&lt;/p>
+&lt;p>&lt;strong>Cartesian coordinate system&lt;/strong>:&lt;/p>
+$$
+\dot{\epsilon}_V = \frac{\partial u}{\partial x} + \frac{\partial v}{\partial y} + \frac{\partial w}{\partial z}
+$$
+&lt;p>where $u, v, w$ are velocity components in the $x, y, z$ directions respectively.&lt;/p>
+&lt;p>Paper [1] gives the axisymmetric cylindrical coordinate form:&lt;/p>
+$$
+\dot{\epsilon}_V = \frac{\partial u}{\partial r} + \frac{u}{r} + \frac{\partial v}{\partial z}
+$$
+&lt;p>where $u$ is radial velocity and $v$ is axial velocity.&lt;/p>
+&lt;p>Integrating $\dot{\epsilon}_V$ over time gives the volumetric strain $\epsilon_V$.&lt;/p>
+&lt;p>Additionally, during intense compaction, pores do work that transforms into large amounts of internal energy (heat). The temperature rise causes thermal expansion of the matrix material. Paper [2] improved the $\epsilon$-$\alpha$ model by considering this &amp;ldquo;rebound&amp;rdquo; effect of internal energy increase on volumetric strain (i.e., thermal expansion partially offsets mechanical compaction). To obtain the effective volumetric strain rate that truly drives pore compaction, the thermal expansion term must be subtracted from the total strain rate:&lt;/p>
+$$
+\frac{d\epsilon_V}{dt} = \left( \frac{d\epsilon_V}{dt} \right)_{\mathrm{total}} - \frac{\Gamma_{s0}}{c_{s0}^2} \frac{dE}{dt}
+$$
+&lt;p>where $\left( \frac{d\epsilon_V}{dt} \right)&lt;em>{\mathrm{total}}$ is the total strain rate calculated from velocity divergence, $\Gamma&lt;/em>{s0}$ is the initial Grüneisen parameter of the matrix material, $c_{s0}$ is the initial bulk sound speed of the matrix material, and $E$ is the specific internal energy.&lt;/p>
+&lt;p>At each time step, the current phase is determined based on $\epsilon_V$, and the corresponding $\alpha$ value is calculated.&lt;/p>
+&lt;h3 id="41-exponential-compaction-main-compaction">4.1 Exponential Compaction (Main Compaction)
+&lt;/h3>&lt;p>When $\epsilon_V &amp;lt; \epsilon_X$:&lt;/p>
+$$
+\alpha = \alpha_0 \cdot e^{\kappa \epsilon_V}
+$$
+&lt;p>where $\kappa$ is the compaction rate, $0 &amp;lt; \kappa \leqslant 1$. Smaller $\kappa$ means slower compaction (requires larger strain to close pores).&lt;/p>
+&lt;h3 id="42-power-law-compaction-late-stage-hard-compaction">4.2 Power-Law Compaction (Late-Stage Hard Compaction)
+&lt;/h3>&lt;p>When $\epsilon_X &amp;lt; \epsilon_V &amp;lt; \epsilon_C$:&lt;/p>
+$$
+\alpha = 1 + (\alpha_X - 1) \left( \frac{-\epsilon_V}{-\epsilon_X} \right)^2
+$$
+&lt;p>where:&lt;/p>
+$$
+\alpha_X = \alpha_0 e^{\kappa \epsilon_X}
+$$
+&lt;h3 id="43-complete-compaction">4.3 Complete Compaction
+&lt;/h3>&lt;p>When $\epsilon_V \leq \epsilon_C$:&lt;/p>
+$$
+\alpha = 1
+$$
+&lt;h3 id="44-determination-of-epsilon_c-ensuring-continuity-of-derivative">4.4 Determination of $\epsilon_C$ (Ensuring Continuity of Derivative)
+&lt;/h3>$$
+\epsilon_C = 2 \cdot \frac{1 - \alpha_X}{\kappa \alpha_X} + \epsilon_X
+$$
+&lt;p>In practice, $\epsilon_C$ depends only on material parameters — once $\alpha_X$, $\kappa$, and $\epsilon_X$ are determined, $\epsilon_C$ can be calculated.&lt;/p>
+&lt;h3 id="45-summary-of-parameters">4.5 Summary of Parameters
+&lt;/h3>&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>Parameter&lt;/th>
+&lt;th>Physical Meaning&lt;/th>
+&lt;th>Typical Range&lt;/th>
+&lt;th>Suggested Derivation&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>$\alpha_0$&lt;/td>
+&lt;td>Initial distension&lt;/td>
+&lt;td>1.0 ~ 2.5&lt;/td>
+&lt;td>From known porosity: $\alpha_0 = 1/(1-\phi)$&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>$\kappa$&lt;/td>
+&lt;td>Compaction rate&lt;/td>
+&lt;td>0.7 ~ 0.98&lt;/td>
+&lt;td>Fit to static compaction experiments&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>$\epsilon_X$&lt;/td>
+&lt;td>Transition strain (exponential → power-law)&lt;/td>
+&lt;td>-0.4 ~ -0.2&lt;/td>
+&lt;td>Fit to Hugoniot or fragmentation experiments&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;blockquote>
+&lt;p>⚠️ These are not material constants — they are model parameters that need to be calibrated against experiments for the target material.&lt;/p>
+&lt;/blockquote>
+&lt;h2 id="5-model-validation">5. Model Validation
+&lt;/h2>&lt;p>After implementing the core computation logic described above, particularly the thermal expansion correction due to internal energy increase (subtracting the thermal strain from the total strain rate: $d\epsilon/dt = (d\epsilon/dt)&lt;em>{\text{total}} - (\Gamma&lt;/em>{s0}/c_{s0}^2)(dE/dt)$), we need a standard benchmark test to verify the correctness of the implementation. For this, we choose the representative case from literature [2]: the shock Hugoniot curve calculation for porous iron with 75% initial porosity.&lt;/p>
+&lt;h3 id="1-physical-background-and-why-this-case">1. Physical Background and Why This Case?
+&lt;/h3>&lt;p>For materials with very high porosity (&amp;gt;50%), intense shock compression transforms the pore space collapse into extremely high internal energy (heat). This extreme heating causes significant thermal expansion of the matrix (solid) material.&lt;/p>
+&lt;p>&lt;strong>Limitations of the original $\epsilon$-$\alpha$ model&lt;/strong>: The original model assumes the matrix density is always greater than the initial density (i.e., it ignores thermal expansion). As seen in the figure, in the high-pressure region, the original model (dashed line) predicts continuously increasing density, completely failing.&lt;/p>
+&lt;p>&lt;strong>Improved model&lt;/strong>: After introducing the thermal volumetric strain correction, the model can reflect that at extremely high pressures, the thermal expansion effect can even exceed the mechanical compression effect, causing the macroscopic density to decrease instead of increase.&lt;/p>
+&lt;h3 id="2-computational-results-and-analysis">2. Computational Results and Analysis
+&lt;/h3>&lt;p>In this validation calculation, we use parameters consistent with the literature (Tillotson EOS for the equation of state, porosity parameters: $\kappa = 0.98, \epsilon_e = 0, \alpha_0 = 4$), and compare our SPH program results with the literature data.&lt;/p>
+&lt;p>&lt;img src="https://yekq.top/Hugoniot_Academic_Comparison.png"
+loading="lazy"
+alt="Hugoniot curve comparison"
+>&lt;/p>
+&lt;p>Figure: Hugoniot curve for porous iron with 75% initial porosity. Horizontal axis: density (g/cc), vertical axis: pressure (GPa).&lt;/p>
+&lt;p>Based on the figure above, we can draw the following clear conclusions:&lt;/p>
+&lt;ol>
+&lt;li>
+&lt;p>&lt;strong>Accurately captured the Hugoniot curve &amp;ldquo;inversion&amp;rdquo; phenomenon&lt;/strong>: After pressure reaches about 10 GPa, our numerical results perfectly show the curve turning left. In the 10-100 GPa range, as pressure increases, material density decreases, which is caused by extreme heating-induced thermal expansion of the matrix material.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;strong>Consistent with theoretical analysis and reference hydrocode&lt;/strong>: We overlaid the state points from our program (scattered points) with the theoretical analytical solution (solid line) of the improved $\epsilon$-$\alpha$ model from the literature. As can be seen, they are in good agreement. Since paper [2] does not provide detailed EOS information, I can only speculate that some errors at low pressures may be because the paper did not use the Tillotson EOS.&lt;/p>
+&lt;/li>
+&lt;/ol>
+&lt;h2 id="references">References
+&lt;/h2>&lt;p>[1] Wünnemann K, Collins GS, Melosh HJ. A strain-based porosity model for use in hydrocode simulations of impacts and implications for transient crater growth in porous targets. Icarus. 2006 Feb 1;180(2):514-27.&lt;/p>
+&lt;p>[2] Collins GS, Melosh HJ, Wünnemann K. Improvements to the ɛ-α porous compaction model for simulating impacts into high-porosity solar system objects. International Journal of Impact Engineering. 2011 Jun 1;38(6):434-9.&lt;/p></description></item><item><title>GASPHiA: A GPU-Accelerated Smoothed Particle Hydrodynamics (SPH) Code</title><link>https://yekq.top/en/posts/gasphia/introduction/</link><pubDate>Tue, 17 Mar 2026 10:00:00 +0800</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://yekq.top/en/posts/gasphia/introduction/</guid><description>&lt;h1 id="gasphia-a-gpu-accelerated-smoothed-particle-hydrodynamics-sph-code">GASPHiA: A GPU-Accelerated Smoothed Particle Hydrodynamics (SPH) Code
 &lt;/h1>&lt;p>GASPHiA is a high-performance, three-dimensional SPH (Smoothed Particle Hydrodynamics) code developed by Keqi Ye as part of his doctoral research at the School of Aeronautics and Astronautics, Sun Yat-sen University. The code is designed for simulating complex hydrodynamical problems, particularly those involving material strength, damage, and gravitational interactions.&lt;/p>
 &lt;h2 id="features">Features
 &lt;/h2>&lt;h3 id="high-performance--scalable">High-Performance &amp;amp; Scalable

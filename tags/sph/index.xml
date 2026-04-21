@@ -1,4 +1,163 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>SPH on Keqi的博客</title><link>https://yekq.top/tags/sph/</link><description>Recent content in SPH on Keqi的博客</description><generator>Hugo -- gohugo.io</generator><language>zh-cn</language><managingEditor>plloningye@gmail.com (Keqi Ye)</managingEditor><webMaster>plloningye@gmail.com (Keqi Ye)</webMaster><copyright>Keqi Ye</copyright><lastBuildDate>Tue, 07 Apr 2026 14:00:00 +0800</lastBuildDate><atom:link href="https://yekq.top/tags/sph/index.xml" rel="self" type="application/rss+xml"/><item><title>GASPHiA: GPU加速的光滑粒子流体动力学（SPH）代码</title><link>https://yekq.top/posts/gasphia/introduction/</link><pubDate>Tue, 17 Mar 2026 10:00:00 +0800</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://yekq.top/posts/gasphia/introduction/</guid><description>&lt;h1 id="gasphia-gpu加速的光滑粒子流体动力学代码">GASPHiA: GPU加速的光滑粒子流体动力学代码
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>SPH on Keqi的博客</title><link>https://yekq.top/tags/sph/</link><description>Recent content in SPH on Keqi的博客</description><generator>Hugo -- gohugo.io</generator><language>zh-cn</language><managingEditor>plloningye@gmail.com (Keqi Ye)</managingEditor><webMaster>plloningye@gmail.com (Keqi Ye)</webMaster><copyright>Keqi Ye</copyright><lastBuildDate>Fri, 17 Apr 2026 10:00:00 +0800</lastBuildDate><atom:link href="https://yekq.top/tags/sph/index.xml" rel="self" type="application/rss+xml"/><item><title>基于应变的孔隙度模型（ε-α 模型）</title><link>https://yekq.top/posts/gasphia/eplison-alpha-porosity-model/</link><pubDate>Fri, 17 Apr 2026 10:00:00 +0800</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://yekq.top/posts/gasphia/eplison-alpha-porosity-model/</guid><description>&lt;h2 id="一模型要解决什么问题">一、模型要解决什么问题？
+&lt;/h2>&lt;p>在冲击（如陨石撞击）或爆炸加载下，多孔材料（砂土、小行星物质、泡沫等）的行为与密实材料完全不同。绝大多数压力用于孔隙的压实过程，而孔隙压实又会大量放热，导致膨胀。总之冲击多孔隙度材质时，有如下特点：&lt;/p>
+&lt;ul>
+&lt;li>吸收大量能量&lt;/li>
+&lt;li>产生局部高温&lt;/li>
+&lt;li>显著削弱冲击波强度&lt;/li>
+&lt;li>最终影响坑体大小和形态&lt;/li>
+&lt;/ul>
+&lt;p>传统 P-α 模型直接用压力 P 驱动压实，需要迭代求解 α 和 P（不过我根据论文实现了无需迭代的 P-α 模型）。&lt;/p>
+&lt;p>&lt;strong>ε-α 模型的核心特点&lt;/strong>：改用体积应变 $\epsilon_V$ 直接驱动压实，α 与 P 解耦，先更新 α，再算 P。&lt;/p>
+&lt;h2 id="二基本物理量">二、基本物理量
+&lt;/h2>&lt;p>由于天文撞击中，压力一般都很大，体积应变也很大，所以大家一般都默认不考虑弹性压实阶段，直接进入塑形压实（不可逆），详细关于弹性压实阶段的信息可以参考论文[1][2].&lt;/p>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>符号&lt;/th>
+&lt;th>含义&lt;/th>
+&lt;th>公式&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>$\phi$&lt;/td>
+&lt;td>孔隙度&lt;/td>
+&lt;td>$\phi = V_{\mathrm{V}} / V$&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>$\alpha$&lt;/td>
+&lt;td>膨胀系数&lt;/td>
+&lt;td>$\alpha = 1/(1-\phi) = \rho_{\mathrm{S}} / \rho$&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>$\rho$&lt;/td>
+&lt;td>体密度&lt;/td>
+&lt;td>$\rho = \rho_{\mathrm{S}} / \alpha$&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>$\epsilon_V$&lt;/td>
+&lt;td>体积应变&lt;/td>
+&lt;td>$\epsilon_V = \ln(V/V_0)$&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;p>说明：&lt;/p>
+&lt;ul>
+&lt;li>无孔隙：$\alpha = 1$&lt;/li>
+&lt;li>50% 孔隙：$\alpha = 2$&lt;/li>
+&lt;li>压缩时 V 减小 → $\epsilon_V &amp;lt; 0$&lt;/li>
+&lt;/ul>
+&lt;h2 id="三模型的基本假设">三、模型的基本假设
+&lt;/h2>&lt;ol>
+&lt;li>&lt;strong>压实不可逆&lt;/strong>：卸载时 α 不变（不回弹）&lt;/li>
+&lt;li>&lt;strong>压实速率由应变控制&lt;/strong>：$\mathrm{d}\alpha/\mathrm{d}\epsilon_V$ 不直接依赖压力&lt;/li>
+&lt;li>&lt;strong>先压实、后压固体&lt;/strong>：孔隙完全闭合后才进入固体压缩段&lt;/li>
+&lt;/ol>
+&lt;p>分阶段描述：&lt;/p>
+&lt;ul>
+&lt;li>指数压实段（颗粒重排）&lt;/li>
+&lt;li>幂律压实段（颗粒破碎）&lt;/li>
+&lt;/ul>
+&lt;h2 id="四核心公式">四、核心公式
+&lt;/h2>&lt;p>因为孔隙压实是依靠体积应变驱动的，首先需要了解如何计算体积应变。在 SPH 计算中，体积应变率 $\dot{\epsilon}_V$ 可以通过速度散度来计算：&lt;/p>
+&lt;p>&lt;strong>笛卡尔坐标系下&lt;/strong>：&lt;/p>
+$$
+\dot{\epsilon}_V = \frac{\partial u}{\partial x} + \frac{\partial v}{\partial y} + \frac{\partial w}{\partial z}
+$$
+&lt;p>其中 $u, v, w$ 分别是 $x, y, z$ 方向的速度分量。&lt;/p>
+&lt;p>原始论文[1]给出的是轴对称柱坐标系下的格式：&lt;/p>
+$$
+\dot{\epsilon}_V = \frac{\partial u}{\partial r} + \frac{u}{r} + \frac{\partial v}{\partial z}
+$$
+&lt;p>其中 $u$ 是径向速度，$v$ 是轴向速度。&lt;/p>
+&lt;p>对 $\dot{\epsilon}_V$ 逐步积分即可得到体积应变 $\epsilon_V$。&lt;/p>
+&lt;p>此外，孔隙在强烈的压实过程中会做功并转化为大量内能（热量），温度的上升反过来会引起基质材料的热膨胀。文献[2]在改进 $\epsilon$-$\alpha$ 模型时，考虑了这种内能增加对体积应变造成的&amp;quot;反弹&amp;quot;效应（即热膨胀抵消了部分机械压实）。为了获取真实驱动孔隙压实的有效体积应变率，需要从总应变率中扣除热膨胀项：&lt;/p>
+$$
+\frac{d\epsilon_V}{dt} = \left( \frac{d\epsilon_V}{dt} \right)_{\mathrm{total}} - \frac{\Gamma_{s0}}{c_{s0}^2} \frac{dE}{dt}
+$$
+&lt;p>其中，$\left( \frac{d\epsilon_V}{dt} \right)&lt;em>{\mathrm{total}}$ 为由速度散度计算得到的总���变率，$\Gamma&lt;/em>{s0}$ 为基质材料的初始 Grüneisen 参数，$c_{s0}$ 为基质材料的初始体声速，$E$ 为单位质量的内能。&lt;/p>
+&lt;p>在每个时间步中，根据当前的 $epsilon_V$ 判断所处的压实阶段，进而计算对应的 $\alpha$ 值。&lt;/p>
+&lt;h3 id="41-指数压实段主要压实">4.1 指数压实段（主要压实）
+&lt;/h3>&lt;p>当 $\epsilon_V &amp;lt; \epsilon_X$ 时：&lt;/p>
+$$
+\alpha = \alpha_0 \cdot e^{\kappa \epsilon_V}
+$$
+&lt;p>其中 $\kappa$ 是压实速率，$0 &amp;lt; \kappa \leqslant 1$。$\kappa$ 越小，压实越&amp;quot;慢&amp;quot;（需要更大应变才能闭合）。&lt;/p>
+&lt;h3 id="42-幂律压实段后期硬压实">4.2 幂律压实段（后期硬压实）
+&lt;/h3>&lt;p>当 $\epsilon_X &amp;lt; \epsilon_V &amp;lt; \epsilon_C$ 时：&lt;/p>
+$$
+\alpha = 1 + (\alpha_X - 1) \left( \frac{-\epsilon_V}{-\epsilon_X} \right)^2
+$$
+&lt;p>其中：&lt;/p>
+$$
+\alpha_X = \alpha_0 e^{\kappa \epsilon_X}
+$$
+&lt;h3 id="43-完全压实段">4.3 完全压实段
+&lt;/h3>&lt;p>当 $\epsilon_V \leq \epsilon_C$ 时：&lt;/p>
+$$
+\alpha = 1
+$$
+&lt;h3 id="44-epsilon_c-的确定保证导数连续">4.4 $\epsilon_C$ 的确定（保证导数连续）
+&lt;/h3>$$
+\epsilon_C = 2 \cdot \frac{1 - \alpha_X}{\kappa \alpha_X} + \epsilon_X
+$$
+&lt;p>实际计算时，$\epsilon_C$ 其实只与材料参数有关，确定 $\alpha_X$、$\kappa$、$\epsilon_X$ 就可以得到 $\epsilon_C$。&lt;/p>
+&lt;h3 id="45-参数汇总">4.5 参数汇总
+&lt;/h3>&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>参数&lt;/th>
+&lt;th>物理含义&lt;/th>
+&lt;th>典型范围&lt;/th>
+&lt;th>建议获取方式&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>$\alpha_0$&lt;/td>
+&lt;td>初始膨胀系数&lt;/td>
+&lt;td>1.0 ~ 2.5&lt;/td>
+&lt;td>已知孔隙度：$\alpha_0 = 1/(1-\phi)$&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>$\kappa$&lt;/td>
+&lt;td>压实速率&lt;/td>
+&lt;td>0.7 ~ 0.98&lt;/td>
+&lt;td>拟合静态压实实验&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>$\epsilon_X$&lt;/td>
+&lt;td>过渡应变（指数→幂律）&lt;/td>
+&lt;td>-0.4 ~ -0.2&lt;/td>
+&lt;td>拟合 Hugoniot 或破碎实验&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h2 id="五模型验证">五、模型验证
+&lt;/h2>&lt;p>完成了前文所述的核心计算逻辑，特别是针对内能增加导致的热膨胀修正（即从总应变率中扣除热应变项：$d\epsilon/dt = (d\epsilon/dt)&lt;em>{\text{total}} - (\Gamma&lt;/em>{s0}/c_{s0}^2)(dE/dt)$）之后，我们需要一个标准的基准测试来验证程序实现的正确性。为此，我们选取了文献[2]中的案例：初始孔隙度为 75% 的多孔铁的冲击 Hugoniot 曲线计算。&lt;/p>
+&lt;h3 id="1-物理背景与为什么选择此案例">1. 物理背景与为什么选择此案例？
+&lt;/h3>&lt;p>对于极高孔隙率（&amp;gt;50%）的材料，在遭受强冲击压实时，孔隙空间的塌陷会转化为极高的内能（热量）。这种极端的加热效应会导致基质（固体）材料发生显著的热膨胀。&lt;/p>
+&lt;p>&lt;strong>原始 $\epsilon$-$\alpha$ 模型的局限&lt;/strong>：原始模型假设基质密度永远大于初始密度（即忽略了热膨胀的贡献）。从图中可以看出，在高压区，原始模型（虚线）预测的密度持续增大，完全失效。&lt;/p>
+&lt;p>&lt;strong>改进后的模型&lt;/strong>：在引入了热体积应变修正后，模型能够反映出在极高压力下，热膨胀效应甚至会超过机械压缩效应，导致宏观密度不增反降。&lt;/p>
+&lt;h3 id="2-计算结果与图表分析">2. 计算结果与图表分析
+&lt;/h3>&lt;p>在此次验证计算中，我们采用了与文献一致的参数（状态方程采用 Tillotson EOS，孔隙参数设为 $\kappa = 0.98, \epsilon_e = 0, \alpha_0 = 4$），并将我们的 SPH 程序计算结果与文献数据进行了对比。&lt;/p>
+&lt;p>&lt;img src="https://yekq.top/Hugoniot_Academic_Comparison.png"
+loading="lazy"
+alt="Hugoniot曲线对比"
+>&lt;/p>
+&lt;p>图：初始孔隙度为 75% 的多孔铁的 Hugoniot 曲线。横轴为密度 (g/cc)，纵轴为压力 (GPa)。&lt;/p>
+&lt;p>通过观察上图，我们可以得出以下清晰的结论：&lt;/p>
+&lt;ol>
+&lt;li>
+&lt;p>&lt;strong>捕捉到Hugoniot曲线 &amp;ldquo;倒拐&amp;rdquo; (Inversion) 现象&lt;/strong>：在压力达到约 10 GPa 之后，我们的数值计算结果完美展现了曲线向左反转的特征。在 10 ~ 100 GPa 的区间内，随着压力的升高，材料密度反而减小，这正是由于极端加热引起的基质材料热膨胀所致。&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;strong>与理论解析和参考 Hydrocode 吻合&lt;/strong>：我们将程序跑出的状态点与文献中改进 $\epsilon$-$\alpha$ 模型的理论解析解（实线）进行了叠加。可以看到，两者较为吻合。因为论文[2]没有给出详细的EOS信息，因此我只能推测低压力情况下的一些误差可能的原因是论文并没有使用Tillotson EOS。&lt;/p>
+&lt;/li>
+&lt;/ol>
+&lt;h2 id="参考资料">参考资料
+&lt;/h2>&lt;p>[1] Wünnemann K, Collins GS, Melosh HJ. A strain-based porosity model for use in hydrocode simulations of impacts and implications for transient crater growth in porous targets. Icarus. 2006 Feb 1;180(2):514-27.&lt;/p>
+&lt;p>[2] Collins GS, Melosh HJ, Wünnemann K. Improvements to the ɛ-α porous compaction model for simulating impacts into high-porosity solar system objects. International Journal of Impact Engineering. 2011 Jun 1;38(6):434-9.&lt;/p></description></item><item><title>GASPHiA: GPU加速的光滑粒子流体动力学（SPH）代码</title><link>https://yekq.top/posts/gasphia/introduction/</link><pubDate>Tue, 17 Mar 2026 10:00:00 +0800</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://yekq.top/posts/gasphia/introduction/</guid><description>&lt;h1 id="gasphia-gpu加速的光滑粒子流体动力学代码">GASPHiA: GPU加速的光滑粒子流体动力学代码
 &lt;/h1>&lt;p>GASPHiA 是一个高性能的三维 SPH（光滑粒子流体动力学）代码，由中山大学航空航天学院的叶科奇在其博士研究期间开发。该代码专为模拟复杂的流体动力学问题设计，特别是涉及材料强度、损伤和引力相互作用的问题。&lt;/p>
 &lt;h2 id="特性">特性
 &lt;/h2>&lt;h3 id="高性能与可扩展性">高性能与可扩展性
