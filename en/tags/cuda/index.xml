@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>CUDA on Keqi's blog</title><link>https://yekq.top/en/tags/cuda/</link><description>Recent content in CUDA on Keqi's blog</description><generator>Hugo -- gohugo.io</generator><language>en</language><managingEditor>plloningye@gmail.com (Keqi Ye)</managingEditor><webMaster>plloningye@gmail.com (Keqi Ye)</webMaster><copyright>Keqi Ye</copyright><lastBuildDate>Fri, 17 Apr 2026 10:00:00 +0800</lastBuildDate><atom:link href="https://yekq.top/en/tags/cuda/index.xml" rel="self" type="application/rss+xml"/><item><title>Strain-Based Porosity Model (ε-α Model)</title><link>https://yekq.top/en/posts/gasphia/eplison-alpha-porosity-model/</link><pubDate>Fri, 17 Apr 2026 10:00:00 +0800</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://yekq.top/en/posts/gasphia/eplison-alpha-porosity-model/</guid><description>&lt;h2 id="1-what-problem-does-the-model-solve">1. What Problem Does the Model Solve?
-&lt;/h2>&lt;p>Under impact (e.g., meteorite impact) or explosive loading, porous materials (sand, asteroid material, foam, etc.) behave completely differently from dense materials. Most of the pressure is used for pore compaction, and the pore compaction releases large amounts of heat, causing expansion. In summary, when impacting porous materials, the following characteristics are observed:&lt;/p>
+&lt;/h2>&lt;p>Under impact (e.g., meteorite impact) or explosive loading, porous materials (sand, rubble pile, etc.) behave completely differently from dense materials. Most of the pressure is used for pore compaction, and the pore compaction releases large amounts of heat, causing expansion. In summary, when impacting porous materials, the following characteristics are observed:&lt;/p>
 &lt;ul>
 &lt;li>Absorbs large amounts of energy&lt;/li>
 &lt;li>Generates localized high temperatures&lt;/li>
@@ -53,11 +53,6 @@
 &lt;li>&lt;strong>Compaction rate controlled by strain&lt;/strong>: $\mathrm{d}\alpha/\mathrm{d}\epsilon_V$ does not directly depend on pressure&lt;/li>
 &lt;li>&lt;strong>Compaction first, then solid compression&lt;/strong>: Solid compression phase only begins after pores are fully closed&lt;/li>
 &lt;/ol>
-&lt;p>Phases:&lt;/p>
-&lt;ul>
-&lt;li>Exponential compaction (particle rearrangement)&lt;/li>
-&lt;li>Power-law compaction (particle crushing)&lt;/li>
-&lt;/ul>
 &lt;h2 id="4-core-formulas">4. Core Formulas
 &lt;/h2>&lt;p>Since pore compaction is driven by volumetric strain, we first need to understand how to calculate volumetric strain. In SPH calculations, the volumetric strain rate $\dot{\epsilon}_V$ can be computed from velocity divergence:&lt;/p>
 &lt;p>&lt;strong>Cartesian coordinate system&lt;/strong>:&lt;/p>
@@ -109,7 +104,6 @@ $$
 &lt;th>Parameter&lt;/th>
 &lt;th>Physical Meaning&lt;/th>
 &lt;th>Typical Range&lt;/th>
-&lt;th>Suggested Derivation&lt;/th>
 &lt;/tr>
 &lt;/thead>
 &lt;tbody>
@@ -117,25 +111,19 @@ $$
 &lt;td>$\alpha_0$&lt;/td>
 &lt;td>Initial distension&lt;/td>
 &lt;td>1.0 ~ 2.5&lt;/td>
-&lt;td>From known porosity: $\alpha_0 = 1/(1-\phi)$&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td>$\kappa$&lt;/td>
 &lt;td>Compaction rate&lt;/td>
 &lt;td>0.7 ~ 0.98&lt;/td>
-&lt;td>Fit to static compaction experiments&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td>$\epsilon_X$&lt;/td>
 &lt;td>Transition strain (exponential → power-law)&lt;/td>
 &lt;td>-0.4 ~ -0.2&lt;/td>
-&lt;td>Fit to Hugoniot or fragmentation experiments&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
-&lt;blockquote>
-&lt;p>⚠️ These are not material constants — they are model parameters that need to be calibrated against experiments for the target material.&lt;/p>
-&lt;/blockquote>
 &lt;h2 id="5-model-validation">5. Model Validation
 &lt;/h2>&lt;p>After implementing the core computation logic described above, particularly the thermal expansion correction due to internal energy increase (subtracting the thermal strain from the total strain rate: $d\epsilon/dt = (d\epsilon/dt)&lt;em>{\text{total}} - (\Gamma&lt;/em>{s0}/c_{s0}^2)(dE/dt)$), we need a standard benchmark test to verify the correctness of the implementation. For this, we choose the representative case from literature [2]: the shock Hugoniot curve calculation for porous iron with 75% initial porosity.&lt;/p>
 &lt;h3 id="1-physical-background-and-why-this-case">1. Physical Background and Why This Case?
@@ -144,18 +132,24 @@ $$
 &lt;p>&lt;strong>Improved model&lt;/strong>: After introducing the thermal volumetric strain correction, the model can reflect that at extremely high pressures, the thermal expansion effect can even exceed the mechanical compression effect, causing the macroscopic density to decrease instead of increase.&lt;/p>
 &lt;h3 id="2-computational-results-and-analysis">2. Computational Results and Analysis
 &lt;/h3>&lt;p>In this validation calculation, we use parameters consistent with the literature (Tillotson EOS for the equation of state, porosity parameters: $\kappa = 0.98, \epsilon_e = 0, \alpha_0 = 4$), and compare our SPH program results with the literature data.&lt;/p>
-&lt;p>&lt;img src="https://yekq.top/Hugoniot_Academic_Comparison.png"
+&lt;p>&lt;img src="https://yekq.top/posts/gasphia/eplison-alpha-porosity-model/Hugoniot_Academic_Comparison.png"
+width="3000"
+height="2400"
+srcset="https://yekq.top/posts/gasphia/eplison-alpha-porosity-model/Hugoniot_Academic_Comparison_hu1cfaea1a7bf8b66e514cf96cc93c0ea9_298178_480x0_resize_box_3.png 480w, https://yekq.top/posts/gasphia/eplison-alpha-porosity-model/Hugoniot_Academic_Comparison_hu1cfaea1a7bf8b66e514cf96cc93c0ea9_298178_1024x0_resize_box_3.png 1024w"
 loading="lazy"
 alt="Hugoniot curve comparison"
+class="gallery-image"
+data-flex-grow="125"
+data-flex-basis="300px"
 >&lt;/p>
 &lt;p>Figure: Hugoniot curve for porous iron with 75% initial porosity. Horizontal axis: density (g/cc), vertical axis: pressure (GPa).&lt;/p>
 &lt;p>Based on the figure above, we can draw the following clear conclusions:&lt;/p>
 &lt;ol>
 &lt;li>
-&lt;p>&lt;strong>Accurately captured the Hugoniot curve &amp;ldquo;inversion&amp;rdquo; phenomenon&lt;/strong>: After pressure reaches about 10 GPa, our numerical results perfectly show the curve turning left. In the 10-100 GPa range, as pressure increases, material density decreases, which is caused by extreme heating-induced thermal expansion of the matrix material.&lt;/p>
+&lt;p>&lt;strong>Captured the Hugoniot curve &amp;ldquo;inversion&amp;rdquo; phenomenon&lt;/strong>: After pressure reaches about 10 GPa, our numerical results perfectly show the curve turning left. In the 10-100 GPa range, as pressure increases, material density decreases, which is caused by extreme heating-induced thermal expansion of the matrix material.&lt;/p>
 &lt;/li>
 &lt;li>
-&lt;p>&lt;strong>Consistent with theoretical analysis and reference hydrocode&lt;/strong>: We overlaid the state points from our program (scattered points) with the theoretical analytical solution (solid line) of the improved $\epsilon$-$\alpha$ model from the literature. As can be seen, they are in good agreement. Since paper [2] does not provide detailed EOS information, I can only speculate that some errors at low pressures may be because the paper did not use the Tillotson EOS.&lt;/p>
+&lt;p>&lt;strong>Consistent with theoretical analysis and reference hydrocode&lt;/strong>: We overlaid the state points from our program with the theoretical analytical solution (solid line) of the improved $\epsilon$-$\alpha$ model from the literature. As can be seen, they are in good agreement. Since paper [2] does not provide detailed EOS information, I can only speculate that some errors at low pressures may be because the paper did not use the Tillotson EOS.&lt;/p>
 &lt;/li>
 &lt;/ol>
 &lt;h2 id="references">References

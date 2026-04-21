@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>GPU on Keqi的博客</title><link>https://yekq.top/tags/gpu/</link><description>Recent content in GPU on Keqi的博客</description><generator>Hugo -- gohugo.io</generator><language>zh-cn</language><managingEditor>plloningye@gmail.com (Keqi Ye)</managingEditor><webMaster>plloningye@gmail.com (Keqi Ye)</webMaster><copyright>Keqi Ye</copyright><lastBuildDate>Fri, 17 Apr 2026 10:00:00 +0800</lastBuildDate><atom:link href="https://yekq.top/tags/gpu/index.xml" rel="self" type="application/rss+xml"/><item><title>基于应变的孔隙度模型（ε-α 模型）</title><link>https://yekq.top/posts/gasphia/eplison-alpha-porosity-model/</link><pubDate>Fri, 17 Apr 2026 10:00:00 +0800</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://yekq.top/posts/gasphia/eplison-alpha-porosity-model/</guid><description>&lt;h2 id="一模型要解决什么问题">一、模型要解决什么问题？
-&lt;/h2>&lt;p>在冲击（如陨石撞击）或爆炸加载下，多孔材料（砂土、小行星物质、泡沫等）的行为与密实材料完全不同。绝大多数压力用于孔隙的压实过程，而孔隙压实又会大量放热，导致膨胀。总之冲击多孔隙度材质时，有如下特点：&lt;/p>
+&lt;/h2>&lt;p>在冲击（如陨石撞击）或爆炸加载下，多孔材料（砂土、rubble pile等）的行为与密实材料完全不同。绝大多数压力用于孔隙的压实过程，而孔隙压实又会大量放热，导致膨胀。总之冲击多孔隙度材质时，有如下特点：&lt;/p>
 &lt;ul>
 &lt;li>吸收大量能量&lt;/li>
 &lt;li>产生局部高温&lt;/li>
@@ -53,11 +53,6 @@
 &lt;li>&lt;strong>压实速率由应变控制&lt;/strong>：$\mathrm{d}\alpha/\mathrm{d}\epsilon_V$ 不直接依赖压力&lt;/li>
 &lt;li>&lt;strong>先压实、后压固体&lt;/strong>：孔隙完全闭合后才进入固体压缩段&lt;/li>
 &lt;/ol>
-&lt;p>分阶段描述：&lt;/p>
-&lt;ul>
-&lt;li>指数压实段（颗粒重排）&lt;/li>
-&lt;li>幂律压实段（颗粒破碎）&lt;/li>
-&lt;/ul>
 &lt;h2 id="四核心公式">四、核心公式
 &lt;/h2>&lt;p>因为孔隙压实是依靠体积应变驱动的，首先需要了解如何计算体积应变。在 SPH 计算中，体积应变率 $\dot{\epsilon}_V$ 可以通过速度散度来计算：&lt;/p>
 &lt;p>&lt;strong>笛卡尔坐标系下&lt;/strong>：&lt;/p>
@@ -76,7 +71,7 @@ $$
 \frac{d\epsilon_V}{dt} = \left( \frac{d\epsilon_V}{dt} \right)_{\mathrm{total}} - \frac{\Gamma_{s0}}{c_{s0}^2} \frac{dE}{dt}
 $$
 &lt;p>其中，$\left( \frac{d\epsilon_V}{dt} \right)&lt;em>{\mathrm{total}}$ 为由速度散度计算得到的总���变率，$\Gamma&lt;/em>{s0}$ 为基质材料的初始 Grüneisen 参数，$c_{s0}$ 为基质材料的初始体声速，$E$ 为单位质量的内能。&lt;/p>
-&lt;p>在每个时间步中，根据当前的 $epsilon_V$ 判断所处的压实阶段，进而计算对应的 $\alpha$ 值。&lt;/p>
+&lt;p>在每个时间步中，根据当前的 $\epsilon_V$ 判断所处的压实阶段，进而计算对应的 $\alpha$ 值。&lt;/p>
 &lt;h3 id="41-指数压实段主要压实">4.1 指数压实段（主要压实）
 &lt;/h3>&lt;p>当 $\epsilon_V &amp;lt; \epsilon_X$ 时：&lt;/p>
 $$
@@ -109,7 +104,7 @@ $$
 &lt;th>参数&lt;/th>
 &lt;th>物理含义&lt;/th>
 &lt;th>典型范围&lt;/th>
-&lt;th>建议获取方式&lt;/th>
+&lt;th>&lt;/th>
 &lt;/tr>
 &lt;/thead>
 &lt;tbody>
@@ -117,19 +112,19 @@ $$
 &lt;td>$\alpha_0$&lt;/td>
 &lt;td>初始膨胀系数&lt;/td>
 &lt;td>1.0 ~ 2.5&lt;/td>
-&lt;td>已知孔隙度：$\alpha_0 = 1/(1-\phi)$&lt;/td>
+&lt;td>&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td>$\kappa$&lt;/td>
 &lt;td>压实速率&lt;/td>
 &lt;td>0.7 ~ 0.98&lt;/td>
-&lt;td>拟合静态压实实验&lt;/td>
+&lt;td>&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td>$\epsilon_X$&lt;/td>
 &lt;td>过渡应变（指数→幂律）&lt;/td>
 &lt;td>-0.4 ~ -0.2&lt;/td>
-&lt;td>拟合 Hugoniot 或破碎实验&lt;/td>
+&lt;td>&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -141,9 +136,15 @@ $$
 &lt;p>&lt;strong>改进后的模型&lt;/strong>：在引入了热体积应变修正后，模型能够反映出在极高压力下，热膨胀效应甚至会超过机械压缩效应，导致宏观密度不增反降。&lt;/p>
 &lt;h3 id="2-计算结果与图表分析">2. 计算结果与图表分析
 &lt;/h3>&lt;p>在此次验证计算中，我们采用了与文献一致的参数（状态方程采用 Tillotson EOS，孔隙参数设为 $\kappa = 0.98, \epsilon_e = 0, \alpha_0 = 4$），并将我们的 SPH 程序计算结果与文献数据进行了对比。&lt;/p>
-&lt;p>&lt;img src="https://yekq.top/Hugoniot_Academic_Comparison.png"
+&lt;p>&lt;img src="https://yekq.top/posts/gasphia/eplison-alpha-porosity-model/Hugoniot_Academic_Comparison.png"
+width="3000"
+height="2400"
+srcset="https://yekq.top/posts/gasphia/eplison-alpha-porosity-model/Hugoniot_Academic_Comparison_hu1cfaea1a7bf8b66e514cf96cc93c0ea9_298178_480x0_resize_box_3.png 480w, https://yekq.top/posts/gasphia/eplison-alpha-porosity-model/Hugoniot_Academic_Comparison_hu1cfaea1a7bf8b66e514cf96cc93c0ea9_298178_1024x0_resize_box_3.png 1024w"
 loading="lazy"
 alt="Hugoniot曲线对比"
+class="gallery-image"
+data-flex-grow="125"
+data-flex-basis="300px"
 >&lt;/p>
 &lt;p>图：初始孔隙度为 75% 的多孔铁的 Hugoniot 曲线。横轴为密度 (g/cc)，纵轴为压力 (GPa)。&lt;/p>
 &lt;p>通过观察上图，我们可以得出以下清晰的结论：&lt;/p>
