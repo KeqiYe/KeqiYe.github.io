@@ -107,11 +107,10 @@ $$\frac{d\rho}{dt} = \sum_j m_j v_{ij} \cdot \nabla_i W_{ij}$$
 scrolling="no" border="0" frameborder="no" framespacing="0" allowfullscreen="true"
 style="width: 100%; aspect-ratio: 16/9; border-radius: 8px; margin-bottom: 20px;">
 &lt;/iframe>
-&lt;iframe src="//player.bilibili.com/player.html?isOutside=true&amp;bvid=BV1t7DeBiEEv&amp;p=2&amp;high_quality=1&amp;danmaku=0"
-scrolling="no" border="0" frameborder="no" framespacing="0" allowfullscreen="true"
-style="width: 100%; aspect-ratio: 16/9; border-radius: 8px; margin-bottom: 20px;">
-&lt;/iframe>
-&lt;p>The two animations above show simulation results from GASPHiA of a projectile impacting a high-porosity pumice target at 2.58 km/s. The upper animation has kernel correction and the Balsara switch enabled, while the lower animation uses the classical SPH theory. The impact results are consistent with those given in the paper, demonstrating the accuracy of the damage model and P-alpha porosity model implementation in GASPHiA.&lt;/p>
+&lt;p align="center" style="font-size: 0.9em; color: gray; margin-top: -10px; margin-bottom: 20px;">
+&lt;em> In the animation of high-porosity pumice impact simulation (2.58 km/s), completely damaged particles are removed, and only kernel correction is enabled. &lt;/em>
+&lt;/p>
+&lt;p>The animation above shows simulation results from GASPHiA of a projectile impacting a high-porosity pumice target at 2.58 km/s. The impact results are consistent with those given in the paper, demonstrating the accuracy of the damage model and P-alpha porosity model implementation in GASPHiA.&lt;/p>
 &lt;hr>
 &lt;p>GASPHiA implements the P-alpha model described in the following two papers:&lt;/p>
 &lt;ul>
@@ -450,18 +449,18 @@ data-flex-basis="382px"
 &lt;hr>
 &lt;h3 id="72-macroscopic-experiment-comparison">7.2 Macroscopic Experiment Comparison
 &lt;/h3>&lt;p>&lt;img src="https://yekq.top/posts/gasphia/p-alpha-porosity-model/compare.png"
-width="2101"
-height="1934"
-srcset="https://yekq.top/posts/gasphia/p-alpha-porosity-model/compare_hub42f9538e017217e9cbae64569867e58_2164406_480x0_resize_box_3.png 480w, https://yekq.top/posts/gasphia/p-alpha-porosity-model/compare_hub42f9538e017217e9cbae64569867e58_2164406_1024x0_resize_box_3.png 1024w"
+width="3204"
+height="1090"
+srcset="https://yekq.top/posts/gasphia/p-alpha-porosity-model/compare_hu7a518e0164ca7d0f345b86db39d3ade9_1853758_480x0_resize_box_3.png 480w, https://yekq.top/posts/gasphia/p-alpha-porosity-model/compare_hu7a518e0164ca7d0f345b86db39d3ade9_1853758_1024x0_resize_box_3.png 1024w"
 loading="lazy"
 alt="Replication and comparison of impact results from the paper"
 class="gallery-image"
-data-flex-grow="108"
-data-flex-basis="260px"
+data-flex-grow="293"
+data-flex-basis="705px"
 >&lt;/p>
 &lt;ul>
 &lt;li>Figures a, b: Experimental results and benchmark simulation results from Jutzi et al. 2009.&lt;/li>
-&lt;li>Figures c, d: Simulation results from GASPHiA (figure d shows results with kernel correction and Balsara switch enabled, figure c shows results with default configuration).&lt;/li>
+&lt;li>Figure c: Simulation results from GASPHiA.&lt;/li>
 &lt;/ul>
 &lt;blockquote>
 &lt;p>It can be seen that the physical morphology output by GASPHiA highly matches the original experiments and benchmark papers.&lt;/p>
