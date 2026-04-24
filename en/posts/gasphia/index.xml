@@ -89,7 +89,7 @@ data-flex-grow="92"
 data-flex-basis="222px"
 >&lt;/p>
 &lt;p>The Tree Code was first proposed by Barnes and Hut[1], so the tree structure based on their work is typically called the &lt;strong>Barnes-Hut Tree&lt;/strong>. When implementing this data structure for CUDA architecture, GASPHiA draws from the parallel implementation approach in reference [2].&lt;/p>
-&lt;p>However, the method in reference [2] was designed for pure N-body simulations, where the data structure only needs to satisfy the requirements of self-gravity computation. In contrast, the SPH method not only needs to compute self-gravity but also relies on the tree structure for efficient neighbor particle searching. This fundamental difference in requirements leads to significant differences between GASPHiA&amp;rsquo;s final tree code structure and that in reference [2]. The specific differences are mainly reflected in two aspects: first, the management strategy for the number of child nodes in tree nodes; second, the warp voting mechanism during parallel tree traversal — reference [2] only needs to determine the condition for gravitational interaction, while GASPHiA must additionally integrate the logic for neighbor searching.&lt;/p>
+&lt;p>However, the method in reference [2] was designed for pure N-body simulations, where the data structure only needs to satisfy the requirements of self-gravity computation. In contrast, the SPH method not only needs to compute self-gravity but also relies on the tree structure for efficient neighbor particle searching. This fundamental difference in requirements leads to significant differences between GASPHiA&amp;rsquo;s final tree code structure and that in reference [2]. The specific differences are mainly reflected in two aspects: first, the management strategy for the number of child nodes in tree nodes; second, the warp voting mechanism during parallel tree traversal — reference [2] only needs to determine the condition for gravitational interaction, while GASPHiA, as an SPH code, must additionally integrate the logic for neighbor searching.&lt;/p>
 &lt;p>Despite these differences in implementation details, both approaches maintain a high degree of consistency in their core concept of spatial recursive partitioning. Therefore, readers can still use reference [2] as an important reference for understanding the underlying spatial partitioning logic.&lt;/p>
 &lt;h2 id="efficiency-comparison-and-optimization">Efficiency Comparison and Optimization
 &lt;/h2>&lt;h3 id="background">Background
@@ -310,12 +310,12 @@ data-flex-basis="222px"
 &lt;/span>&lt;span class="lnt">18
 &lt;/span>&lt;/code>&lt;/pre>&lt;/td>
 &lt;td class="lntd">
-&lt;pre tabindex="0" class="chroma">&lt;code class="language-bash" data-lang="bash">&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># Regular arrangement (equivalent to sorted)&lt;/span>
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-bash" data-lang="bash">&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># Regular arrangement (equivalent to roughly sorted)&lt;/span>
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">Calculating Gravity on GPU &lt;span class="o">(&lt;/span>Barnes-Hut, &lt;span class="nv">theta&lt;/span>&lt;span class="o">=&lt;/span>0.5&lt;span class="o">)&lt;/span>...
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">--- Gravity Computation Profiling ---
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> resetOctree: 11.6206 ms
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> computeBoundingBox: 0.4268 ms
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> buildTree: 85.4690 ms
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> buildTree: 45.4690 ms
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> computeCoM: 0.1025 ms
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> computeGravity: 2955.5117 ms
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> -------------------------------------
@@ -324,7 +324,7 @@ data-flex-basis="222px"
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">--- Gravity Computation Profiling ---
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> resetOctree: 10.7203 ms
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> computeBoundingBox: 0.4361 ms
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> buildTree: 84.1606 ms
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> buildTree: 44.1606 ms
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> computeCoM: 0.1303 ms
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> computeGravity: 202.4100 ms
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> -------------------------------------
@@ -395,20 +395,22 @@ data-flex-basis="222px"
 &lt;p>From the table, it is clear that after shuffling, &lt;strong>L2 Cache Throughput&lt;/strong> drops from 23.9% to 14.1%, while &lt;strong>DRAM Throughput&lt;/strong> increases from 0.35% to 15.7%. This demonstrates that particle sorting is crucial for improving data locality, fully utilizing L2 cache, and reducing direct VRAM access — directly causing the 15x performance difference.&lt;/p>
 &lt;h3 id="sorting-algorithm">Sorting Algorithm
 &lt;/h3>&lt;p>The previous section&amp;rsquo;s shuffle experiment revealed that &lt;strong>spatial locality&lt;/strong> plays a decisive role in implementing tree algorithms on CUDA. Better locality means that within a single Warp, the 32 threads are more likely to access the same tree nodes when traversing the octree, thereby greatly reducing Warp divergence and pushing L1/L2 cache hit rates to the limit, avoiding massive direct reads/writes to the slow DRAM.&lt;/p>
+&lt;blockquote>
+&lt;p>&lt;strong>Note&lt;/strong>: Although I used the expression &amp;ldquo;reduce Warp divergence (Warp Divergence)&amp;rdquo;, the threads are not actually diverging — they are simply opening too many nodes. In a sense, the inconsistency of &lt;code>mac_satisfied&lt;/code> in warp voting is relatively strong. So I still borrowed the term &amp;ldquo;Warp divergence.&amp;rdquo;&lt;/p>
+&lt;/blockquote>
 &lt;p>However, in actual SPH or N-body simulations, as time progresses, particles violently collide and mix in space, and their indices in the memory array become completely decoupled from their real geometric positions. Therefore, we need to perform efficient spatial sorting after each frame&amp;rsquo;s tree construction.&lt;/p>
 &lt;h4 id="1-core-idea-utilizing-natural-tree-topology-sorting">1. Core Idea: Utilizing Natural Tree Topology Sorting
-&lt;/h4>&lt;p>Since the octree itself is a perfect mesh partitioning of three-dimensional space, reading leaf nodes in the order of tree traversal (e.g., depth-first DFS or breadth-first BFS) yields a particle sequence clustered in three-dimensional space according to &lt;strong>Z-Order (Morton code)&lt;/strong>.&lt;/p>
+&lt;/h4>&lt;p>Since the octree itself is a perfect mesh partitioning of three-dimensional space, reading leaf nodes in the order of tree traversal (e.g., depth-first DFS or breadth-first BFS) yields a particle sequence clustered in three-dimensional space.&lt;/p>
 &lt;h4 id="2-gather-addressing-strategy-sort-indices-only-dont-move-data">2. Gather Addressing Strategy: Sort Indices Only, Don&amp;rsquo;t Move Data
-&lt;/h4>&lt;p>In a system with millions of particles, copying tens of megabytes of particle coordinates (float4 data) back and forth in global memory each time would not only be extremely time-consuming but also consume significant additional memory.&lt;/p>
-&lt;p>To pursue extreme performance, we adopt the &lt;strong>Gather addressing strategy&lt;/strong>:&lt;/p>
+&lt;/h4>&lt;p>In a system with millions of particles, copying tens of megabytes of particle coordinates (float4 data) back and forth in global memory each time would not only be extremely time-consuming but also consume significant additional memory. We adopt the &lt;strong>Gather addressing strategy&lt;/strong>:&lt;/p>
 &lt;ul>
-&lt;li>Do not move the actual particle positions&lt;/li>
+&lt;li>Do not move the actual particle positions in memory&lt;/li>
 &lt;li>Generate a one-dimensional mapping array &lt;code>sort&lt;/code>&lt;/li>
 &lt;li>&lt;code>sort[i]&lt;/code> stores &amp;ldquo;the actual particle number that thread i should process&amp;rdquo;&lt;/li>
 &lt;/ul>
-&lt;p>During subsequent gravity computation, adjacent threads within the same Warp read adjacent values from the &lt;code>sort&lt;/code> array, thus clustering tightly together spatially.&lt;/p>
-&lt;h4 id="3-parallel-top-down-sort">3. Parallel Top-Down Sort
-&lt;/h4>&lt;p>To complete sorting at extreme speed on the GPU, we utilize the &lt;code>count&lt;/code> (subtree particle count) already computed during the tree-building phase, adopting a top-down parallel allocation mechanism. The parent node divides exclusive &amp;ldquo;memory intervals (Start Offset)&amp;rdquo; for each child node in the &lt;code>sort&lt;/code> array based on their &lt;code>count&lt;/code>.&lt;/p>
+&lt;p>During subsequent gravity computation, adjacent threads within the same Warp read adjacent values from the &lt;code>sort&lt;/code> array. This way, particles processed by the same Warp are spatially close, and their tree traversal paths are also likely to be consistent.&lt;/p>
+&lt;h4 id="3-top-down-sort">3. Top-Down Sort
+&lt;/h4>&lt;p>To complete sorting at extreme speed on the GPU, we utilize the &lt;code>count&lt;/code> (subtree particle count) already computed during the tree-building phase, adopting a top-down parallel allocation mechanism. The parent node divides exclusive &amp;ldquo;memory intervals&amp;rdquo; for each child node in the &lt;code>sort&lt;/code> array based on their &lt;code>count&lt;/code>.&lt;/p>
 &lt;h4 id="4-profile-validation">4. Profile Validation
 &lt;/h4>&lt;p>Theoretically, after tree sorting and traversal, path divergence is further reduced because the parent nodes of particles in the same Warp are almost always together. To quantify this improvement, I reduced the particle count to 1 million and performed Profile analysis on the following three computation modes:&lt;/p>
 &lt;table>

@@ -89,7 +89,7 @@ data-flex-grow="92"
 data-flex-basis="222px"
 >&lt;/p>
 &lt;p>Tree Code（树代码）最初由 Barnes 和 Hut 提出[1]，因此基于该文献实现的树结构通常被称为 &lt;strong>Barnes-Hut Tree&lt;/strong>。GASPHiA 在面向 CUDA 架构实现这一数据结构时，借鉴了文献[2]中的并行实现方案。&lt;/p>
-&lt;p>然而，文献[2]的方法直接服务于纯粹的 N 体模拟，其数据结构仅需满足自引力计算的需求；而 SPH 方法除了计算自引力外，还需依赖树结构进行高效的邻近粒子搜索。这一根本性的需求差异，导致 GASPHiA 最终的树代码结构与文献[2]存在显著不同。具体差异主要体现在两个方面：一是树节点中子节点（Child）数量的管理策略；二是在并行遍历树结构时的线程束投票机制——文献[2]仅需判定引力相互作用的条件，而 GASPHiA 必须额外融合邻近搜索的判定逻辑。&lt;/p>
+&lt;p>然而，文献[2]的方法直接服务于纯粹的 N 体模拟，其数据结构仅需满足自引力计算的需求；而 SPH 方法除了计算自引力外，还需依赖树结构进行高效的邻近粒子搜索。这一根本性的需求差异，导致 GASPHiA 最终的树代码结构与文献[2]存在显著不同。具体差异主要体现在两个方面：一是树节点中子节点（Child）数量的管理策略；二是在并行遍历树结构时的线程束投票机制——文献[2]仅需判定引力相互作用的条件，而 GASPHiA 作为SPH代码，必须额外融合邻近搜索的判定逻辑。&lt;/p>
 &lt;p>尽管在实现细节上存在上述分歧，二者在核心的空间递归划分思路上仍保持高度一致。因此，读者仍可将文献[2]作为理解底层空间划分逻辑的重要参考。&lt;/p>
 &lt;h2 id="效率对比与优化">效率对比与优化
 &lt;/h2>&lt;h3 id="背景">背景
@@ -310,12 +310,12 @@ data-flex-basis="222px"
 &lt;/span>&lt;span class="lnt">18
 &lt;/span>&lt;/code>&lt;/pre>&lt;/td>
 &lt;td class="lntd">
-&lt;pre tabindex="0" class="chroma">&lt;code class="language-bash" data-lang="bash">&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># 规则排列（相当于已排序）&lt;/span>
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-bash" data-lang="bash">&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># 规则排列（相当于粗略排序）&lt;/span>
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">Calculating Gravity on GPU &lt;span class="o">(&lt;/span>Barnes-Hut, &lt;span class="nv">theta&lt;/span>&lt;span class="o">=&lt;/span>0.5&lt;span class="o">)&lt;/span>...
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">--- Gravity Computation Profiling ---
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> resetOctree: 11.6206 ms
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> computeBoundingBox: 0.4268 ms
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> buildTree: 85.4690 ms
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> buildTree: 45.4690 ms
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> computeCoM: 0.1025 ms
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> computeGravity: 2955.5117 ms
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">-------------------------------------
@@ -324,7 +324,7 @@ data-flex-basis="222px"
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">--- Gravity Computation Profiling ---
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> resetOctree: 10.7203 ms
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> computeBoundingBox: 0.4361 ms
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> buildTree: 84.1606 ms
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> buildTree: 44.1606 ms
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> computeCoM: 0.1303 ms
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> computeGravity: 202.4100 ms
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">-------------------------------------
@@ -395,20 +395,22 @@ data-flex-basis="222px"
 &lt;p>从表中可以清晰看出，打乱后 &lt;strong>L2 Cache Throughput&lt;/strong> 从 23.9% 降至 14.1%，而 &lt;strong>DRAM Throughput&lt;/strong> 从 0.35% 增至 15.7%。这表明粒子排序对于提升数据局部性、充分利用 L2 缓存、减少显存直接访问至关重要，直接导致了 15 倍的性能差距。&lt;/p>
 &lt;h3 id="排序算法">排序算法
 &lt;/h3>&lt;p>上一小节通过对输入粒子进行 shuffle 发现：在 CUDA 上实现树算法时，粒子的**空间局部性（Spatial Locality）**起着决定性作用。局部性越好，同一个 Warp 内的 32 个线程在遍历八叉树时，就越容易访问相同的树节点，从而大幅减少 Warp 发散（Warp Divergence），并将 L1/L2 缓存的命中率推向极限，避免对极慢的 DRAM 产生大量直接读写。&lt;/p>
+&lt;blockquote>
+&lt;p>&lt;strong>注意&lt;/strong>：这里我虽然用了“减少 Warp 发散（Warp Divergence）”的表达，但其实线程并没有发散，只是打开了过多的节点，某种意义上，相当于warp投票&lt;code>mac_satisfied&lt;/code>的不一致性较强，所以我还是借用了 Warp 发散的说法。&lt;/p>
+&lt;/blockquote>
 &lt;p>然而，在实际的 SPH 或 N-body 模拟中，随着时间的推移，粒子在空间中剧烈碰撞、混合，其在显存数组中的物理索引会与它们真实的几何位置彻底脱节。因此，我们需要在每一帧建树完成后，进行一次高效的空间排序（Spatial Sorting）。&lt;/p>
 &lt;h4 id="1-核心思想利用树拓扑天然排序">1. 核心思想：利用树拓扑天然排序
-&lt;/h4>&lt;p>既然八叉树本身就是对三维空间的完美网格化划分，那么按照遍历树的顺序（例如深度优先 DFS 或广度优先 BFS）依次读取叶子节点，得到的就是在三维空间中按 &lt;strong>Z-Order (Morton 码)&lt;/strong> 聚拢的粒子序列。&lt;/p>
+&lt;/h4>&lt;p>既然八叉树本身就是对三维空间的完美网格化划分，那么按照遍历树的顺序（例如深度优先 DFS 或广度优先 BFS）依次读取叶子节点，得到的就是在三维空间中聚拢的粒子序列。&lt;/p>
 &lt;h4 id="2-gather-寻址策略只排索引不搬数据">2. Gather 寻址策略：只排索引，不搬数据
-&lt;/h4>&lt;p>在拥有数百万粒子的系统中，如果每次都在全局显存中来回拷贝几十 MB 的粒子坐标（float4 数据），不仅极其耗时，还会额外占用大量显存。&lt;/p>
-&lt;p>为了追求极致性能，我们采用 &lt;strong>Gather 寻址策略&lt;/strong>：&lt;/p>
+&lt;/h4>&lt;p>在拥有数百万粒子的系统中，如果每次都在全局显存中来回拷贝几十 MB 的粒子坐标（float4 数据），不仅极其耗时，还会额外占用大量显存。采用 Gather 寻址策略:&lt;/p>
 &lt;ul>
-&lt;li>不移动真实的粒子位置&lt;/li>
+&lt;li>不移动粒子数据在显存中的排布位置&lt;/li>
 &lt;li>生成一个一维的映射数组 &lt;code>sort&lt;/code>&lt;/li>
 &lt;li>&lt;code>sort[i]&lt;/code> 存放的是&amp;quot;第 i 个线程应该去处理的真实粒子编号&amp;quot;&lt;/li>
 &lt;/ul>
-&lt;p>在后续的引力计算中，同一个 Warp 内的相邻线程将读取 &lt;code>sort&lt;/code> 数组中相邻的值，从而在空间上紧密抱团。&lt;/p>
-&lt;h4 id="3-并行自顶向下排序parallel-top-down-sort">3. 并行自顶向下排序（Parallel Top-Down Sort）
-&lt;/h4>&lt;p>为了在 GPU 上极速完成排序，我们利用建树阶段已经统计好的 &lt;code>count&lt;/code>（子树粒子数），采用自顶向下的并行分配机制。父节点会根据各个子节点的 &lt;code>count&lt;/code>，为它们在 &lt;code>sort&lt;/code> 数组中划分好专属的&amp;quot;内存区间（Start Offset）&amp;quot;。&lt;/p>
+&lt;p>在后续的引力计算中，同一个 Warp 内的相邻线程将读取 &lt;code>sort&lt;/code> 数组中相邻的值，这样同一个warp处理的粒子在空间上都相近了，他们遍历树的路径也大概率会一致。&lt;/p>
+&lt;h4 id="3-自顶向下排序">3. 自顶向下排序
+&lt;/h4>&lt;p>为了在 GPU 上极速完成排序，我们利用建树阶段已经统计好的 &lt;code>count&lt;/code>（子树粒子数），采用自顶向下的并行分配机制。父节点会根据各个子节点的 &lt;code>count&lt;/code>，为它们在 &lt;code>sort&lt;/code> 数组中划分好专属的&amp;quot;内存区间&amp;quot;。&lt;/p>
 &lt;h4 id="4-profile-验证">4. Profile 验证
 &lt;/h4>&lt;p>理论上，经过树排序后遍历，路径分化会进一步降低，因为同一个 Warp 的粒子的父节点几乎都在一起。为了量化这种提升，我将粒子数降到 100 万，对以下三种计算模式进行 Profile 分析：&lt;/p>
 &lt;table>
