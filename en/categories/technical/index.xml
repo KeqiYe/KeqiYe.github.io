@@ -455,7 +455,7 @@ data-flex-basis="222px"
 &lt;p>&lt;img src="https://yekq.top/posts/gasphia/treecode/performance_plot_linear.png"
 width="1000"
 height="700"
-srcset="https://yekq.top/posts/gasphia/treecode/performance_plot_linear_hu539062170628300d393e5d25eb7b3f49_79581_480x0_resize_box_3.png 480w, https://yekq.top/posts/gasphia/treecode/performance_plot_linear_hu539062170628300d393e5d25eb7b3f49_79581_1024x0_resize_box_3.png 1024w"
+srcset="https://yekq.top/posts/gasphia/treecode/performance_plot_linear_huafae19ad656c60aef7f71be576aca324_80463_480x0_resize_box_3.png 480w, https://yekq.top/posts/gasphia/treecode/performance_plot_linear_huafae19ad656c60aef7f71be576aca324_80463_1024x0_resize_box_3.png 1024w"
 loading="lazy"
 alt="Performance validation linear scale"
 class="gallery-image"
@@ -465,7 +465,7 @@ data-flex-basis="342px"
 &lt;p>&lt;img src="https://yekq.top/posts/gasphia/treecode/performance_plot.png"
 width="1000"
 height="700"
-srcset="https://yekq.top/posts/gasphia/treecode/performance_plot_hue49e3dc6a5020f801911233046e25d38_93067_480x0_resize_box_3.png 480w, https://yekq.top/posts/gasphia/treecode/performance_plot_hue49e3dc6a5020f801911233046e25d38_93067_1024x0_resize_box_3.png 1024w"
+srcset="https://yekq.top/posts/gasphia/treecode/performance_plot_hu64e62595c1a297bc5695bbbe5a2bbf85_98245_480x0_resize_box_3.png 480w, https://yekq.top/posts/gasphia/treecode/performance_plot_hu64e62595c1a297bc5695bbbe5a2bbf85_98245_1024x0_resize_box_3.png 1024w"
 loading="lazy"
 alt="Performance validation logarithmic scale"
 class="gallery-image"
@@ -491,59 +491,59 @@ data-flex-basis="342px"
 &lt;tbody>
 &lt;tr>
 &lt;td style="text-align:center">0.1&lt;/td>
-&lt;td style="text-align:center">784.28&lt;/td>
-&lt;td style="text-align:center">6.74%&lt;/td>
-&lt;td style="text-align:center">0.0062%&lt;/td>
-&lt;td style="text-align:center">2.19x&lt;/td>
+&lt;td style="text-align:center">181.877&lt;/td>
+&lt;td style="text-align:center">0.00219153&lt;/td>
+&lt;td style="text-align:center">3.27768e-05&lt;/td>
+&lt;td style="text-align:center">7.42231x&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">0.2&lt;/td>
-&lt;td style="text-align:center">182.40&lt;/td>
-&lt;td style="text-align:center">1.86%&lt;/td>
-&lt;td style="text-align:center">0.0038%&lt;/td>
-&lt;td style="text-align:center">9.40x&lt;/td>
+&lt;td style="text-align:center">39.5222&lt;/td>
+&lt;td style="text-align:center">0.00502609&lt;/td>
+&lt;td style="text-align:center">6.86399e-05&lt;/td>
+&lt;td style="text-align:center">34.1566x&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">0.3&lt;/td>
-&lt;td style="text-align:center">73.88&lt;/td>
-&lt;td style="text-align:center">3.51%&lt;/td>
-&lt;td style="text-align:center">0.0099%&lt;/td>
-&lt;td style="text-align:center">23.20x&lt;/td>
+&lt;td style="text-align:center">14.9356&lt;/td>
+&lt;td style="text-align:center">0.0214612&lt;/td>
+&lt;td style="text-align:center">0.00015996&lt;/td>
+&lt;td style="text-align:center">90.3847x&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">0.4&lt;/td>
-&lt;td style="text-align:center">45.52&lt;/td>
-&lt;td style="text-align:center">0.50%&lt;/td>
-&lt;td style="text-align:center">0.0069%&lt;/td>
-&lt;td style="text-align:center">37.65x&lt;/td>
+&lt;td style="text-align:center">8.75622&lt;/td>
+&lt;td style="text-align:center">0.0335255&lt;/td>
+&lt;td style="text-align:center">0.00028779&lt;/td>
+&lt;td style="text-align:center">154.17x&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">0.5&lt;/td>
-&lt;td style="text-align:center">27.18&lt;/td>
-&lt;td style="text-align:center">1.18%&lt;/td>
-&lt;td style="text-align:center">0.0110%&lt;/td>
-&lt;td style="text-align:center">63.05x&lt;/td>
+&lt;td style="text-align:center">5.88032&lt;/td>
+&lt;td style="text-align:center">0.0711218&lt;/td>
+&lt;td style="text-align:center">0.00053247&lt;/td>
+&lt;td style="text-align:center">229.57x&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">0.6&lt;/td>
-&lt;td style="text-align:center">18.05&lt;/td>
-&lt;td style="text-align:center">2.14%&lt;/td>
-&lt;td style="text-align:center">0.0160%&lt;/td>
-&lt;td style="text-align:center">94.96x&lt;/td>
+&lt;td style="text-align:center">4.20147&lt;/td>
+&lt;td style="text-align:center">0.0565245&lt;/td>
+&lt;td style="text-align:center">0.000783245&lt;/td>
+&lt;td style="text-align:center">321.303x&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">0.7&lt;/td>
-&lt;td style="text-align:center">10.86&lt;/td>
-&lt;td style="text-align:center">7.96%&lt;/td>
-&lt;td style="text-align:center">0.0256%&lt;/td>
-&lt;td style="text-align:center">157.76x&lt;/td>
+&lt;td style="text-align:center">3.52717&lt;/td>
+&lt;td style="text-align:center">0.106591&lt;/td>
+&lt;td style="text-align:center">0.00153542&lt;/td>
+&lt;td style="text-align:center">382.728x&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td style="text-align:center">0.8&lt;/td>
-&lt;td style="text-align:center">7.74&lt;/td>
-&lt;td style="text-align:center">3.35%&lt;/td>
-&lt;td style="text-align:center">0.0288%&lt;/td>
-&lt;td style="text-align:center">221.34x&lt;/td>
+&lt;td style="text-align:center">3.21018&lt;/td>
+&lt;td style="text-align:center">0.170889&lt;/td>
+&lt;td style="text-align:center">0.002965&lt;/td>
+&lt;td style="text-align:center">420.521x&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -551,14 +551,14 @@ data-flex-basis="342px"
 &lt;p>&lt;img src="https://yekq.top/posts/gasphia/treecode/Accuracy.png"
 width="1000"
 height="600"
-srcset="https://yekq.top/posts/gasphia/treecode/Accuracy_hu8b4d1f90be589f7398603be89828766d_70678_480x0_resize_box_3.png 480w, https://yekq.top/posts/gasphia/treecode/Accuracy_hu8b4d1f90be589f7398603be89828766d_70678_1024x0_resize_box_3.png 1024w"
+srcset="https://yekq.top/posts/gasphia/treecode/Accuracy_hu2514c82add25ddfeced948d86ddae09b_66968_480x0_resize_box_3.png 480w, https://yekq.top/posts/gasphia/treecode/Accuracy_hu2514c82add25ddfeced948d86ddae09b_66968_1024x0_resize_box_3.png 1024w"
 loading="lazy"
 alt="Accuracy validation"
 class="gallery-image"
 data-flex-grow="166"
 data-flex-basis="400px"
 >&lt;/p>
-&lt;p>&lt;strong>Conclusion&lt;/strong>: As $\theta$ increases, computational accuracy decreases (error increases), but computational speed significantly improves. At $\theta = 0.5$, we can achieve a 63x speedup while maintaining approximately 1% maximum relative error, making it a relatively ideal balance point.&lt;/p>
+&lt;p>&lt;strong>Conclusion&lt;/strong>: As $\theta$ increases, computational accuracy decreases (error increases), but computational speed significantly improves. At $\theta = 0.5$, we can achieve a 200x speedup while maintaining approximately 7% maximum relative error, making it a relatively ideal balance point.&lt;/p>
 &lt;h2 id="references">References
 &lt;/h2>&lt;p>[1] Barnes J, Hut P. A hierarchical O (N log N) force-calculation algorithm. nature. 1986 Dec 4;324(6096):446-9.&lt;/p>
 &lt;p>[2] Burtscher M, Pingali K. An efficient CUDA implementation of the tree-based barnes hut n-body algorithm. In GPU computing Gems Emerald edition 2011 Jan 1 (pp. 75-92). Morgan Kaufmann.&lt;/p></description></item><item><title>Strain-Based Porosity Model (ε-α Model)</title><link>https://yekq.top/en/posts/gasphia/eplison-alpha-porosity-model/</link><pubDate>Fri, 17 Apr 2026 10:00:00 +0800</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://yekq.top/en/posts/gasphia/eplison-alpha-porosity-model/</guid><description>&lt;h2 id="1-what-problem-does-the-model-solve">1. What Problem Does the Model Solve?
