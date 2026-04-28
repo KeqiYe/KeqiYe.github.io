@@ -1,4 +1,11 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>算法优化 on Keqi的博客</title><link>https://yekq.top/tags/%E7%AE%97%E6%B3%95%E4%BC%98%E5%8C%96/</link><description>Recent content in 算法优化 on Keqi的博客</description><generator>Hugo -- gohugo.io</generator><language>zh-cn</language><managingEditor>plloningye@gmail.com (Keqi Ye)</managingEditor><webMaster>plloningye@gmail.com (Keqi Ye)</webMaster><copyright>Keqi Ye</copyright><lastBuildDate>Tue, 07 Apr 2026 14:00:00 +0800</lastBuildDate><atom:link href="https://yekq.top/tags/%E7%AE%97%E6%B3%95%E4%BC%98%E5%8C%96/index.xml" rel="self" type="application/rss+xml"/><item><title>GASPHiA中的自引力树代码效率与优化分析</title><link>https://yekq.top/posts/gasphia/treecode/</link><pubDate>Tue, 07 Apr 2026 14:00:00 +0800</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://yekq.top/posts/gasphia/treecode/</guid><description>&lt;h2 id="为什么需要考虑引力">为什么需要考虑引力？
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>算法优化 on Keqi的博客</title><link>https://yekq.top/tags/%E7%AE%97%E6%B3%95%E4%BC%98%E5%8C%96/</link><description>Recent content in 算法优化 on Keqi的博客</description><generator>Hugo -- gohugo.io</generator><language>zh-cn</language><managingEditor>plloningye@gmail.com (Keqi Ye)</managingEditor><webMaster>plloningye@gmail.com (Keqi Ye)</webMaster><copyright>Keqi Ye</copyright><lastBuildDate>Tue, 07 Apr 2026 14:00:00 +0800</lastBuildDate><atom:link href="https://yekq.top/tags/%E7%AE%97%E6%B3%95%E4%BC%98%E5%8C%96/index.xml" rel="self" type="application/rss+xml"/><item><title>GASPHiA中的自引力树代码效率与优化分析</title><link>https://yekq.top/posts/gasphia/treecode/</link><pubDate>Tue, 07 Apr 2026 14:00:00 +0800</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://yekq.top/posts/gasphia/treecode/</guid><description>&lt;iframe src="//player.bilibili.com/player.html?isOutside=true&amp;aid=116482834958240&amp;bvid=BV1u69yBGEwJ&amp;cid=37919327464&amp;p=1" scrolling="no" border="0" frameborder="no" framespacing="0" allowfullscreen="true">&lt;/iframe>
+&lt;p align="center" style="font-size: 0.9em; color: gray; margin-top: -10px; margin-bottom: 20px;">
+&lt;em> 500万粒子纯引力 N-Body 模拟：星系碰撞产生的潮汐尾结构
+本模拟采用 GASPHiA 的纯 N 体模块实现。初始模型通过开源工具 DICE 构建，包含了完整的暗物质晕（DM Halo）与恒星盘（Stellar Disk）组分。重点展示了在引力相互作用下，星系盘部粒子受扰动演化出典型潮汐尾（Tidal Tails）的过程。&lt;/em>
+&lt;/p>
+&lt;p>上面展示的动画是使用 GASPHiA 模拟弹丸以 2.58 km/s 的速度撞击高孔隙率浮石靶体的模拟结果。撞击结果与论文给出的一致，证明了 GASPHiA 中关于损伤模型和 P-alpha 孔隙度模型实现的准确性。&lt;/p>
+&lt;hr>
+&lt;h2 id="为什么需要考虑引力">为什么需要考虑引力？
 &lt;/h2>&lt;p>在天体物理的 SPH 模拟中，除了撞击过程本身，星体自身的引力对最终结果的影响同样至关重要。这也解释了为什么在模拟固态行星的撞击时，我们往往不引入物质强度模型，而是将其近似为纯粹的流体来处理。对于某些巨型撞击模拟而言，引力的作用不仅体现在模拟过程中需要实时计算引力，甚至在预处理阶段就必须求解泊松方程，以构建一个处于引力平衡状态的初始天体，再将其投入撞击计算。&lt;/p>
 &lt;p>这里所说的引力，即自引力，指的是 SPH 粒子之间由于质量分布而产生的相互吸引力。这与模拟水动力学现象（如溃坝）时所采用的引力模型截然不同——后者仅需为每个粒子统一施加一个指向地面的恒定加速度即可。&lt;/p>
 &lt;h2 id="如何计算自引力为什么需要树代码">如何计算自引力，为什么需要树代码？
@@ -562,14 +569,13 @@ data-flex-basis="400px"
 &lt;h2 id="参考资料">参考资料
 &lt;/h2>&lt;p>[1] Barnes J, Hut P. A hierarchical O (N log N) force-calculation algorithm. nature. 1986 Dec 4;324(6096):446-9.&lt;/p>
 &lt;p>[2] Burtscher M, Pingali K. An efficient CUDA implementation of the tree-based barnes hut n-body algorithm. In GPU computing Gems Emerald edition 2011 Jan 1 (pp. 75-92). Morgan Kaufmann.&lt;/p></description></item><item><title>P-alpha 孔隙度模型的实现与踩坑记录</title><link>https://yekq.top/posts/gasphia/p-alpha-porosity-model/</link><pubDate>Tue, 07 Apr 2026 14:00:00 +0800</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://yekq.top/posts/gasphia/p-alpha-porosity-model/</guid><description>&lt;h1 id="p-alpha-孔隙度模型的实现与踩的一些坑">P-alpha 孔隙度模型的实现与踩的一些坑
-&lt;/h1>&lt;iframe src="//player.bilibili.com/player.html?isOutside=true&amp;bvid=BV1t7DeBiEEv&amp;p=1&amp;high_quality=1&amp;danmaku=0"
+&lt;/h1>&lt;iframe src="https://www.bilibili.com/video/BV1u69yBGEwJ?t=1.5"
 scrolling="no" border="0" frameborder="no" framespacing="0" allowfullscreen="true"
 style="width: 100%; aspect-ratio: 16/9; border-radius: 8px; margin-bottom: 20px;">
 &lt;/iframe>
 &lt;p align="center" style="font-size: 0.9em; color: gray; margin-top: -10px; margin-bottom: 20px;">
 &lt;em> 高孔隙度浮石遭受撞击模拟（2.58 km/s）动画中完全损伤的粒子被移除，模拟只启用了核矫正&lt;/em>
 &lt;/p>
-&lt;p>上面展示的动画是使用 GASPHiA 模拟弹丸以 2.58 km/s 的速度撞击高孔隙率浮石靶体的模拟结果。撞击结果与论文给出的一致，证明了 GASPHiA 中关于损伤模型和 P-alpha 孔隙度模型实现的准确性。&lt;/p>
 &lt;hr>
 &lt;p>GASPHiA 实现了以下两篇论文描述的 P-alpha 模型：&lt;/p>
 &lt;ul>
