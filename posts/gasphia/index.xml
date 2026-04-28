@@ -72,7 +72,9 @@
 &lt;p>[10] Jutzi, M., Benz, W., &amp;amp; Michel, P. (2008). Numerical simulations of impacts involving porous bodies: I. Implementing sub-resolution porosity in a 3D SPH hydrocode. &lt;em>Icarus&lt;/em>, &lt;em>198&lt;/em>(1), 242-255.&lt;/p>
 &lt;p>[11] Bogacki, P., &amp;amp; Shampine, L. F. (1989). A 3(2) pair of Runge-Kutta formulas. &lt;em>Applied Mathematics Letters&lt;/em>, 2(4), 321-325.&lt;/p>
 &lt;h2 id="版权">版权
-&lt;/h2>&lt;p>版权所有 (c) 2025 叶科奇。保留所有权利。&lt;/p></description></item><item><title>GASPHiA中的自引力树代码效率与优化分析</title><link>https://yekq.top/posts/gasphia/treecode/</link><pubDate>Tue, 07 Apr 2026 14:00:00 +0800</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://yekq.top/posts/gasphia/treecode/</guid><description>&lt;iframe src="//player.bilibili.com/player.html?isOutside=true&amp;aid=116482834958240&amp;bvid=BV1u69yBGEwJ&amp;cid=37919327464&amp;p=1" scrolling="no" border="0" frameborder="no" framespacing="0" allowfullscreen="true">&lt;/iframe>
+&lt;/h2>&lt;p>版权所有 (c) 2025 叶科奇。保留所有权利。&lt;/p></description></item><item><title>GASPHiA中的自引力树代码效率与优化分析</title><link>https://yekq.top/posts/gasphia/treecode/</link><pubDate>Tue, 07 Apr 2026 14:00:00 +0800</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://yekq.top/posts/gasphia/treecode/</guid><description>&lt;iframe src="//player.bilibili.com/player.html?isOutside=true&amp;aid=116482834958240&amp;bvid=BV1u69yBGEwJ&amp;cid=37919327464&amp;p=1" scrolling="no" border="0" frameborder="no" framespacing="0" allowfullscreen="true"
+style="width: 100%; aspect-ratio: 16/9; border-radius: 8px; margin-bottom: 20px;">
+&lt;/iframe>
 &lt;p align="center" style="font-size: 0.9em; color: gray; margin-top: -10px; margin-bottom: 20px;">
 &lt;em> 500万粒子纯引力 N-Body 模拟：星系碰撞产生的潮汐尾结构
 本模拟采用 GASPHiA 的纯 N 体模块实现。初始模型通过开源工具 DICE 构建，包含了完整的暗物质晕（DM Halo）与恒星盘（Stellar Disk）组分。重点展示了在引力相互作用下，星系盘部粒子受扰动演化出典型潮汐尾（Tidal Tails）的过程。&lt;/em>
@@ -765,7 +767,7 @@ $$\frac{d\rho_i}{dt} = \sum_j m_j (v_j - v_i) \cdot \nabla_i W(r_{ij}, h)$$
 &lt;li>Monaghan, J. J. (1992). Smoothed particle hydrodynamics. &lt;em>Annual Review of Astronomy and Astrophysics&lt;/em>, 30, 543-574.&lt;/li>
 &lt;li>Liu, G. R., &amp;amp; Liu, M. B. (2003). &lt;em>Smoothed particle hydrodynamics: a meshfree particle method&lt;/em>. World Scientific.&lt;/li>
 &lt;/ol></description></item><item><title>P-alpha 孔隙度模型的实现与踩坑记录</title><link>https://yekq.top/posts/gasphia/p-alpha-porosity-model/</link><pubDate>Tue, 07 Apr 2026 14:00:00 +0800</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://yekq.top/posts/gasphia/p-alpha-porosity-model/</guid><description>&lt;h1 id="p-alpha-孔隙度模型的实现与踩的一些坑">P-alpha 孔隙度模型的实现与踩的一些坑
-&lt;/h1>&lt;iframe src="https://www.bilibili.com/video/BV1u69yBGEwJ?t=1.5"
+&lt;/h1>&lt;iframe src="//player.bilibili.com/player.html?isOutside=true&amp;bvid=BV1t7DeBiEEv&amp;p=1&amp;high_quality=1&amp;danmaku=0"
 scrolling="no" border="0" frameborder="no" framespacing="0" allowfullscreen="true"
 style="width: 100%; aspect-ratio: 16/9; border-radius: 8px; margin-bottom: 20px;">
 &lt;/iframe>
