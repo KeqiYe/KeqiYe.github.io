@@ -1940,4 +1940,188 @@ data-flex-basis="300px"
 >https://github.com/KeqiYe/Zotero-AI-Classifier&lt;/a>&lt;/li>
 &lt;li>Author Profile: &lt;a class="link" href="https://github.com/KeqiYe" target="_blank" rel="noopener"
 >https://github.com/KeqiYe&lt;/a>&lt;/li>
-&lt;/ul></description></item></channel></rss>
+&lt;/ul></description></item><item><title>[Vector Addition] LeetGPU Problem 1 - Detailed Explanation</title><link>https://yekq.top/en/posts/leetgpu/leetgpu-vector-addition/</link><pubDate>Thu, 22 May 2025 00:00:00 +0000</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://yekq.top/en/posts/leetgpu/leetgpu-vector-addition/</guid><description>&lt;h2 id="preface">Preface
+&lt;/h2>&lt;p>This series documents my problem-solving journey on LeetGPU. For each problem, I&amp;rsquo;ll provide the complete approach from basic implementation to optimization. If you&amp;rsquo;re new to CUDA, I recommend familiarizing yourself with:&lt;/p>
+&lt;ul>
+&lt;li>CUDA kernel writing (&lt;code>__global__&lt;/code>)&lt;/li>
+&lt;li>Thread hierarchy (Grid / Block / Thread)&lt;/li>
+&lt;li>Device memory allocation and transfer&lt;/li>
+&lt;/ul>
+&lt;hr>
+&lt;h2 id="problem-description">Problem Description
+&lt;/h2>&lt;p>Given two floating-point arrays A and B, add their corresponding elements and store the result in array C:&lt;/p>
+$$
+C_i = A_i + B_i \quad (i = 0, 1, 2, \dots, N-1)
+$$
+&lt;h3 id="inputoutput">Input/Output
+&lt;/h3>&lt;ul>
+&lt;li>&lt;strong>Input&lt;/strong>: Device pointers &lt;code>A&lt;/code>, &lt;code>B&lt;/code> and data size &lt;code>N&lt;/code>&lt;/li>
+&lt;li>&lt;strong>Output&lt;/strong>: Device pointer &lt;code>C&lt;/code>&lt;/li>
+&lt;/ul>
+&lt;hr>
+&lt;h2 id="solution-v0-basic-implementation">Solution v0: Basic Implementation
+&lt;/h2>&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;span class="lnt">2
+&lt;/span>&lt;span class="lnt">3
+&lt;/span>&lt;span class="lnt">4
+&lt;/span>&lt;span class="lnt">5
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-gdscript3" data-lang="gdscript3">&lt;span class="line">&lt;span class="cl">&lt;span class="n">__global__&lt;/span> &lt;span class="n">void&lt;/span> &lt;span class="n">vector_add_v0&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="k">const&lt;/span> &lt;span class="ne">float&lt;/span>&lt;span class="o">*&lt;/span> &lt;span class="n">A&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="k">const&lt;/span> &lt;span class="ne">float&lt;/span>&lt;span class="o">*&lt;/span> &lt;span class="n">B&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="ne">float&lt;/span>&lt;span class="o">*&lt;/span> &lt;span class="n">C&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="ne">int&lt;/span> &lt;span class="n">N&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="ne">int&lt;/span> &lt;span class="n">idx&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">blockDim&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">x&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">blockIdx&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">x&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">threadIdx&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">x&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">if&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">idx&lt;/span> &lt;span class="o">&amp;lt;&lt;/span> &lt;span class="n">N&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">C&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">idx&lt;/span>&lt;span class="p">]&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">A&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">idx&lt;/span>&lt;span class="p">]&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">B&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">idx&lt;/span>&lt;span class="p">];&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;h3 id="code-analysis">Code Analysis
+&lt;/h3>&lt;ul>
+&lt;li>Each thread handles one element addition&lt;/li>
+&lt;li>One-dimensional thread layout: &lt;code>blockDim.x * blockIdx.x + threadIdx.x&lt;/code> computes global index&lt;/li>
+&lt;li>Boundary check &lt;code>if (idx &amp;lt; N)&lt;/code> prevents out-of-bounds access&lt;/li>
+&lt;/ul>
+&lt;h3 id="performance-characteristics">Performance Characteristics
+&lt;/h3>&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:left">Advantages&lt;/th>
+&lt;th style="text-align:left">Disadvantages&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:left">Clean implementation, easy to understand&lt;/td>
+&lt;td style="text-align:left">Grid configuration tightly coupled with data size&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">Naturally parallel, no data dependencies&lt;/td>
+&lt;td style="text-align:left">Excessive threads increase scheduling overhead&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">Coalesced memory access&lt;/td>
+&lt;td style="text-align:left">&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;hr>
+&lt;h2 id="optimization-1-grid-stride-loop">Optimization 1: Grid-Stride Loop
+&lt;/h2>&lt;p>v0&amp;rsquo;s problem is &lt;strong>grid configuration tightly coupled with data size&lt;/strong>. To achieve optimal Occupancy, we typically want to fix the launch thread count based on device SM count. Grid-Stride Loop perfectly decouples the two:&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;span class="lnt">2
+&lt;/span>&lt;span class="lnt">3
+&lt;/span>&lt;span class="lnt">4
+&lt;/span>&lt;span class="lnt">5
+&lt;/span>&lt;span class="lnt">6
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-gdscript3" data-lang="gdscript3">&lt;span class="line">&lt;span class="cl">&lt;span class="n">__global__&lt;/span> &lt;span class="n">void&lt;/span> &lt;span class="n">vector_add_v1&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="k">const&lt;/span> &lt;span class="ne">float&lt;/span>&lt;span class="o">*&lt;/span> &lt;span class="n">A&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="k">const&lt;/span> &lt;span class="ne">float&lt;/span>&lt;span class="o">*&lt;/span> &lt;span class="n">B&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="ne">float&lt;/span>&lt;span class="o">*&lt;/span> &lt;span class="n">C&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="ne">int&lt;/span> &lt;span class="n">N&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="ne">int&lt;/span> &lt;span class="n">idx&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">blockDim&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">x&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">blockIdx&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">x&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">threadIdx&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">x&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="ne">int&lt;/span> &lt;span class="n">step&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">blockDim&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">x&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">gridDim&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">x&lt;/span>&lt;span class="p">;&lt;/span> &lt;span class="o">//&lt;/span> &lt;span class="n">total&lt;/span> &lt;span class="n">thread&lt;/span> &lt;span class="n">count&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">for&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="ne">int&lt;/span> &lt;span class="n">i&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">idx&lt;/span>&lt;span class="p">;&lt;/span> &lt;span class="n">i&lt;/span> &lt;span class="o">&amp;lt;&lt;/span> &lt;span class="n">N&lt;/span>&lt;span class="p">;&lt;/span> &lt;span class="n">i&lt;/span> &lt;span class="o">+=&lt;/span> &lt;span class="n">step&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">C&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">i&lt;/span>&lt;span class="p">]&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">A&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">i&lt;/span>&lt;span class="p">]&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">B&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">i&lt;/span>&lt;span class="p">];&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;h3 id="core-concept">Core Concept
+&lt;/h3>&lt;ul>
+&lt;li>Each thread processes multiple data elements, stride = total thread count&lt;/li>
+&lt;li>Any launch configuration can process all data&lt;/li>
+&lt;li>Can even degrade to &lt;code>&amp;lt;&amp;lt;&amp;lt;1, 1&amp;gt;&amp;gt;&amp;gt;&lt;/code> for serial execution&lt;/li>
+&lt;/ul>
+&lt;hr>
+&lt;h2 id="optimization-2-vectorized-loading">Optimization 2: Vectorized Loading
+&lt;/h2>&lt;p>Further reduce loop overhead by processing 4 elements at once:&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;span class="lnt">11
+&lt;/span>&lt;span class="lnt">12
+&lt;/span>&lt;span class="lnt">13
+&lt;/span>&lt;span class="lnt">14
+&lt;/span>&lt;span class="lnt">15
+&lt;/span>&lt;span class="lnt">16
+&lt;/span>&lt;span class="lnt">17
+&lt;/span>&lt;span class="lnt">18
+&lt;/span>&lt;span class="lnt">19
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-gdscript3" data-lang="gdscript3">&lt;span class="line">&lt;span class="cl">&lt;span class="n">__global__&lt;/span> &lt;span class="n">void&lt;/span> &lt;span class="n">vector_add_v2&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="k">const&lt;/span> &lt;span class="ne">float&lt;/span>&lt;span class="o">*&lt;/span> &lt;span class="n">A&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="k">const&lt;/span> &lt;span class="ne">float&lt;/span>&lt;span class="o">*&lt;/span> &lt;span class="n">B&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="ne">float&lt;/span>&lt;span class="o">*&lt;/span> &lt;span class="n">C&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="ne">int&lt;/span> &lt;span class="n">N&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="ne">int&lt;/span> &lt;span class="n">idx&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">blockDim&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">x&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">blockIdx&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">x&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">threadIdx&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">x&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="ne">int&lt;/span> &lt;span class="n">step&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">blockDim&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">x&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">gridDim&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">x&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">const&lt;/span> &lt;span class="n">float4&lt;/span>&lt;span class="o">*&lt;/span> &lt;span class="n">a4&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="k">const&lt;/span> &lt;span class="n">float4&lt;/span>&lt;span class="o">*&lt;/span>&lt;span class="p">)&lt;/span>&lt;span class="n">A&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">const&lt;/span> &lt;span class="n">float4&lt;/span>&lt;span class="o">*&lt;/span> &lt;span class="n">b4&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="k">const&lt;/span> &lt;span class="n">float4&lt;/span>&lt;span class="o">*&lt;/span>&lt;span class="p">)&lt;/span>&lt;span class="n">B&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">float4&lt;/span>&lt;span class="o">*&lt;/span> &lt;span class="n">c4&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">float4&lt;/span>&lt;span class="o">*&lt;/span>&lt;span class="p">)&lt;/span>&lt;span class="n">C&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="ne">int&lt;/span> &lt;span class="n">N4&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">N&lt;/span> &lt;span class="o">/&lt;/span> &lt;span class="mi">4&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">for&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="ne">int&lt;/span> &lt;span class="n">i&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">idx&lt;/span>&lt;span class="p">;&lt;/span> &lt;span class="n">i&lt;/span> &lt;span class="o">&amp;lt;&lt;/span> &lt;span class="n">N4&lt;/span>&lt;span class="p">;&lt;/span> &lt;span class="n">i&lt;/span> &lt;span class="o">+=&lt;/span> &lt;span class="n">step&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">float4&lt;/span> &lt;span class="n">at&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">a4&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">i&lt;/span>&lt;span class="p">];&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">float4&lt;/span> &lt;span class="n">bt&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">b4&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">i&lt;/span>&lt;span class="p">];&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">c4&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">i&lt;/span>&lt;span class="p">]&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">make_float4&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">at&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">x&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">bt&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">x&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">at&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">y&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">bt&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">y&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">at&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">z&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">bt&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">z&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">at&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">w&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">bt&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">w&lt;/span>&lt;span class="p">);&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">//&lt;/span> &lt;span class="n">Handle&lt;/span> &lt;span class="n">remaining&lt;/span> &lt;span class="n">tail&lt;/span> &lt;span class="n">elements&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="ne">int&lt;/span> &lt;span class="n">tail&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="mi">4&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">N4&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">for&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="ne">int&lt;/span> &lt;span class="n">i&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">idx&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">tail&lt;/span>&lt;span class="p">;&lt;/span> &lt;span class="n">i&lt;/span> &lt;span class="o">&amp;lt;&lt;/span> &lt;span class="n">N&lt;/span>&lt;span class="p">;&lt;/span> &lt;span class="n">i&lt;/span> &lt;span class="o">+=&lt;/span> &lt;span class="n">step&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">C&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">i&lt;/span>&lt;span class="p">]&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">A&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">i&lt;/span>&lt;span class="p">]&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">B&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">i&lt;/span>&lt;span class="p">];&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;h3 id="performance-improvement">Performance Improvement
+&lt;/h3>&lt;p>In v1, processing 4 elements requires 4 loops, 4 boundary checks, and 4 stride increments. v2 needs only 1 loop, significantly reducing ALU and instruction issue overhead.&lt;/p>
+&lt;h3 id="performance-comparison">Performance Comparison
+&lt;/h3>&lt;blockquote>
+&lt;p>N = (1 &amp;laquo; 28) + 3&lt;/p>
+&lt;/blockquote>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:left">Version&lt;/th>
+&lt;th style="text-align:left">Total Instructions&lt;/th>
+&lt;th style="text-align:left">Relative to v0&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:left">v0&lt;/td>
+&lt;td style="text-align:left">268,435,456&lt;/td>
+&lt;td style="text-align:left">100% (baseline)&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">v1&lt;/td>
+&lt;td style="text-align:left">139,657,216&lt;/td>
+&lt;td style="text-align:left">📉 48% reduction&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">v2&lt;/td>
+&lt;td style="text-align:left">48,758,784&lt;/td>
+&lt;td style="text-align:left">📉 82% reduction&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;blockquote>
+&lt;p>Since this kernel is completely memory-bandwidth bound, instruction count reduction doesn&amp;rsquo;t improve execution time. However, for compute-intensive kernels, v2 is expected to bring significant performance gains.&lt;/p>
+&lt;/blockquote>
+&lt;hr>
+&lt;h2 id="summary">Summary
+&lt;/h2>&lt;p>This problem is an entry-level GPU parallel computing question. Key points:&lt;/p>
+&lt;ol>
+&lt;li>&lt;strong>Index Calculation&lt;/strong> - Master one-dimensional thread index mapping&lt;/li>
+&lt;li>&lt;strong>Boundary Check&lt;/strong> - Prevent out-of-bounds access&lt;/li>
+&lt;li>&lt;strong>Coalesced Access&lt;/strong> - Consecutive threads access consecutive memory&lt;/li>
+&lt;li>&lt;strong>Grid-Stride Loop&lt;/strong> - Decouple grid configuration from data size&lt;/li>
+&lt;li>&lt;strong>Vectorization&lt;/strong> - Reduce loop overhead&lt;/li>
+&lt;/ol>
+&lt;p>More complex optimization techniques will be introduced on this basis.&lt;/p></description></item></channel></rss>
