@@ -1127,15 +1127,15 @@ data-flex-basis="705px"
 &lt;blockquote>
 &lt;p>可以看到，GASPHiA 输出的物理形态与原始实验及基准论文高度吻合。&lt;/p>
 &lt;/blockquote>
-&lt;p>&lt;img src="https://yekq.top/posts/gasphia/p-alpha-porosity-model/porous_cm.png"
-width="472"
-height="372"
-srcset="https://yekq.top/posts/gasphia/p-alpha-porosity-model/porous_cm_hu390938432d188224f48d787e440b4964_41680_480x0_resize_box_3.png 480w, https://yekq.top/posts/gasphia/p-alpha-porosity-model/porous_cm_hu390938432d188224f48d787e440b4964_41680_1024x0_resize_box_3.png 1024w"
+&lt;p>&lt;img src="https://yekq.top/posts/gasphia/p-alpha-porosity-model/Figure_1.png"
+width="1501"
+height="956"
+srcset="https://yekq.top/posts/gasphia/p-alpha-porosity-model/Figure_1_hu696b0284888b441cdd995793feab828e_80804_480x0_resize_box_3.png 480w, https://yekq.top/posts/gasphia/p-alpha-porosity-model/Figure_1_hu696b0284888b441cdd995793feab828e_80804_1024x0_resize_box_3.png 1024w"
 loading="lazy"
 alt="碎片质量累积分布曲线对比"
 class="gallery-image"
-data-flex-grow="126"
-data-flex-basis="304px"
+data-flex-grow="157"
+data-flex-basis="376px"
 >&lt;/p>
 &lt;p>对撞击结果进行后处理分析，提取碎片累积质量分布数据：&lt;/p>
 &lt;blockquote>
