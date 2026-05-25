@@ -1,0 +1,846 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Matrix Multiplication on Keqi's blog</title><link>https://yekq.top/en/tags/matrix-multiplication/</link><description>Recent content in Matrix Multiplication on Keqi's blog</description><generator>Hugo -- gohugo.io</generator><language>en</language><managingEditor>plloningye@gmail.com (Keqi Ye)</managingEditor><webMaster>plloningye@gmail.com (Keqi Ye)</webMaster><copyright>Keqi Ye</copyright><lastBuildDate>Mon, 25 May 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://yekq.top/en/tags/matrix-multiplication/index.xml" rel="self" type="application/rss+xml"/><item><title>[Matrix Multiplication] LeetGPU Problem 2 - From Naive CUDA to 2D Register Blocking</title><link>https://yekq.top/en/posts/leetgpu/leetgpu-matrix-multiplication/</link><pubDate>Mon, 25 May 2026 00:00:00 +0000</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://yekq.top/en/posts/leetgpu/leetgpu-matrix-multiplication/</guid><description>&lt;h2 id="preface">Preface
+&lt;/h2>&lt;p>If vector addition is the most natural first CUDA exercise, then matrix multiplication is almost certainly the second. Vector addition teaches us how to scale a scalar operation across a large number of threads. Matrix multiplication, however, forces us to confront the deeper questions in GPU programming: how threads should be mapped to data, why memory access patterns directly shape throughput, what shared memory is really solving, and how to keep pushing performance once a kernel is already correct.&lt;/p>
+&lt;p>Matrix multiplication is also a classic for a more practical reason: it is not just a tutorial toy. Many deep learning operators and linear algebra routines can ultimately be traced back to GEMM, or General Matrix Multiplication. That is why the optimization ideas here have strong transfer value. The coalesced access patterns, tiling strategy, and register blocking techniques discussed in this article will show up again in convolutions, attention kernels, tensor transforms, and many other CUDA workloads that may look unrelated at first glance.&lt;/p>
+&lt;p>This article is based on my current solution for LeetGPU Problem 2. The discussion follows a clear progression:&lt;/p>
+&lt;ol>
+&lt;li>Start from the most naive version and establish a correct but slow baseline.&lt;/li>
+&lt;li>Fix the thread mapping so that warp memory access becomes more reasonable.&lt;/li>
+&lt;li>Introduce shared-memory tiling to replace repeated global loads with block-level reuse.&lt;/li>
+&lt;li>Push further with 1D and 2D register blocking to increase per-thread compute density.&lt;/li>
+&lt;/ol>
+&lt;p>To make the discussion complete, I include two sets of benchmarks: a regular-size case &lt;code>1024 x 512 x 1024&lt;/code>, and a non-multiple-of-32 case &lt;code>1001 x 513 x 777&lt;/code>. The first is useful for observing raw performance trends, while the second is better for verifying that tail handling and boundary correctness are truly in good shape.&lt;/p>
+&lt;hr>
+&lt;h2 id="problem-description">Problem Description
+&lt;/h2>&lt;p>The task is straightforward: given two matrices&lt;/p>
+&lt;ul>
+&lt;li>&lt;code>A&lt;/code> with shape &lt;code>M x K&lt;/code>&lt;/li>
+&lt;li>&lt;code>B&lt;/code> with shape &lt;code>K x N&lt;/code>&lt;/li>
+&lt;/ul>
+&lt;p>compute their product&lt;/p>
+$$
+C = A \times B
+$$
+&lt;p>From the element-wise point of view, every value &lt;code>C[row][col]&lt;/code> in the output matrix is a dot product of length &lt;code>K&lt;/code>:&lt;/p>
+$$
+C_{row,col} = \sum_{i=0}^{K-1} A_{row,i} \cdot B_{i,col}
+$$
+&lt;p>So at its core, this problem asks: how do we let thousands of threads cooperate on these dot products while minimizing wasteful memory traffic and maximizing throughput?&lt;/p>
+&lt;h3 id="input--output">Input / Output
+&lt;/h3>&lt;ul>
+&lt;li>&lt;strong>Input&lt;/strong>: device matrices &lt;code>A&lt;/code>, &lt;code>B&lt;/code>, and matrix sizes &lt;code>M&lt;/code>, &lt;code>N&lt;/code>, &lt;code>K&lt;/code>&lt;/li>
+&lt;li>&lt;strong>Output&lt;/strong>: device matrix &lt;code>C&lt;/code>&lt;/li>
+&lt;/ul>
+&lt;hr>
+&lt;h2 id="test-environment-and-timing-method">Test Environment and Timing Method
+&lt;/h2>&lt;p>The performance numbers in this article come from actual runs on a real machine:&lt;/p>
+&lt;ul>
+&lt;li>GPU: &lt;code>NVIDIA GeForce RTX 4090&lt;/code>&lt;/li>
+&lt;li>CUDA Toolkit: &lt;code>12.6&lt;/code>&lt;/li>
+&lt;li>Driver: &lt;code>575.64.03&lt;/code>&lt;/li>
+&lt;li>Compile command: &lt;code>/usr/local/cuda-12.6/bin/nvcc mm.cu -lcublas -O3 -o mm&lt;/code>&lt;/li>
+&lt;/ul>
+&lt;p>The benchmark logic is also fairly standard:&lt;/p>
+&lt;ol>
+&lt;li>Compute a reference result &lt;code>h_ref&lt;/code> on the CPU.&lt;/li>
+&lt;li>Warm up each version once so first-launch overhead does not pollute the final measurement.&lt;/li>
+&lt;li>Run each kernel 10 times and take the average.&lt;/li>
+&lt;li>Copy the GPU result back and compare it element by element against the CPU reference.&lt;/li>
+&lt;/ol>
+&lt;p>In other words, each version discussed below is expected to satisfy both of these conditions:&lt;/p>
+&lt;ul>
+&lt;li>&lt;strong>The result is correct&lt;/strong>&lt;/li>
+&lt;li>&lt;strong>The performance actually improves&lt;/strong>&lt;/li>
+&lt;/ul>
+&lt;hr>
+&lt;h2 id="v0-the-most-naive-implementation">v0: The Most Naive Implementation
+&lt;/h2>&lt;p>Here is the first version:&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;span class="lnt">11
+&lt;/span>&lt;span class="lnt">12
+&lt;/span>&lt;span class="lnt">13
+&lt;/span>&lt;span class="lnt">14
+&lt;/span>&lt;span class="lnt">15
+&lt;/span>&lt;span class="lnt">16
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-gdscript3" data-lang="gdscript3">&lt;span class="line">&lt;span class="cl">&lt;span class="n">__global__&lt;/span> &lt;span class="n">void&lt;/span> &lt;span class="n">matmul_v0&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="k">const&lt;/span> &lt;span class="ne">float&lt;/span> &lt;span class="o">*&lt;/span>&lt;span class="n">A&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="k">const&lt;/span> &lt;span class="ne">float&lt;/span> &lt;span class="o">*&lt;/span>&lt;span class="n">B&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="ne">float&lt;/span> &lt;span class="o">*&lt;/span>&lt;span class="n">C&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="ne">int&lt;/span> &lt;span class="n">M&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="ne">int&lt;/span> &lt;span class="n">N&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="ne">int&lt;/span> &lt;span class="n">K&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">//&lt;/span> &lt;span class="n">v0&lt;/span> &lt;span class="n">intentionally&lt;/span> &lt;span class="n">keeps&lt;/span> &lt;span class="n">the&lt;/span> &lt;span class="n">worse&lt;/span> &lt;span class="n">thread&lt;/span> &lt;span class="n">mapping&lt;/span> &lt;span class="n">as&lt;/span> &lt;span class="n">a&lt;/span> &lt;span class="n">baseline&lt;/span> &lt;span class="k">for&lt;/span> &lt;span class="n">later&lt;/span> &lt;span class="n">optimization&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="ne">int&lt;/span> &lt;span class="n">row&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">blockIdx&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">x&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">blockDim&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">x&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">threadIdx&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">x&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="ne">int&lt;/span> &lt;span class="n">col&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">blockIdx&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">y&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">blockDim&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">y&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">threadIdx&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">y&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">if&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">row&lt;/span> &lt;span class="o">&amp;lt;&lt;/span> &lt;span class="n">M&lt;/span> &lt;span class="o">&amp;amp;&amp;amp;&lt;/span> &lt;span class="n">col&lt;/span> &lt;span class="o">&amp;lt;&lt;/span> &lt;span class="n">N&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="ne">float&lt;/span> &lt;span class="n">sum&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="mf">0.0&lt;/span>&lt;span class="n">f&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">for&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="ne">int&lt;/span> &lt;span class="n">i&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="mi">0&lt;/span>&lt;span class="p">;&lt;/span> &lt;span class="n">i&lt;/span> &lt;span class="o">&amp;lt;&lt;/span> &lt;span class="n">K&lt;/span>&lt;span class="p">;&lt;/span> &lt;span class="n">i&lt;/span>&lt;span class="o">++&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">//&lt;/span> &lt;span class="n">Compute&lt;/span> &lt;span class="n">the&lt;/span> &lt;span class="n">dot&lt;/span> &lt;span class="n">product&lt;/span> &lt;span class="k">for&lt;/span> &lt;span class="n">C&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">row&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">col&lt;/span>&lt;span class="p">]&lt;/span> &lt;span class="n">term&lt;/span> &lt;span class="n">by&lt;/span> &lt;span class="n">term&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">sum&lt;/span> &lt;span class="o">+=&lt;/span> &lt;span class="n">A&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">row&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">K&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">i&lt;/span>&lt;span class="p">]&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">B&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">i&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">N&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">col&lt;/span>&lt;span class="p">];&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">C&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">row&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">N&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">col&lt;/span>&lt;span class="p">]&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">sum&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>Logically, this version is very easy to understand. Each thread computes one output element, identifies its &lt;code>(row, col)&lt;/code> coordinate, and performs a plain reduction over the &lt;code>K&lt;/code> dimension. That simplicity is a real advantage: even without much CUDA background, it is easy to read and reason about. As a first step toward a working solution, this is a perfectly natural place to begin.&lt;/p>
+&lt;p>But once we look at it from the GPU&amp;rsquo;s perspective, the weakness becomes obvious. Here &lt;code>threadIdx.x&lt;/code> is mapped to &lt;code>row&lt;/code>, while &lt;code>threadIdx.y&lt;/code> is mapped to &lt;code>col&lt;/code>. That means threads within a warp do not naturally march across a row of the output matrix &lt;code>C&lt;/code>; instead, they are distributed in a way that is much less friendly to memory layout. The direct consequence is that reads from matrix &lt;code>B&lt;/code> are poorly aligned for coalescing.&lt;/p>
+&lt;p>More specifically, the inner loop repeatedly accesses&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-fallback" data-lang="fallback">&lt;span class="line">&lt;span class="cl">B[i * N + col]
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>If &lt;code>col&lt;/code> is not changing in a contiguous way across the warp, those loads become fragmented. For a kernel like matrix multiplication, which is already extremely sensitive to bandwidth and memory access behavior, this immediately suppresses the performance ceiling.&lt;/p>
+&lt;h3 id="v0-performance">v0 Performance
+&lt;/h3>&lt;p>For the regular-size case &lt;code>1024 x 512 x 1024&lt;/code>, &lt;code>v0&lt;/code> delivers:&lt;/p>
+&lt;ul>
+&lt;li>Average time: &lt;code>1.744 ms&lt;/code>&lt;/li>
+&lt;li>Throughput: &lt;code>615.76 GFLOPS&lt;/code>&lt;/li>
+&lt;li>Relative to cuBLAS: &lt;code>2.32%&lt;/code>&lt;/li>
+&lt;/ul>
+&lt;p>For the irregular-size case &lt;code>1001 x 513 x 777&lt;/code>, &lt;code>v0&lt;/code> delivers:&lt;/p>
+&lt;ul>
+&lt;li>Average time: &lt;code>0.406 ms&lt;/code>&lt;/li>
+&lt;li>Throughput: &lt;code>1964.43 GFLOPS&lt;/code>&lt;/li>
+&lt;li>Relative to cuBLAS: &lt;code>12.15%&lt;/code>&lt;/li>
+&lt;/ul>
+&lt;p>Its performance is clearly poor, which tells us that parallelizing the math alone is not enough. Memory access behavior by itself is already enough to drag throughput down dramatically.&lt;/p>
+&lt;hr>
+&lt;h2 id="v1-fix-the-thread-mapping-so-warps-expand-along-rows">v1: Fix the Thread Mapping so Warps Expand Along Rows
+&lt;/h2>&lt;p>The second version looks like this:&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;span class="lnt">11
+&lt;/span>&lt;span class="lnt">12
+&lt;/span>&lt;span class="lnt">13
+&lt;/span>&lt;span class="lnt">14
+&lt;/span>&lt;span class="lnt">15
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-gdscript3" data-lang="gdscript3">&lt;span class="line">&lt;span class="cl">&lt;span class="n">__global__&lt;/span> &lt;span class="n">void&lt;/span> &lt;span class="n">matmul_v1&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="k">const&lt;/span> &lt;span class="ne">float&lt;/span> &lt;span class="o">*&lt;/span>&lt;span class="n">A&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="k">const&lt;/span> &lt;span class="ne">float&lt;/span> &lt;span class="o">*&lt;/span>&lt;span class="n">B&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="ne">float&lt;/span> &lt;span class="o">*&lt;/span>&lt;span class="n">C&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="ne">int&lt;/span> &lt;span class="n">M&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="ne">int&lt;/span> &lt;span class="n">N&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="ne">int&lt;/span> &lt;span class="n">K&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">//&lt;/span> &lt;span class="n">Map&lt;/span> &lt;span class="n">x&lt;/span> &lt;span class="n">to&lt;/span> &lt;span class="n">columns&lt;/span> &lt;span class="ow">and&lt;/span> &lt;span class="n">y&lt;/span> &lt;span class="n">to&lt;/span> &lt;span class="n">rows&lt;/span> &lt;span class="n">to&lt;/span> &lt;span class="n">better&lt;/span> &lt;span class="n">match&lt;/span> &lt;span class="n">row&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="n">major&lt;/span> &lt;span class="n">contiguous&lt;/span> &lt;span class="n">access&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="ne">int&lt;/span> &lt;span class="n">col&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">blockIdx&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">x&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">blockDim&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">x&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">threadIdx&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">x&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="ne">int&lt;/span> &lt;span class="n">row&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">blockIdx&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">y&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">blockDim&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">y&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">threadIdx&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">y&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">if&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">row&lt;/span> &lt;span class="o">&amp;lt;&lt;/span> &lt;span class="n">M&lt;/span> &lt;span class="o">&amp;amp;&amp;amp;&lt;/span> &lt;span class="n">col&lt;/span> &lt;span class="o">&amp;lt;&lt;/span> &lt;span class="n">N&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="ne">float&lt;/span> &lt;span class="n">sum&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="mf">0.0&lt;/span>&lt;span class="n">f&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">for&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="ne">int&lt;/span> &lt;span class="n">i&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="mi">0&lt;/span>&lt;span class="p">;&lt;/span> &lt;span class="n">i&lt;/span> &lt;span class="o">&amp;lt;&lt;/span> &lt;span class="n">K&lt;/span>&lt;span class="p">;&lt;/span> &lt;span class="n">i&lt;/span>&lt;span class="o">++&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">sum&lt;/span> &lt;span class="o">+=&lt;/span> &lt;span class="n">A&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">row&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">K&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">i&lt;/span>&lt;span class="p">]&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">B&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">i&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">N&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">col&lt;/span>&lt;span class="p">];&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">C&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">row&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">N&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">col&lt;/span>&lt;span class="p">]&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">sum&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>Compared with &lt;code>v0&lt;/code>, this change looks almost trivial. We do not add shared memory, we do not change the amount of arithmetic, and we do not change the block size. We simply swap how &lt;code>row&lt;/code> and &lt;code>col&lt;/code> are mapped.&lt;/p>
+&lt;p>And yet this tiny adjustment matters a lot. Threads within the same warp now expand much more naturally along a row of the output matrix. As a result:&lt;/p>
+&lt;ul>
+&lt;li>Reads of &lt;code>B[i * N + col]&lt;/code> are much more likely to be contiguous.&lt;/li>
+&lt;li>Writes to &lt;code>C[row * N + col]&lt;/code> also become contiguous.&lt;/li>
+&lt;/ul>
+&lt;p>This is one of the most important lessons in CUDA optimization. Sometimes the biggest early win is not a fancy new memory level or instruction primitive; it is simply making sure that thread layout follows memory layout. You could say that &lt;code>v1&lt;/code> is significant not because the kernel becomes more complicated, but because the thread organization finally starts working with the hardware instead of against it.&lt;/p>
+&lt;h3 id="v1-performance">v1 Performance
+&lt;/h3>&lt;p>For &lt;code>1024 x 512 x 1024&lt;/code>:&lt;/p>
+&lt;ul>
+&lt;li>Average time: &lt;code>0.216 ms&lt;/code>&lt;/li>
+&lt;li>Throughput: &lt;code>4973.53 GFLOPS&lt;/code>&lt;/li>
+&lt;li>Relative to cuBLAS: &lt;code>18.76%&lt;/code>&lt;/li>
+&lt;/ul>
+&lt;p>For &lt;code>1001 x 513 x 777&lt;/code>:&lt;/p>
+&lt;ul>
+&lt;li>Average time: &lt;code>0.191 ms&lt;/code>&lt;/li>
+&lt;li>Throughput: &lt;code>4186.53 GFLOPS&lt;/code>&lt;/li>
+&lt;li>Relative to cuBLAS: &lt;code>25.88%&lt;/code>&lt;/li>
+&lt;/ul>
+&lt;p>What makes this step so striking is that it adds almost no implementation complexity, yet improves performance by roughly an order of magnitude. For CUDA beginners, that is a valuable reminder: before reaching for shared memory, tensor cores, or warp-level tricks, it is often worth checking whether the thread mapping itself is already working in the right direction.&lt;/p>
+&lt;hr>
+&lt;h2 id="v2-shared-memory-tiling-turns-repeated-loads-into-block-level-reuse">v2: Shared-Memory Tiling Turns Repeated Loads into Block-Level Reuse
+&lt;/h2>&lt;p>The third version enters one of the most classic steps in GEMM optimization: shared-memory tiling.&lt;/p>
+&lt;p>Here is the full kernel:&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;span class="lnt">11
+&lt;/span>&lt;span class="lnt">12
+&lt;/span>&lt;span class="lnt">13
+&lt;/span>&lt;span class="lnt">14
+&lt;/span>&lt;span class="lnt">15
+&lt;/span>&lt;span class="lnt">16
+&lt;/span>&lt;span class="lnt">17
+&lt;/span>&lt;span class="lnt">18
+&lt;/span>&lt;span class="lnt">19
+&lt;/span>&lt;span class="lnt">20
+&lt;/span>&lt;span class="lnt">21
+&lt;/span>&lt;span class="lnt">22
+&lt;/span>&lt;span class="lnt">23
+&lt;/span>&lt;span class="lnt">24
+&lt;/span>&lt;span class="lnt">25
+&lt;/span>&lt;span class="lnt">26
+&lt;/span>&lt;span class="lnt">27
+&lt;/span>&lt;span class="lnt">28
+&lt;/span>&lt;span class="lnt">29
+&lt;/span>&lt;span class="lnt">30
+&lt;/span>&lt;span class="lnt">31
+&lt;/span>&lt;span class="lnt">32
+&lt;/span>&lt;span class="lnt">33
+&lt;/span>&lt;span class="lnt">34
+&lt;/span>&lt;span class="lnt">35
+&lt;/span>&lt;span class="lnt">36
+&lt;/span>&lt;span class="lnt">37
+&lt;/span>&lt;span class="lnt">38
+&lt;/span>&lt;span class="lnt">39
+&lt;/span>&lt;span class="lnt">40
+&lt;/span>&lt;span class="lnt">41
+&lt;/span>&lt;span class="lnt">42
+&lt;/span>&lt;span class="lnt">43
+&lt;/span>&lt;span class="lnt">44
+&lt;/span>&lt;span class="lnt">45
+&lt;/span>&lt;span class="lnt">46
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-gdscript3" data-lang="gdscript3">&lt;span class="line">&lt;span class="cl">&lt;span class="n">template&lt;/span> &lt;span class="o">&amp;lt;&lt;/span>&lt;span class="ne">int&lt;/span> &lt;span class="n">TILE_WIDTH&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">__global__&lt;/span> &lt;span class="n">void&lt;/span> &lt;span class="n">matmul_v2&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="k">const&lt;/span> &lt;span class="ne">float&lt;/span> &lt;span class="o">*&lt;/span>&lt;span class="n">A&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="k">const&lt;/span> &lt;span class="ne">float&lt;/span> &lt;span class="o">*&lt;/span>&lt;span class="n">B&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="ne">float&lt;/span> &lt;span class="o">*&lt;/span>&lt;span class="n">C&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="ne">int&lt;/span> &lt;span class="n">M&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="ne">int&lt;/span> &lt;span class="n">N&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="ne">int&lt;/span> &lt;span class="n">K&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">__shared__&lt;/span> &lt;span class="ne">float&lt;/span> &lt;span class="n">ads&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">TILE_WIDTH&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">TILE_WIDTH&lt;/span>&lt;span class="p">];&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">__shared__&lt;/span> &lt;span class="ne">float&lt;/span> &lt;span class="n">bds&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">TILE_WIDTH&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">TILE_WIDTH&lt;/span>&lt;span class="p">];&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="ne">int&lt;/span> &lt;span class="n">bx&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">blockIdx&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">x&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="ne">int&lt;/span> &lt;span class="n">by&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">blockIdx&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">y&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="ne">int&lt;/span> &lt;span class="n">tx&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">threadIdx&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">x&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="ne">int&lt;/span> &lt;span class="n">ty&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">threadIdx&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">y&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="ne">int&lt;/span> &lt;span class="n">row&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">by&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">TILE_WIDTH&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">ty&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="ne">int&lt;/span> &lt;span class="n">col&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">bx&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">TILE_WIDTH&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">tx&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="ne">float&lt;/span> &lt;span class="n">sum&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="mf">0.0&lt;/span>&lt;span class="n">f&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">for&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="ne">int&lt;/span> &lt;span class="n">ph&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="mi">0&lt;/span>&lt;span class="p">;&lt;/span> &lt;span class="n">ph&lt;/span> &lt;span class="o">&amp;lt;&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">K&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">TILE_WIDTH&lt;/span> &lt;span class="o">-&lt;/span> &lt;span class="mi">1&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">/&lt;/span> &lt;span class="n">TILE_WIDTH&lt;/span>&lt;span class="p">;&lt;/span> &lt;span class="o">++&lt;/span>&lt;span class="n">ph&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">//&lt;/span> &lt;span class="n">Load&lt;/span> &lt;span class="n">one&lt;/span> &lt;span class="n">tile&lt;/span> &lt;span class="n">of&lt;/span> &lt;span class="n">A&lt;/span> &lt;span class="n">into&lt;/span> &lt;span class="n">shared&lt;/span> &lt;span class="n">memory&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">padding&lt;/span> &lt;span class="n">with&lt;/span> &lt;span class="n">zeros&lt;/span> &lt;span class="k">if&lt;/span> &lt;span class="n">needed&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">if&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">row&lt;/span> &lt;span class="o">&amp;lt;&lt;/span> &lt;span class="n">M&lt;/span> &lt;span class="o">&amp;amp;&amp;amp;&lt;/span> &lt;span class="n">tx&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">ph&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">TILE_WIDTH&lt;/span> &lt;span class="o">&amp;lt;&lt;/span> &lt;span class="n">K&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">ads&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">ty&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">blockDim&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">x&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">tx&lt;/span>&lt;span class="p">]&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">A&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">row&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">K&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">ph&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">blockDim&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">x&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">tx&lt;/span>&lt;span class="p">];&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">else&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">ads&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">ty&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">blockDim&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">x&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">tx&lt;/span>&lt;span class="p">]&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="mf">0.0&lt;/span>&lt;span class="n">f&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">//&lt;/span> &lt;span class="n">Load&lt;/span> &lt;span class="n">one&lt;/span> &lt;span class="n">tile&lt;/span> &lt;span class="n">of&lt;/span> &lt;span class="n">B&lt;/span> &lt;span class="n">into&lt;/span> &lt;span class="n">shared&lt;/span> &lt;span class="n">memory&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">also&lt;/span> &lt;span class="n">padding&lt;/span> &lt;span class="n">with&lt;/span> &lt;span class="n">zeros&lt;/span> &lt;span class="n">when&lt;/span> &lt;span class="n">out&lt;/span> &lt;span class="n">of&lt;/span> &lt;span class="nb">range&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">if&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">col&lt;/span> &lt;span class="o">&amp;lt;&lt;/span> &lt;span class="n">N&lt;/span> &lt;span class="o">&amp;amp;&amp;amp;&lt;/span> &lt;span class="n">ty&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">ph&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">TILE_WIDTH&lt;/span> &lt;span class="o">&amp;lt;&lt;/span> &lt;span class="n">K&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">bds&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">ty&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">TILE_WIDTH&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">tx&lt;/span>&lt;span class="p">]&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">B&lt;/span>&lt;span class="p">[(&lt;/span>&lt;span class="n">ph&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">blockDim&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">y&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">threadIdx&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">y&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">N&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">col&lt;/span>&lt;span class="p">];&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">else&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">bds&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">ty&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">TILE_WIDTH&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">tx&lt;/span>&lt;span class="p">]&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="mf">0.0&lt;/span>&lt;span class="n">f&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">__syncthreads&lt;/span>&lt;span class="p">();&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">for&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="ne">int&lt;/span> &lt;span class="n">k&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="mi">0&lt;/span>&lt;span class="p">;&lt;/span> &lt;span class="n">k&lt;/span> &lt;span class="o">&amp;lt;&lt;/span> &lt;span class="n">TILE_WIDTH&lt;/span>&lt;span class="p">;&lt;/span> &lt;span class="o">++&lt;/span>&lt;span class="n">k&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">//&lt;/span> &lt;span class="n">Perform&lt;/span> &lt;span class="n">this&lt;/span> &lt;span class="n">phase&lt;/span> &lt;span class="n">of&lt;/span> &lt;span class="n">multiplication&lt;/span> &lt;span class="n">on&lt;/span> &lt;span class="n">shared&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="n">memory&lt;/span> &lt;span class="n">tiles&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">sum&lt;/span> &lt;span class="o">+=&lt;/span> &lt;span class="n">ads&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">ty&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">TILE_WIDTH&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">k&lt;/span>&lt;span class="p">]&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">bds&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">k&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">TILE_WIDTH&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">tx&lt;/span>&lt;span class="p">];&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">__syncthreads&lt;/span>&lt;span class="p">();&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">if&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">row&lt;/span> &lt;span class="o">&amp;lt;&lt;/span> &lt;span class="n">M&lt;/span> &lt;span class="o">&amp;amp;&amp;amp;&lt;/span> &lt;span class="n">col&lt;/span> &lt;span class="o">&amp;lt;&lt;/span> &lt;span class="n">N&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">C&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">row&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">N&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">col&lt;/span>&lt;span class="p">]&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">sum&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>The core idea here is to replace the pattern of &amp;ldquo;every multiply-add fetches fresh data from global memory&amp;rdquo; with &amp;ldquo;the block cooperatively loads a tile once, then reuses it many times.&amp;rdquo; This works because matrix multiplication naturally has data reuse. Within one output tile, a slice of &lt;code>A&lt;/code> and a slice of &lt;code>B&lt;/code> are used by many threads in the block. If every thread independently fetches the same values from global memory, the waste is enormous.&lt;/p>
+&lt;p>The structure of &lt;code>v2&lt;/code> is the standard one:&lt;/p>
+&lt;ol>
+&lt;li>Each block corresponds to one tile of the output matrix.&lt;/li>
+&lt;li>In each phase &lt;code>ph&lt;/code>, the block loads one sub-tile of &lt;code>A&lt;/code> and one sub-tile of &lt;code>B&lt;/code> into shared memory.&lt;/li>
+&lt;li>&lt;code>__syncthreads()&lt;/code> ensures that every thread sees the complete tile.&lt;/li>
+&lt;li>The multiply-add work for that phase is then performed inside shared memory.&lt;/li>
+&lt;/ol>
+&lt;p>So the main point of &lt;code>v2&lt;/code> is not to reduce FLOPs, but to improve data reuse and reduce pressure on global memory bandwidth. There is also an important engineering detail here: when loading tiles from &lt;code>A&lt;/code> and &lt;code>B&lt;/code>, the kernel explicitly checks boundaries and pads out-of-range elements with zeros. That prevents garbage values from entering shared memory when matrix dimensions are not divisible by the tile size.&lt;/p>
+&lt;h3 id="v2-performance">v2 Performance
+&lt;/h3>&lt;p>For &lt;code>1024 x 512 x 1024&lt;/code>:&lt;/p>
+&lt;ul>
+&lt;li>Average time: &lt;code>0.174 ms&lt;/code>&lt;/li>
+&lt;li>Throughput: &lt;code>6156.44 GFLOPS&lt;/code>&lt;/li>
+&lt;li>Relative to cuBLAS: &lt;code>23.23%&lt;/code>&lt;/li>
+&lt;/ul>
+&lt;p>For &lt;code>1001 x 513 x 777&lt;/code>:&lt;/p>
+&lt;ul>
+&lt;li>Average time: &lt;code>0.160 ms&lt;/code>&lt;/li>
+&lt;li>Throughput: &lt;code>4985.70 GFLOPS&lt;/code>&lt;/li>
+&lt;li>Relative to cuBLAS: &lt;code>30.83%&lt;/code>&lt;/li>
+&lt;/ul>
+&lt;p>Compared with &lt;code>v1&lt;/code>, the gain here is no longer as dramatic as the jump from &lt;code>v0&lt;/code> to &lt;code>v1&lt;/code>, but its significance is just as real. From this point on, we are no longer merely fixing thread layout; we are starting to redesign the dataflow in a way that matches GPU architecture much more closely.&lt;/p>
+&lt;hr>
+&lt;h2 id="v3-1d-register-blocking-lets-one-thread-compute-more-outputs">v3: 1D Register Blocking Lets One Thread Compute More Outputs
+&lt;/h2>&lt;p>Shared-memory tiling solves block-level data reuse, but it still assumes each thread is responsible for only a small number of outputs. The next natural step is to increase the amount of work done by each thread, so that data already loaded into registers can be reused more effectively.&lt;/p>
+&lt;p>That is the main idea behind &lt;code>v3&lt;/code>. Here is the full code:&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;span class="lnt">11
+&lt;/span>&lt;span class="lnt">12
+&lt;/span>&lt;span class="lnt">13
+&lt;/span>&lt;span class="lnt">14
+&lt;/span>&lt;span class="lnt">15
+&lt;/span>&lt;span class="lnt">16
+&lt;/span>&lt;span class="lnt">17
+&lt;/span>&lt;span class="lnt">18
+&lt;/span>&lt;span class="lnt">19
+&lt;/span>&lt;span class="lnt">20
+&lt;/span>&lt;span class="lnt">21
+&lt;/span>&lt;span class="lnt">22
+&lt;/span>&lt;span class="lnt">23
+&lt;/span>&lt;span class="lnt">24
+&lt;/span>&lt;span class="lnt">25
+&lt;/span>&lt;span class="lnt">26
+&lt;/span>&lt;span class="lnt">27
+&lt;/span>&lt;span class="lnt">28
+&lt;/span>&lt;span class="lnt">29
+&lt;/span>&lt;span class="lnt">30
+&lt;/span>&lt;span class="lnt">31
+&lt;/span>&lt;span class="lnt">32
+&lt;/span>&lt;span class="lnt">33
+&lt;/span>&lt;span class="lnt">34
+&lt;/span>&lt;span class="lnt">35
+&lt;/span>&lt;span class="lnt">36
+&lt;/span>&lt;span class="lnt">37
+&lt;/span>&lt;span class="lnt">38
+&lt;/span>&lt;span class="lnt">39
+&lt;/span>&lt;span class="lnt">40
+&lt;/span>&lt;span class="lnt">41
+&lt;/span>&lt;span class="lnt">42
+&lt;/span>&lt;span class="lnt">43
+&lt;/span>&lt;span class="lnt">44
+&lt;/span>&lt;span class="lnt">45
+&lt;/span>&lt;span class="lnt">46
+&lt;/span>&lt;span class="lnt">47
+&lt;/span>&lt;span class="lnt">48
+&lt;/span>&lt;span class="lnt">49
+&lt;/span>&lt;span class="lnt">50
+&lt;/span>&lt;span class="lnt">51
+&lt;/span>&lt;span class="lnt">52
+&lt;/span>&lt;span class="lnt">53
+&lt;/span>&lt;span class="lnt">54
+&lt;/span>&lt;span class="lnt">55
+&lt;/span>&lt;span class="lnt">56
+&lt;/span>&lt;span class="lnt">57
+&lt;/span>&lt;span class="lnt">58
+&lt;/span>&lt;span class="lnt">59
+&lt;/span>&lt;span class="lnt">60
+&lt;/span>&lt;span class="lnt">61
+&lt;/span>&lt;span class="lnt">62
+&lt;/span>&lt;span class="lnt">63
+&lt;/span>&lt;span class="lnt">64
+&lt;/span>&lt;span class="lnt">65
+&lt;/span>&lt;span class="lnt">66
+&lt;/span>&lt;span class="lnt">67
+&lt;/span>&lt;span class="lnt">68
+&lt;/span>&lt;span class="lnt">69
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-gdscript3" data-lang="gdscript3">&lt;span class="line">&lt;span class="cl">&lt;span class="n">template&lt;/span> &lt;span class="o">&amp;lt;&lt;/span>&lt;span class="ne">int&lt;/span> &lt;span class="n">BM&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="ne">int&lt;/span> &lt;span class="n">BN&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="ne">int&lt;/span> &lt;span class="n">BK&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="ne">int&lt;/span> &lt;span class="n">TN&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">__global__&lt;/span> &lt;span class="n">void&lt;/span> &lt;span class="n">matmul_v3_1d&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="k">const&lt;/span> &lt;span class="ne">float&lt;/span> &lt;span class="o">*&lt;/span>&lt;span class="n">A&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="k">const&lt;/span> &lt;span class="ne">float&lt;/span> &lt;span class="o">*&lt;/span>&lt;span class="n">B&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="ne">float&lt;/span> &lt;span class="o">*&lt;/span>&lt;span class="n">C&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="ne">int&lt;/span> &lt;span class="n">M&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="ne">int&lt;/span> &lt;span class="n">N&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="ne">int&lt;/span> &lt;span class="n">K&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">__shared__&lt;/span> &lt;span class="ne">float&lt;/span> &lt;span class="n">ads&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">BM&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">BK&lt;/span>&lt;span class="p">];&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">__shared__&lt;/span> &lt;span class="ne">float&lt;/span> &lt;span class="n">bds&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">BK&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">BN&lt;/span>&lt;span class="p">];&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">//&lt;/span> &lt;span class="n">Each&lt;/span> &lt;span class="n">thread&lt;/span> &lt;span class="n">accumulates&lt;/span> &lt;span class="n">TN&lt;/span> &lt;span class="n">output&lt;/span> &lt;span class="n">elements&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="ne">float&lt;/span> &lt;span class="n">accumulators&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">TN&lt;/span>&lt;span class="p">]&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">{&lt;/span>&lt;span class="mf">0.0&lt;/span>&lt;span class="n">f&lt;/span>&lt;span class="p">};&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="ne">float&lt;/span> &lt;span class="n">b_frag&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">TN&lt;/span>&lt;span class="p">];&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="ne">float&lt;/span> &lt;span class="n">a_frag&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">for&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="ne">int&lt;/span> &lt;span class="n">ph&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="mi">0&lt;/span>&lt;span class="p">;&lt;/span> &lt;span class="n">ph&lt;/span> &lt;span class="o">&amp;lt;&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">K&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">BK&lt;/span> &lt;span class="o">-&lt;/span> &lt;span class="mi">1&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">/&lt;/span> &lt;span class="n">BK&lt;/span>&lt;span class="p">;&lt;/span> &lt;span class="n">ph&lt;/span>&lt;span class="o">++&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="ne">int&lt;/span> &lt;span class="n">a_begin_row&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">BM&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">blockIdx&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">y&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="ne">int&lt;/span> &lt;span class="n">a_begin_col&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">ph&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">BK&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="ne">int&lt;/span> &lt;span class="n">tid&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">threadIdx&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">y&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">blockDim&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">x&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">threadIdx&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">x&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">for&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="ne">int&lt;/span> &lt;span class="n">i&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="mi">0&lt;/span>&lt;span class="p">;&lt;/span> &lt;span class="n">i&lt;/span> &lt;span class="o">&amp;lt;&lt;/span> &lt;span class="n">BM&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">BK&lt;/span> &lt;span class="o">/&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">blockDim&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">x&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">blockDim&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">y&lt;/span>&lt;span class="p">);&lt;/span> &lt;span class="o">++&lt;/span>&lt;span class="n">i&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="ne">int&lt;/span> &lt;span class="n">ads_row&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">i&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">blockDim&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">x&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">blockDim&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">y&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">tid&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">/&lt;/span> &lt;span class="n">BK&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="ne">int&lt;/span> &lt;span class="n">ads_col&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">i&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">blockDim&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">x&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">blockDim&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">y&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">tid&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">%&lt;/span> &lt;span class="n">BK&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">if&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">a_begin_row&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">ads_row&lt;/span> &lt;span class="o">&amp;lt;&lt;/span> &lt;span class="n">M&lt;/span> &lt;span class="o">&amp;amp;&amp;amp;&lt;/span> &lt;span class="n">a_begin_col&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">ads_col&lt;/span> &lt;span class="o">&amp;lt;&lt;/span> &lt;span class="n">K&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">ads&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">ads_row&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">BK&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">ads_col&lt;/span>&lt;span class="p">]&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">A&lt;/span>&lt;span class="p">[(&lt;/span>&lt;span class="n">a_begin_row&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">ads_row&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">K&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">a_begin_col&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">ads_col&lt;/span>&lt;span class="p">];&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">else&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">ads&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">ads_row&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">BK&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">ads_col&lt;/span>&lt;span class="p">]&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="mf">0.0&lt;/span>&lt;span class="n">f&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="ne">int&lt;/span> &lt;span class="n">b_begin_col&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">BN&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">blockIdx&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">x&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="ne">int&lt;/span> &lt;span class="n">b_begin_row&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">ph&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">BK&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">for&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="ne">int&lt;/span> &lt;span class="n">i&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="mi">0&lt;/span>&lt;span class="p">;&lt;/span> &lt;span class="n">i&lt;/span> &lt;span class="o">&amp;lt;&lt;/span> &lt;span class="n">BK&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">BN&lt;/span> &lt;span class="o">/&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">blockDim&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">x&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">blockDim&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">y&lt;/span>&lt;span class="p">);&lt;/span> &lt;span class="o">++&lt;/span>&lt;span class="n">i&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="ne">int&lt;/span> &lt;span class="n">bds_row&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">i&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">blockDim&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">x&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">blockDim&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">y&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">tid&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">/&lt;/span> &lt;span class="n">BN&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="ne">int&lt;/span> &lt;span class="n">bds_col&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">i&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">blockDim&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">x&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">blockDim&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">y&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">tid&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">%&lt;/span> &lt;span class="n">BN&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">if&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">b_begin_col&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">bds_col&lt;/span> &lt;span class="o">&amp;lt;&lt;/span> &lt;span class="n">N&lt;/span> &lt;span class="o">&amp;amp;&amp;amp;&lt;/span> &lt;span class="n">b_begin_row&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">bds_row&lt;/span> &lt;span class="o">&amp;lt;&lt;/span> &lt;span class="n">K&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">bds&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">bds_row&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">BN&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">bds_col&lt;/span>&lt;span class="p">]&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">B&lt;/span>&lt;span class="p">[(&lt;/span>&lt;span class="n">b_begin_row&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">bds_row&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">N&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">b_begin_col&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">bds_col&lt;/span>&lt;span class="p">];&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">else&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">bds&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">bds_row&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">BN&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">bds_col&lt;/span>&lt;span class="p">]&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="mf">0.0&lt;/span>&lt;span class="n">f&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">__syncthreads&lt;/span>&lt;span class="p">();&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="ne">int&lt;/span> &lt;span class="n">tx&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">threadIdx&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">x&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="ne">int&lt;/span> &lt;span class="n">ty&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">threadIdx&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">y&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">for&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="ne">int&lt;/span> &lt;span class="n">k&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="mi">0&lt;/span>&lt;span class="p">;&lt;/span> &lt;span class="n">k&lt;/span> &lt;span class="o">&amp;lt;&lt;/span> &lt;span class="n">BK&lt;/span>&lt;span class="p">;&lt;/span> &lt;span class="n">k&lt;/span>&lt;span class="o">++&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">//&lt;/span> &lt;span class="n">Load&lt;/span> &lt;span class="n">one&lt;/span> &lt;span class="n">A&lt;/span> &lt;span class="n">scalar&lt;/span> &lt;span class="ow">and&lt;/span> &lt;span class="n">TN&lt;/span> &lt;span class="n">B&lt;/span> &lt;span class="n">values&lt;/span> &lt;span class="n">to&lt;/span> &lt;span class="n">form&lt;/span> &lt;span class="n">a&lt;/span> &lt;span class="mi">1&lt;/span>&lt;span class="n">D&lt;/span> &lt;span class="n">blocked&lt;/span> &lt;span class="n">update&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">a_frag&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">ads&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">ty&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">BK&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">k&lt;/span>&lt;span class="p">];&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">for&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="ne">int&lt;/span> &lt;span class="n">bij&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="mi">0&lt;/span>&lt;span class="p">;&lt;/span> &lt;span class="n">bij&lt;/span> &lt;span class="o">&amp;lt;&lt;/span> &lt;span class="n">TN&lt;/span>&lt;span class="p">;&lt;/span> &lt;span class="n">bij&lt;/span>&lt;span class="o">++&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">b_frag&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">bij&lt;/span>&lt;span class="p">]&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">bds&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">k&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">BN&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">tx&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">TN&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">bij&lt;/span>&lt;span class="p">];&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">for&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="ne">int&lt;/span> &lt;span class="n">compute&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="mi">0&lt;/span>&lt;span class="p">;&lt;/span> &lt;span class="n">compute&lt;/span> &lt;span class="o">&amp;lt;&lt;/span> &lt;span class="n">TN&lt;/span>&lt;span class="p">;&lt;/span> &lt;span class="n">compute&lt;/span>&lt;span class="o">++&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">accumulators&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">compute&lt;/span>&lt;span class="p">]&lt;/span> &lt;span class="o">+=&lt;/span> &lt;span class="n">a_frag&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">b_frag&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">compute&lt;/span>&lt;span class="p">];&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">__syncthreads&lt;/span>&lt;span class="p">();&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="ne">int&lt;/span> &lt;span class="n">global_col&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">blockDim&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">x&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">blockIdx&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">x&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">threadIdx&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">x&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">TN&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="ne">int&lt;/span> &lt;span class="n">global_row&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">blockDim&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">y&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">blockIdx&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">y&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">threadIdx&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">y&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">for&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="ne">int&lt;/span> &lt;span class="n">compute&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="mi">0&lt;/span>&lt;span class="p">;&lt;/span> &lt;span class="n">compute&lt;/span> &lt;span class="o">&amp;lt;&lt;/span> &lt;span class="n">TN&lt;/span>&lt;span class="p">;&lt;/span> &lt;span class="n">compute&lt;/span>&lt;span class="o">++&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">//&lt;/span> &lt;span class="n">Fixed&lt;/span> &lt;span class="n">tail&lt;/span> &lt;span class="n">write&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="n">back&lt;/span> &lt;span class="n">logic&lt;/span> &lt;span class="n">so&lt;/span> &lt;span class="n">irregular&lt;/span> &lt;span class="n">sizes&lt;/span> &lt;span class="n">are&lt;/span> &lt;span class="n">handled&lt;/span> &lt;span class="n">correctly&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">if&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">global_row&lt;/span> &lt;span class="o">&amp;lt;&lt;/span> &lt;span class="n">M&lt;/span> &lt;span class="o">&amp;amp;&amp;amp;&lt;/span> &lt;span class="n">global_col&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">compute&lt;/span> &lt;span class="o">&amp;lt;&lt;/span> &lt;span class="n">N&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">C&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">global_row&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">N&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">global_col&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">compute&lt;/span>&lt;span class="p">]&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">accumulators&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">compute&lt;/span>&lt;span class="p">];&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>The key change here is that each thread is now responsible for &lt;code>TN = 4&lt;/code> output elements along the column direction. The immediate payoff is that once a thread loads &lt;code>a_frag&lt;/code> from shared memory into a register, it can multiply that value against four different &lt;code>b_frag&lt;/code> values right away. In other words, the same &lt;code>A&lt;/code> element becomes more valuable while it resides in registers.&lt;/p>
+&lt;p>Intuitively, &lt;code>v2&lt;/code> is mostly about helping the block share data efficiently, while &lt;code>v3&lt;/code> starts going one level deeper and helps each thread consume that shared data more efficiently.&lt;/p>
+&lt;p>Another important point is the boundary condition used in the write-back phase:&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-fallback" data-lang="fallback">&lt;span class="line">&lt;span class="cl">if (global_row &amp;lt; M &amp;amp;&amp;amp; global_col + compute &amp;lt; N)
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>This matters because when the matrix width &lt;code>N&lt;/code> is not a multiple of &lt;code>TN&lt;/code>, the last thread group may be responsible for four output positions of which only one, two, or three are valid. If we only checked &lt;code>global_col &amp;lt; N&lt;/code>, it would be easy to write past the valid range or store incorrect tail values.&lt;/p>
+&lt;h3 id="v3-performance">v3 Performance
+&lt;/h3>&lt;p>For &lt;code>1024 x 512 x 1024&lt;/code>:&lt;/p>
+&lt;ul>
+&lt;li>Average time: &lt;code>0.098 ms&lt;/code>&lt;/li>
+&lt;li>Throughput: &lt;code>11001.81 GFLOPS&lt;/code>&lt;/li>
+&lt;li>Relative to cuBLAS: &lt;code>41.51%&lt;/code>&lt;/li>
+&lt;/ul>
+&lt;p>For &lt;code>1001 x 513 x 777&lt;/code>:&lt;/p>
+&lt;ul>
+&lt;li>Average time: &lt;code>0.097 ms&lt;/code>&lt;/li>
+&lt;li>Throughput: &lt;code>8236.99 GFLOPS&lt;/code>&lt;/li>
+&lt;li>Relative to cuBLAS: &lt;code>50.93%&lt;/code>&lt;/li>
+&lt;/ul>
+&lt;p>From the benchmark results, &lt;code>v3&lt;/code> is another very visible step upward. At this point, we are no longer just making memory access sane; we are also raising arithmetic intensity at the thread level in a meaningful way.&lt;/p>
+&lt;hr>
+&lt;h2 id="v4-2d-register-blocking-pushes-per-thread-compute-density-even-further">v4: 2D Register Blocking Pushes Per-Thread Compute Density Even Further
+&lt;/h2>&lt;p>If &lt;code>v3&lt;/code> means &amp;ldquo;one thread computes several outputs in one direction,&amp;rdquo; then &lt;code>v4&lt;/code> goes one step further and gives each thread a full &lt;code>TM x TN&lt;/code> local tile.&lt;/p>
+&lt;p>Here is the complete kernel:&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;span class="lnt">11
+&lt;/span>&lt;span class="lnt">12
+&lt;/span>&lt;span class="lnt">13
+&lt;/span>&lt;span class="lnt">14
+&lt;/span>&lt;span class="lnt">15
+&lt;/span>&lt;span class="lnt">16
+&lt;/span>&lt;span class="lnt">17
+&lt;/span>&lt;span class="lnt">18
+&lt;/span>&lt;span class="lnt">19
+&lt;/span>&lt;span class="lnt">20
+&lt;/span>&lt;span class="lnt">21
+&lt;/span>&lt;span class="lnt">22
+&lt;/span>&lt;span class="lnt">23
+&lt;/span>&lt;span class="lnt">24
+&lt;/span>&lt;span class="lnt">25
+&lt;/span>&lt;span class="lnt">26
+&lt;/span>&lt;span class="lnt">27
+&lt;/span>&lt;span class="lnt">28
+&lt;/span>&lt;span class="lnt">29
+&lt;/span>&lt;span class="lnt">30
+&lt;/span>&lt;span class="lnt">31
+&lt;/span>&lt;span class="lnt">32
+&lt;/span>&lt;span class="lnt">33
+&lt;/span>&lt;span class="lnt">34
+&lt;/span>&lt;span class="lnt">35
+&lt;/span>&lt;span class="lnt">36
+&lt;/span>&lt;span class="lnt">37
+&lt;/span>&lt;span class="lnt">38
+&lt;/span>&lt;span class="lnt">39
+&lt;/span>&lt;span class="lnt">40
+&lt;/span>&lt;span class="lnt">41
+&lt;/span>&lt;span class="lnt">42
+&lt;/span>&lt;span class="lnt">43
+&lt;/span>&lt;span class="lnt">44
+&lt;/span>&lt;span class="lnt">45
+&lt;/span>&lt;span class="lnt">46
+&lt;/span>&lt;span class="lnt">47
+&lt;/span>&lt;span class="lnt">48
+&lt;/span>&lt;span class="lnt">49
+&lt;/span>&lt;span class="lnt">50
+&lt;/span>&lt;span class="lnt">51
+&lt;/span>&lt;span class="lnt">52
+&lt;/span>&lt;span class="lnt">53
+&lt;/span>&lt;span class="lnt">54
+&lt;/span>&lt;span class="lnt">55
+&lt;/span>&lt;span class="lnt">56
+&lt;/span>&lt;span class="lnt">57
+&lt;/span>&lt;span class="lnt">58
+&lt;/span>&lt;span class="lnt">59
+&lt;/span>&lt;span class="lnt">60
+&lt;/span>&lt;span class="lnt">61
+&lt;/span>&lt;span class="lnt">62
+&lt;/span>&lt;span class="lnt">63
+&lt;/span>&lt;span class="lnt">64
+&lt;/span>&lt;span class="lnt">65
+&lt;/span>&lt;span class="lnt">66
+&lt;/span>&lt;span class="lnt">67
+&lt;/span>&lt;span class="lnt">68
+&lt;/span>&lt;span class="lnt">69
+&lt;/span>&lt;span class="lnt">70
+&lt;/span>&lt;span class="lnt">71
+&lt;/span>&lt;span class="lnt">72
+&lt;/span>&lt;span class="lnt">73
+&lt;/span>&lt;span class="lnt">74
+&lt;/span>&lt;span class="lnt">75
+&lt;/span>&lt;span class="lnt">76
+&lt;/span>&lt;span class="lnt">77
+&lt;/span>&lt;span class="lnt">78
+&lt;/span>&lt;span class="lnt">79
+&lt;/span>&lt;span class="lnt">80
+&lt;/span>&lt;span class="lnt">81
+&lt;/span>&lt;span class="lnt">82
+&lt;/span>&lt;span class="lnt">83
+&lt;/span>&lt;span class="lnt">84
+&lt;/span>&lt;span class="lnt">85
+&lt;/span>&lt;span class="lnt">86
+&lt;/span>&lt;span class="lnt">87
+&lt;/span>&lt;span class="lnt">88
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-gdscript3" data-lang="gdscript3">&lt;span class="line">&lt;span class="cl">&lt;span class="n">template&lt;/span> &lt;span class="o">&amp;lt;&lt;/span>&lt;span class="ne">int&lt;/span> &lt;span class="n">BM&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="ne">int&lt;/span> &lt;span class="n">BN&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="ne">int&lt;/span> &lt;span class="n">BK&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="ne">int&lt;/span> &lt;span class="n">TM&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="ne">int&lt;/span> &lt;span class="n">TN&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">__global__&lt;/span> &lt;span class="n">void&lt;/span> &lt;span class="n">matmul_v4_2d&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="k">const&lt;/span> &lt;span class="ne">float&lt;/span> &lt;span class="o">*&lt;/span>&lt;span class="n">A&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="k">const&lt;/span> &lt;span class="ne">float&lt;/span> &lt;span class="o">*&lt;/span>&lt;span class="n">B&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="ne">float&lt;/span> &lt;span class="o">*&lt;/span>&lt;span class="n">C&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="ne">int&lt;/span> &lt;span class="n">M&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="ne">int&lt;/span> &lt;span class="n">N&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="ne">int&lt;/span> &lt;span class="n">K&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="ne">int&lt;/span> &lt;span class="n">bx&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">blockIdx&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">x&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="ne">int&lt;/span> &lt;span class="n">by&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">blockIdx&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">y&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="ne">int&lt;/span> &lt;span class="n">tx&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">threadIdx&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">x&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="ne">int&lt;/span> &lt;span class="n">ty&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">threadIdx&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">y&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">__shared__&lt;/span> &lt;span class="ne">float&lt;/span> &lt;span class="n">ads&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">BM&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">BK&lt;/span>&lt;span class="p">];&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">__shared__&lt;/span> &lt;span class="ne">float&lt;/span> &lt;span class="n">bds&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">BK&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">BN&lt;/span>&lt;span class="p">];&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">//&lt;/span> &lt;span class="n">Each&lt;/span> &lt;span class="n">thread&lt;/span> &lt;span class="n">maintains&lt;/span> &lt;span class="n">a&lt;/span> &lt;span class="n">TM&lt;/span> &lt;span class="n">x&lt;/span> &lt;span class="n">TN&lt;/span> &lt;span class="n">local&lt;/span> &lt;span class="n">output&lt;/span> &lt;span class="n">tile&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="ne">float&lt;/span> &lt;span class="n">a_frag&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">TM&lt;/span>&lt;span class="p">];&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="ne">float&lt;/span> &lt;span class="n">b_frag&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">TN&lt;/span>&lt;span class="p">];&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="ne">float&lt;/span> &lt;span class="n">acc&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">TM&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">TN&lt;/span>&lt;span class="p">]&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">{&lt;/span>&lt;span class="mf">0.0&lt;/span>&lt;span class="p">};&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">for&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="ne">int&lt;/span> &lt;span class="n">ph&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="mi">0&lt;/span>&lt;span class="p">;&lt;/span> &lt;span class="n">ph&lt;/span> &lt;span class="o">&amp;lt;&lt;/span> &lt;span class="p">((&lt;/span>&lt;span class="n">K&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">BK&lt;/span> &lt;span class="o">-&lt;/span> &lt;span class="mi">1&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">/&lt;/span> &lt;span class="n">BK&lt;/span>&lt;span class="p">);&lt;/span> &lt;span class="n">ph&lt;/span>&lt;span class="o">++&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="ne">int&lt;/span> &lt;span class="n">a_begin_row&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">by&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">BM&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="ne">int&lt;/span> &lt;span class="n">a_begin_col&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">ph&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">BK&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">for&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="ne">int&lt;/span> &lt;span class="n">i&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="mi">0&lt;/span>&lt;span class="p">;&lt;/span> &lt;span class="n">i&lt;/span> &lt;span class="o">&amp;lt;&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">BM&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">BK&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">/&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">blockDim&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">x&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">blockDim&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">y&lt;/span>&lt;span class="p">);&lt;/span> &lt;span class="n">i&lt;/span>&lt;span class="o">++&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="ne">int&lt;/span> &lt;span class="n">idx_1d&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">i&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">blockDim&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">x&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">blockDim&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">y&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">blockDim&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">x&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">ty&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">tx&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="ne">int&lt;/span> &lt;span class="n">ads_row&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">idx_1d&lt;/span> &lt;span class="o">/&lt;/span> &lt;span class="n">BK&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="ne">int&lt;/span> &lt;span class="n">ads_col&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">idx_1d&lt;/span> &lt;span class="o">%&lt;/span> &lt;span class="n">BK&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">if&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">ads_row&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">a_begin_row&lt;/span> &lt;span class="o">&amp;lt;&lt;/span> &lt;span class="n">M&lt;/span> &lt;span class="o">&amp;amp;&amp;amp;&lt;/span> &lt;span class="n">a_begin_col&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">ads_col&lt;/span> &lt;span class="o">&amp;lt;&lt;/span> &lt;span class="n">K&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">ads&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">ads_row&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">BK&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">ads_col&lt;/span>&lt;span class="p">]&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">A&lt;/span>&lt;span class="p">[(&lt;/span>&lt;span class="n">ads_row&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">a_begin_row&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">K&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">a_begin_col&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">ads_col&lt;/span>&lt;span class="p">];&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">else&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">ads&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">ads_row&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">BK&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">ads_col&lt;/span>&lt;span class="p">]&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="mf">0.0&lt;/span>&lt;span class="n">f&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="ne">int&lt;/span> &lt;span class="n">b_begin_row&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">ph&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">BK&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="ne">int&lt;/span> &lt;span class="n">b_begin_col&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">bx&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">BN&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">for&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="ne">int&lt;/span> &lt;span class="n">i&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="mi">0&lt;/span>&lt;span class="p">;&lt;/span> &lt;span class="n">i&lt;/span> &lt;span class="o">&amp;lt;&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">BN&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">BK&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">/&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">blockDim&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">x&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">blockDim&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">y&lt;/span>&lt;span class="p">);&lt;/span> &lt;span class="n">i&lt;/span>&lt;span class="o">++&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="ne">int&lt;/span> &lt;span class="n">idx_1d&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">i&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">blockDim&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">x&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">blockDim&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">y&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">blockDim&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">x&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">ty&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">tx&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="ne">int&lt;/span> &lt;span class="n">bds_row&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">idx_1d&lt;/span> &lt;span class="o">/&lt;/span> &lt;span class="n">BN&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="ne">int&lt;/span> &lt;span class="n">bds_col&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">idx_1d&lt;/span> &lt;span class="o">%&lt;/span> &lt;span class="n">BN&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">if&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">bds_row&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">b_begin_row&lt;/span> &lt;span class="o">&amp;lt;&lt;/span> &lt;span class="n">K&lt;/span> &lt;span class="o">&amp;amp;&amp;amp;&lt;/span> &lt;span class="n">bds_col&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">b_begin_col&lt;/span> &lt;span class="o">&amp;lt;&lt;/span> &lt;span class="n">N&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">bds&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">bds_row&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">BN&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">bds_col&lt;/span>&lt;span class="p">]&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">B&lt;/span>&lt;span class="p">[(&lt;/span>&lt;span class="n">bds_row&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">b_begin_row&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">N&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">bds_col&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">b_begin_col&lt;/span>&lt;span class="p">];&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">else&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">bds&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">bds_row&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">BN&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">bds_col&lt;/span>&lt;span class="p">]&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="mf">0.0&lt;/span>&lt;span class="n">f&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">__syncthreads&lt;/span>&lt;span class="p">();&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">for&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="ne">int&lt;/span> &lt;span class="n">p&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="mi">0&lt;/span>&lt;span class="p">;&lt;/span> &lt;span class="n">p&lt;/span> &lt;span class="o">&amp;lt;&lt;/span> &lt;span class="n">BK&lt;/span>&lt;span class="p">;&lt;/span> &lt;span class="n">p&lt;/span>&lt;span class="o">++&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">//&lt;/span> &lt;span class="n">Load&lt;/span> &lt;span class="n">one&lt;/span> &lt;span class="n">A&lt;/span> &lt;span class="n">column&lt;/span> &lt;span class="n">fragment&lt;/span> &lt;span class="ow">and&lt;/span> &lt;span class="n">one&lt;/span> &lt;span class="n">B&lt;/span> &lt;span class="n">row&lt;/span> &lt;span class="n">fragment&lt;/span> &lt;span class="n">into&lt;/span> &lt;span class="n">registers&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="ne">int&lt;/span> &lt;span class="n">ads_col&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">p&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">for&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="ne">int&lt;/span> &lt;span class="n">i&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="mi">0&lt;/span>&lt;span class="p">;&lt;/span> &lt;span class="n">i&lt;/span> &lt;span class="o">&amp;lt;&lt;/span> &lt;span class="n">TM&lt;/span>&lt;span class="p">;&lt;/span> &lt;span class="n">i&lt;/span>&lt;span class="o">++&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="ne">int&lt;/span> &lt;span class="n">ads_row&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">i&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">ty&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">TM&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">a_frag&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">i&lt;/span>&lt;span class="p">]&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">ads&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">ads_row&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">BK&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">ads_col&lt;/span>&lt;span class="p">];&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="ne">int&lt;/span> &lt;span class="n">bds_row&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">p&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">for&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="ne">int&lt;/span> &lt;span class="n">i&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="mi">0&lt;/span>&lt;span class="p">;&lt;/span> &lt;span class="n">i&lt;/span> &lt;span class="o">&amp;lt;&lt;/span> &lt;span class="n">TN&lt;/span>&lt;span class="p">;&lt;/span> &lt;span class="n">i&lt;/span>&lt;span class="o">++&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="ne">int&lt;/span> &lt;span class="n">bds_col&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">i&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">tx&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">TN&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">b_frag&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">i&lt;/span>&lt;span class="p">]&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">bds&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">bds_row&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">BN&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">bds_col&lt;/span>&lt;span class="p">];&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">for&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="ne">int&lt;/span> &lt;span class="n">i&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="mi">0&lt;/span>&lt;span class="p">;&lt;/span> &lt;span class="n">i&lt;/span> &lt;span class="o">&amp;lt;&lt;/span> &lt;span class="n">TM&lt;/span>&lt;span class="p">;&lt;/span> &lt;span class="n">i&lt;/span>&lt;span class="o">++&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="ne">float&lt;/span> &lt;span class="n">a&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">a_frag&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">i&lt;/span>&lt;span class="p">];&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">for&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="ne">int&lt;/span> &lt;span class="n">j&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="mi">0&lt;/span>&lt;span class="p">;&lt;/span> &lt;span class="n">j&lt;/span> &lt;span class="o">&amp;lt;&lt;/span> &lt;span class="n">TN&lt;/span>&lt;span class="p">;&lt;/span> &lt;span class="n">j&lt;/span>&lt;span class="o">++&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">//&lt;/span> &lt;span class="n">Accumulate&lt;/span> &lt;span class="n">one&lt;/span> &lt;span class="n">small&lt;/span> &lt;span class="n">rectangular&lt;/span> &lt;span class="n">tile&lt;/span> &lt;span class="n">entirely&lt;/span> &lt;span class="ow">in&lt;/span> &lt;span class="n">registers&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">acc&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">i&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">TN&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">j&lt;/span>&lt;span class="p">]&lt;/span> &lt;span class="o">+=&lt;/span> &lt;span class="n">a&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">b_frag&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">j&lt;/span>&lt;span class="p">];&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">__syncthreads&lt;/span>&lt;span class="p">();&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">for&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="ne">int&lt;/span> &lt;span class="n">i&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="mi">0&lt;/span>&lt;span class="p">;&lt;/span> &lt;span class="n">i&lt;/span> &lt;span class="o">&amp;lt;&lt;/span> &lt;span class="n">TM&lt;/span>&lt;span class="p">;&lt;/span> &lt;span class="n">i&lt;/span>&lt;span class="o">++&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="ne">int&lt;/span> &lt;span class="n">c_row&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">blockIdx&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">y&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">TM&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">blockDim&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">y&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">threadIdx&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">y&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">TM&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">i&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">for&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="ne">int&lt;/span> &lt;span class="n">j&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="mi">0&lt;/span>&lt;span class="p">;&lt;/span> &lt;span class="n">j&lt;/span> &lt;span class="o">&amp;lt;&lt;/span> &lt;span class="n">TN&lt;/span>&lt;span class="p">;&lt;/span> &lt;span class="n">j&lt;/span>&lt;span class="o">++&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="ne">int&lt;/span> &lt;span class="n">c_col&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">blockIdx&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">x&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">blockDim&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">x&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">TN&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">threadIdx&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">x&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">TN&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">j&lt;/span>&lt;span class="p">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">if&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">c_row&lt;/span> &lt;span class="o">&amp;lt;&lt;/span> &lt;span class="n">M&lt;/span> &lt;span class="o">&amp;amp;&amp;amp;&lt;/span> &lt;span class="n">c_col&lt;/span> &lt;span class="o">&amp;lt;&lt;/span> &lt;span class="n">N&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">C&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">c_row&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">N&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">c_col&lt;/span>&lt;span class="p">]&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">acc&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">i&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">TN&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">j&lt;/span>&lt;span class="p">];&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>In this version, a thread no longer owns just a short strip of outputs. Instead, it owns a small &lt;code>TM x TN = 4 x 4&lt;/code> rectangle. The benefit is that values loaded from shared memory into &lt;code>a_frag&lt;/code> and &lt;code>b_frag&lt;/code> can be reused more times through register-level cross-combination. As a result:&lt;/p>
+&lt;ul>
+&lt;li>Data reuse improves further.&lt;/li>
+&lt;li>Per-thread compute density improves further.&lt;/li>
+&lt;li>The kernel structure starts to resemble the typical shape of a high-performance hand-written GEMM kernel.&lt;/li>
+&lt;/ul>
+&lt;p>Compared with &lt;code>v3&lt;/code>, &lt;code>v4&lt;/code> is not merely computing more outputs. It is effectively performing a tiny matrix multiplication inside each thread. This two-dimensional blocking idea is common in many high-performance GEMM implementations.&lt;/p>
+&lt;p>In the write-back stage, each &lt;code>(i, j)&lt;/code> position computes its own &lt;code>c_row&lt;/code> and &lt;code>c_col&lt;/code>, then applies a separate boundary check. That makes tail handling fairly natural without requiring special-case hacks.&lt;/p>
+&lt;h3 id="v4-performance">v4 Performance
+&lt;/h3>&lt;p>For &lt;code>1024 x 512 x 1024&lt;/code>:&lt;/p>
+&lt;ul>
+&lt;li>Average time: &lt;code>0.058 ms&lt;/code>&lt;/li>
+&lt;li>Throughput: &lt;code>18368.88 GFLOPS&lt;/code>&lt;/li>
+&lt;li>Relative to cuBLAS: &lt;code>69.30%&lt;/code>&lt;/li>
+&lt;/ul>
+&lt;p>For &lt;code>1001 x 513 x 777&lt;/code>:&lt;/p>
+&lt;ul>
+&lt;li>Average time: &lt;code>0.058 ms&lt;/code>&lt;/li>
+&lt;li>Throughput: &lt;code>13848.77 GFLOPS&lt;/code>&lt;/li>
+&lt;li>Relative to cuBLAS: &lt;code>85.62%&lt;/code>&lt;/li>
+&lt;/ul>
+&lt;p>From a pure performance point of view, this is the strongest custom kernel in the current implementation. It still trails cuBLAS, of course, but for a teaching-oriented hand-written solution, this level of performance is already a strong sign that the optimization path is working very well.&lt;/p>
+&lt;hr>
+&lt;h2 id="cublas-reference-implementation">cuBLAS Reference Implementation
+&lt;/h2>&lt;p>Here is the cuBLAS call:&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;span class="lnt">2
+&lt;/span>&lt;span class="lnt">3
+&lt;/span>&lt;span class="lnt">4
+&lt;/span>&lt;span class="lnt">5
+&lt;/span>&lt;span class="lnt">6
+&lt;/span>&lt;span class="lnt">7
+&lt;/span>&lt;span class="lnt">8
+&lt;/span>&lt;span class="lnt">9
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-fallback" data-lang="fallback">&lt;span class="line">&lt;span class="cl">stat = cublasSgemm(handle,
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> // Under a column-major API, compute B^T A^T to obtain the row-major result we want
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> CUBLAS_OP_N, CUBLAS_OP_N,
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> N, M, K,
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &amp;amp;alpha,
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> d_B, N,
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> d_A, K,
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &amp;amp;beta,
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> d_C, N);
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>The parameter order may look reversed at first glance. The reason is that cuBLAS assumes column-major storage by default, while the matrices in this project are stored in row-major order. Instead of explicitly transposing the inputs before the call, the code uses a standard trick:&lt;/p>
+$$
+(AB)^T = B^T A^T
+$$
+&lt;p>This maps the row-major computation &lt;code>A * B&lt;/code> into the column-major computation &lt;code>B^T * A^T&lt;/code>. Even though cuBLAS interprets the buffers in column-major form internally, the returned result matches the row-major output matrix &lt;code>C&lt;/code> that we want.&lt;/p>
+&lt;hr>
+&lt;h2 id="benchmark-summary">Benchmark Summary
+&lt;/h2>&lt;p>To keep the performance discussion in one place, here are the two benchmark tables together.&lt;/p>
+&lt;h3 id="regular-size-1024-x-512-x-1024">Regular Size: &lt;code>1024 x 512 x 1024&lt;/code>
+&lt;/h3>&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:left">Version&lt;/th>
+&lt;th style="text-align:left">Status&lt;/th>
+&lt;th style="text-align:left">Avg Time (ms)&lt;/th>
+&lt;th style="text-align:left">Performance (GFLOPS)&lt;/th>
+&lt;th style="text-align:left">Relative to cuBLAS&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:left">v0&lt;/td>
+&lt;td style="text-align:left">PASS&lt;/td>
+&lt;td style="text-align:left">1.744&lt;/td>
+&lt;td style="text-align:left">615.76&lt;/td>
+&lt;td style="text-align:left">2.32%&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">v1&lt;/td>
+&lt;td style="text-align:left">PASS&lt;/td>
+&lt;td style="text-align:left">0.216&lt;/td>
+&lt;td style="text-align:left">4973.53&lt;/td>
+&lt;td style="text-align:left">18.76%&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">v2&lt;/td>
+&lt;td style="text-align:left">PASS&lt;/td>
+&lt;td style="text-align:left">0.174&lt;/td>
+&lt;td style="text-align:left">6156.44&lt;/td>
+&lt;td style="text-align:left">23.23%&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">v3&lt;/td>
+&lt;td style="text-align:left">PASS&lt;/td>
+&lt;td style="text-align:left">0.098&lt;/td>
+&lt;td style="text-align:left">11001.81&lt;/td>
+&lt;td style="text-align:left">41.51%&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">v4&lt;/td>
+&lt;td style="text-align:left">PASS&lt;/td>
+&lt;td style="text-align:left">0.058&lt;/td>
+&lt;td style="text-align:left">18368.88&lt;/td>
+&lt;td style="text-align:left">69.30%&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">cuBLAS&lt;/td>
+&lt;td style="text-align:left">PASS&lt;/td>
+&lt;td style="text-align:left">0.041&lt;/td>
+&lt;td style="text-align:left">26506.38&lt;/td>
+&lt;td style="text-align:left">100%&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="irregular-size-1001-x-513-x-777">Irregular Size: &lt;code>1001 x 513 x 777&lt;/code>
+&lt;/h3>&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:left">Version&lt;/th>
+&lt;th style="text-align:left">Status&lt;/th>
+&lt;th style="text-align:left">Avg Time (ms)&lt;/th>
+&lt;th style="text-align:left">Performance (GFLOPS)&lt;/th>
+&lt;th style="text-align:left">Relative to cuBLAS&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:left">v0&lt;/td>
+&lt;td style="text-align:left">PASS&lt;/td>
+&lt;td style="text-align:left">0.406&lt;/td>
+&lt;td style="text-align:left">1964.43&lt;/td>
+&lt;td style="text-align:left">12.15%&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">v1&lt;/td>
+&lt;td style="text-align:left">PASS&lt;/td>
+&lt;td style="text-align:left">0.191&lt;/td>
+&lt;td style="text-align:left">4186.53&lt;/td>
+&lt;td style="text-align:left">25.88%&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">v2&lt;/td>
+&lt;td style="text-align:left">PASS&lt;/td>
+&lt;td style="text-align:left">0.160&lt;/td>
+&lt;td style="text-align:left">4985.70&lt;/td>
+&lt;td style="text-align:left">30.83%&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">v3&lt;/td>
+&lt;td style="text-align:left">PASS&lt;/td>
+&lt;td style="text-align:left">0.097&lt;/td>
+&lt;td style="text-align:left">8236.99&lt;/td>
+&lt;td style="text-align:left">50.93%&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">v4&lt;/td>
+&lt;td style="text-align:left">PASS&lt;/td>
+&lt;td style="text-align:left">0.058&lt;/td>
+&lt;td style="text-align:left">13848.77&lt;/td>
+&lt;td style="text-align:left">85.62%&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">cuBLAS&lt;/td>
+&lt;td style="text-align:left">PASS&lt;/td>
+&lt;td style="text-align:left">0.049&lt;/td>
+&lt;td style="text-align:left">16174.26&lt;/td>
+&lt;td style="text-align:left">100%&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;hr>
+&lt;h2 id="what-this-problem-is-really-teaching">What This Problem Is Really Teaching
+&lt;/h2>&lt;p>If we only read this problem as &amp;ldquo;how to make matrix multiplication faster,&amp;rdquo; we miss part of its value. To me, its real strength is that it makes several core layers of CUDA optimization visible in a very concrete way.&lt;/p>
+&lt;p>&lt;strong>Thread mapping is foundational.&lt;/strong>&lt;br>
+Many beginners focus first on advanced-sounding ideas like shared memory, tensor cores, and register blocking. But if warp access direction is wrong from the start, everything built on top of it rests on a crooked foundation. The jump from &lt;code>v0&lt;/code> to &lt;code>v1&lt;/code> is a perfect demonstration: changing only the mapping can drastically change performance.&lt;/p>
+&lt;p>&lt;strong>Shared memory is about reuse, not prestige.&lt;/strong>&lt;br>
+Shared memory is worth introducing only when a block of data is reused by many threads within the block. Matrix multiplication naturally satisfies this condition, which is why tiling is so effective here.&lt;/p>
+&lt;p>&lt;strong>Register blocking is really about raising per-thread compute density.&lt;/strong>&lt;br>
+Whether in the 1D form of &lt;code>v3&lt;/code> or the 2D form of &lt;code>v4&lt;/code>, the goal is the same: once data has been loaded into registers, make it participate in as many multiply-add operations as possible. That mindset is central to many high-performance kernels.&lt;/p>
+&lt;p>&lt;strong>Boundary correctness must be tested explicitly.&lt;/strong>&lt;br>
+If we only benchmark &lt;code>1024 x 512 x 1024&lt;/code>, it is easy to believe a kernel is fully correct. But once we switch to a size like &lt;code>1001 x 513 x 777&lt;/code>, many hidden bugs become much easier to expose.&lt;/p>
+&lt;hr></description></item></channel></rss>

@@ -1,0 +1,521 @@
+<!doctype html><html lang=zh-cn dir=ltr><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><meta name=description content="本文基于 LeetGPU 第二题「矩阵乘法」的 CUDA 实现，完整梳理从线程映射、共享内存分块到 1D/2D 寄存器粗化的优化路径，并结合规则尺寸与非 32 倍数尺寸 benchmark 讨论性能与正确性。"><title>[矩阵乘法] LeetGPU 第二题详解 - 从朴素实现到 2D 寄存器粗化</title>
+<link rel=canonical href=https://yekq.top/posts/leetgpu/leetgpu-matrix-multiplication/><link rel=stylesheet href=/scss/style.min.663803bebe609202d5b39d848f2d7c2dc8b598a2d879efa079fa88893d29c49c.css><meta property='og:title' content="[矩阵乘法] LeetGPU 第二题详解 - 从朴素实现到 2D 寄存器粗化"><meta property='og:description' content="本文基于 LeetGPU 第二题「矩阵乘法」的 CUDA 实现，完整梳理从线程映射、共享内存分块到 1D/2D 寄存器粗化的优化路径，并结合规则尺寸与非 32 倍数尺寸 benchmark 讨论性能与正确性。"><meta property='og:url' content='https://yekq.top/posts/leetgpu/leetgpu-matrix-multiplication/'><meta property='og:site_name' content='Keqi的博客'><meta property='og:type' content='article'><meta property='article:section' content='Posts'><meta property='article:tag' content='CUDA'><meta property='article:tag' content='Matrix Multiplication'><meta property='article:tag' content='Shared Memory'><meta property='article:tag' content='性能优化'><meta property='article:published_time' content='2026-05-25T00:00:00+00:00'><meta property='article:modified_time' content='2026-05-25T00:00:00+00:00'><meta name=twitter:title content="[矩阵乘法] LeetGPU 第二题详解 - 从朴素实现到 2D 寄存器粗化"><meta name=twitter:description content="本文基于 LeetGPU 第二题「矩阵乘法」的 CUDA 实现，完整梳理从线程映射、共享内存分块到 1D/2D 寄存器粗化的优化路径，并结合规则尺寸与非 32 倍数尺寸 benchmark 讨论性能与正确性。"></head><body class=article-page><script>(function(){const e="StackColorScheme";localStorage.getItem(e)||localStorage.setItem(e,"auto")})()</script><script>(function(){const t="StackColorScheme",e=localStorage.getItem(t),n=window.matchMedia("(prefers-color-scheme: dark)").matches===!0;e=="dark"||e==="auto"&&n?document.documentElement.dataset.scheme="dark":document.documentElement.dataset.scheme="light"})()</script><div class="container main-container flex on-phone--column extended"><aside class="sidebar left-sidebar sticky"><button class="hamburger hamburger--spin" type=button id=toggle-menu aria-label=切换菜单>
+<span class=hamburger-box><span class=hamburger-inner></span></span></button><header><figure class=site-avatar><a href=/><img src="https://avatars.githubusercontent.com/u/175122082?v=4" width=300 height=300 class=site-logo loading=lazy alt=Avatar>
+</a><span class=emoji>🪐</span></figure><div class=site-meta><h1 class=site-name><a href=/>Keqi的博客</a></h1><h2 class=site-description>数学、物理与编程</h2></div></header><ol class=menu-social><li><a href=mailto:plloningye@gmail.com target=_blank title=E-mail rel=me><svg data-name="Livello 1" id="Livello_1" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg"><title/><path d="M116.73 31.83a3 3 0 00-4.2-.61L64.14 67.34a1 1 0 01-1.2.0L15.5 31.06a3 3 0 10-3.64 4.77l37.3 28.53-36.89 27.8A3 3 0 1015.88 97L54.11 68.14l5.18 4a7 7 0 008.43.06l5.44-4.06L111.84 97a3 3 0 103.59-4.81L78.17 64.35 116.12 36A3 3 0 00116.73 31.83z"/><path d="M113 19H15A15 15 0 000 34V94a15 15 0 0015 15h98a15 15 0 0015-15V34A15 15 0 00113 19zm9 75a9 9 0 01-9 9H15a9 9 0 01-9-9V34a9 9 0 019-9h98a9 9 0 019 9z"/></svg></a></li><li><a href=https://github.com/KeqiYe target=_blank title=GitHub rel=me><svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-brand-github" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentcolor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6.0 00-1.3-3.2 4.2 4.2.0 00-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3.0 00-6.2.0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2.0 00-.1 3.2A4.6 4.6.0 004 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg></a></li></ol><ol class=menu id=main-menu><li><a href=/posts/><span>文章</span></a></li><li><a href=/categories/><span>分类</span></a></li><li class=menu-bottom-section><ol class=menu><li id=i18n-switch><svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-language" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentcolor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M4 5h7"/><path d="M9 3v2c0 4.418-2.239 8-5 8"/><path d="M5 9c-.003 2.144 2.952 3.908 6.7 4"/><path d="M12 20l4-9 4 9"/><path d="M19.1 18h-6.2"/></svg>
+<select name=language title=language onchange="window.location.href=this.selectedOptions[0].value"><option value=https://yekq.top/en/>English</option><option value=https://yekq.top/ selected>中文</option></select></li><li id=dark-mode-toggle><svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-toggle-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentcolor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="8" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-toggle-right" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentcolor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="16" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<span>暗色模式</span></li></ol></li></ol></aside><aside class="sidebar right-sidebar sticky"><section class="widget archives"><div class=widget-icon><svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-hash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentcolor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><line x1="5" y1="9" x2="19" y2="9"/><line x1="5" y1="15" x2="19" y2="15"/><line x1="11" y1="4" x2="7" y2="20"/><line x1="17" y1="4" x2="13" y2="20"/></svg></div><h2 class="widget-title section-title">目录</h2><div class=widget--toc><nav id=TableOfContents><ol><li><a href=#写在前面>写在前面</a></li><li><a href=#题目描述>题目描述</a><ol><li><a href=#输入输出>输入输出</a></li></ol></li><li><a href=#测试环境与计时方式>测试环境与计时方式</a></li><li><a href=#v0最朴素的实现>v0：最朴素的实现</a><ol><li><a href=#v0-的性能表现>v0 的性能表现</a></li></ol></li><li><a href=#v1修正线程映射让-warp-真正沿着行展开>v1：修正线程映射，让 warp 真正沿着行展开</a><ol><li><a href=#v1-的性能表现>v1 的性能表现</a></li></ol></li><li><a href=#v2共享内存分块把重复读取变成块内复用>v2：共享内存分块，把“重复读取”变成“块内复用”</a><ol><li><a href=#v2-的性能表现>v2 的性能表现</a></li></ol></li><li><a href=#v31d-寄存器粗化让一个线程一次算更多结果>v3：1D 寄存器粗化，让一个线程一次算更多结果</a><ol><li><a href=#v3-的性能表现>v3 的性能表现</a></li></ol></li><li><a href=#v42d-寄存器粗化把单线程计算粒度继续做大>v4：2D 寄存器粗化，把单线程计算粒度继续做大</a><ol><li><a href=#v4-的性能表现>v4 的性能表现</a></li></ol></li><li><a href=#cublas-参考实现>cuBLAS 参考实现</a></li><li><a href=#两组-benchmark-汇总>两组 benchmark 汇总</a><ol><li><a href=#规则尺寸1024-x-512-x-1024>规则尺寸：<code>1024 x 512 x 1024</code></a></li><li><a href=#非整齐尺寸1001-x-513-x-777>非整齐尺寸：<code>1001 x 513 x 777</code></a></li></ol></li><li><a href=#这道题真正值得带走的东西>这道题真正值得带走的东西</a></li></ol></nav></div></section></aside><main class="main full-width"><article class=main-article><header class=article-header><div class=article-details><header class=article-category><a href=/categories/cuda/>CUDA
+</a><a href=/categories/%E5%9F%BA%E7%A1%80%E7%AE%97%E6%B3%95/>基础算法
+</a><a href=/categories/leetgpu/>LeetGPU</a></header><div class=article-title-wrapper><h2 class=article-title><a href=/posts/leetgpu/leetgpu-matrix-multiplication/>[矩阵乘法] LeetGPU 第二题详解 - 从朴素实现到 2D 寄存器粗化</a></h2><h3 class=article-subtitle>本文基于 LeetGPU 第二题「矩阵乘法」的 CUDA 实现，完整梳理从线程映射、共享内存分块到 1D/2D 寄存器粗化的优化路径，并结合规则尺寸与非 32 倍数尺寸 benchmark 讨论性能与正确性。</h3></div><footer class=article-time><div><svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-calendar-time" width="56" height="56" viewBox="0 0 24 24" stroke-width="2" stroke="currentcolor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M11.795 21H5a2 2 0 01-2-2V7a2 2 0 012-2h12a2 2 0 012 2v4"/><circle cx="18" cy="18" r="4"/><path d="M15 3v4"/><path d="M7 3v4"/><path d="M3 11h16"/><path d="M18 16.496V18l1 1"/></svg>
+<time class=article-time--published>May 25, 2026</time></div><div><svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-clock" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentcolor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+<time class=article-time--reading>阅读时长: 13 分钟</time></div></footer><footer class=article-translations><svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-language" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentcolor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M4 5h7"/><path d="M9 3v2c0 4.418-2.239 8-5 8"/><path d="M5 9c-.003 2.144 2.952 3.908 6.7 4"/><path d="M12 20l4-9 4 9"/><path d="M19.1 18h-6.2"/></svg><div><a href=https://yekq.top/en/posts/leetgpu/leetgpu-matrix-multiplication/ class=link>English</a></div></footer></div></header><section class=article-content><h2 id=写在前面>写在前面</h2><p>如果说向量加法是 CUDA 入门阶段最合适的第一题，那么矩阵乘法几乎就是顺理成章的第二题。前者让我们学会“如何把一个标量运算扩展到海量线程上”，后者则逼着我们真正开始面对 GPU 编程里更本质的问题：线程应该如何映射到数据、访存模式为什么会直接决定吞吐、共享内存到底是在解决什么问题，以及当一个 kernel 已经“算得对”之后，如何继续把它一点点推向更高的性能。</p><p>矩阵乘法之所以经典，还有一个更现实的原因：它不是一道只存在于教程里的练习题。很多深度学习算子、线性代数库，最终都能追溯到 GEMM（General Matrix Multiplication）这样的核心计算模式。也正因为如此，矩阵乘法里的优化思路往往有很强的迁移价值。你今天在这里理解的访存合并、tiling、寄存器粗化，之后几乎一定会在卷积、注意力、张量变换，甚至很多看起来完全不同的 CUDA kernel 里再次遇到。</p><p>这篇文章基于我当前的 LeetGPU 第二题实现来写。文章会沿着下面这条主线展开：</p><ol><li>从最朴素的实现出发，先建立一个“正确但很慢”的基准。</li><li>调整线程映射方式，让 warp 的访存方向开始变得合理。</li><li>引入共享内存分块，把“每次都去全局显存取数据”的模式改成“先搬一块，再反复复用”。</li><li>继续做 1D 和 2D 的寄存器粗化，提高单线程的计算密度。</li></ol><p>为了让讨论更完整，文中会同时给出两组 benchmark：一组是规则尺寸 <code>1024 x 512 x 1024</code>，另一组是非 32 倍数尺寸 <code>1001 x 513 x 777</code>。前者便于观察纯粹的性能趋势，后者则更适合验证尾块处理和边界正确性是否已经真正做好。</p><hr><h2 id=题目描述>题目描述</h2><p>题目要求很直接：给定两个矩阵</p><ul><li><code>A</code>，形状为 <code>M x K</code></li><li><code>B</code>，形状为 <code>K x N</code></li></ul><p>计算它们的乘积：</p>$$
+C = A \times B
+$$<p>从元素视角来看，输出矩阵 <code>C</code> 中的每一个元素 <code>C[row][col]</code>，都需要做一遍长度为 <code>K</code> 的点积：</p>$$
+C_{row,col} = \sum_{i=0}^{K-1} A_{row,i} \cdot B_{i,col}
+$$<p>因此，这道题本质上是在问：如何让成千上万个线程一起去并行完成这些点积计算，并且在这个过程中尽量减少无效访存、提高吞吐。</p><h3 id=输入输出>输入输出</h3><ul><li><strong>输入</strong>：设备端矩阵 <code>A</code>、<code>B</code>，以及矩阵尺寸 <code>M</code>、<code>N</code>、<code>K</code></li><li><strong>输出</strong>：设备端矩阵 <code>C</code></li></ul><hr><h2 id=测试环境与计时方式>测试环境与计时方式</h2><p>本文中的性能数据不是凭感觉估计的，而是在实体机上真实运行得到。环境如下：</p><ul><li>GPU：<code>NVIDIA GeForce RTX 4090</code></li><li>CUDA Toolkit：<code>12.6</code></li><li>Driver：<code>575.64.03</code></li><li>编译命令：<code>/usr/local/cuda-12.6/bin/nvcc mm.cu -lcublas -O3 -o mm</code></li></ul><p>程序的 benchmark 逻辑也比较规范，大致流程是：</p><ol><li>在 CPU 上先计算一份参考结果 <code>h_ref</code></li><li>每个版本先 warmup 一次，避免把首次启动开销混进正式结果</li><li>再重复运行 10 次，取平均耗时</li><li>将 GPU 结果拷回主机，与 CPU 参考结果逐元素比较</li></ol><p>换句话说，后面每个版本的讨论都不是停留在“理论上应该更快”，而是同时满足两件事：</p><ul><li><strong>结果正确</strong></li><li><strong>性能确实提升</strong></li></ul><hr><h2 id=v0最朴素的实现>v0：最朴素的实现</h2><p>先看第一版代码：</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-gdscript3 data-lang=gdscript3><span class=line><span class=cl><span class=n>__global__</span> <span class=n>void</span> <span class=n>matmul_v0</span><span class=p>(</span><span class=k>const</span> <span class=ne>float</span> <span class=o>*</span><span class=n>A</span><span class=p>,</span> <span class=k>const</span> <span class=ne>float</span> <span class=o>*</span><span class=n>B</span><span class=p>,</span> <span class=ne>float</span> <span class=o>*</span><span class=n>C</span><span class=p>,</span> <span class=ne>int</span> <span class=n>M</span><span class=p>,</span> <span class=ne>int</span> <span class=n>N</span><span class=p>,</span> <span class=ne>int</span> <span class=n>K</span><span class=p>)</span>
+</span></span><span class=line><span class=cl><span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=o>//</span> <span class=n>v0</span> <span class=err>故意保留了“较差的线程映射”，作为后续优化的对照组</span>
+</span></span><span class=line><span class=cl>    <span class=ne>int</span> <span class=n>row</span> <span class=o>=</span> <span class=n>blockIdx</span><span class=o>.</span><span class=n>x</span> <span class=o>*</span> <span class=n>blockDim</span><span class=o>.</span><span class=n>x</span> <span class=o>+</span> <span class=n>threadIdx</span><span class=o>.</span><span class=n>x</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=ne>int</span> <span class=n>col</span> <span class=o>=</span> <span class=n>blockIdx</span><span class=o>.</span><span class=n>y</span> <span class=o>*</span> <span class=n>blockDim</span><span class=o>.</span><span class=n>y</span> <span class=o>+</span> <span class=n>threadIdx</span><span class=o>.</span><span class=n>y</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=p>(</span><span class=n>row</span> <span class=o>&lt;</span> <span class=n>M</span> <span class=o>&amp;&amp;</span> <span class=n>col</span> <span class=o>&lt;</span> <span class=n>N</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=ne>float</span> <span class=n>sum</span> <span class=o>=</span> <span class=mf>0.0</span><span class=n>f</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=k>for</span> <span class=p>(</span><span class=ne>int</span> <span class=n>i</span> <span class=o>=</span> <span class=mi>0</span><span class=p>;</span> <span class=n>i</span> <span class=o>&lt;</span> <span class=n>K</span><span class=p>;</span> <span class=n>i</span><span class=o>++</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>        <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=o>//</span> <span class=err>逐项完成</span> <span class=n>C</span><span class=p>[</span><span class=n>row</span><span class=p>,</span> <span class=n>col</span><span class=p>]</span> <span class=err>的点积</span>
+</span></span><span class=line><span class=cl>            <span class=n>sum</span> <span class=o>+=</span> <span class=n>A</span><span class=p>[</span><span class=n>row</span> <span class=o>*</span> <span class=n>K</span> <span class=o>+</span> <span class=n>i</span><span class=p>]</span> <span class=o>*</span> <span class=n>B</span><span class=p>[</span><span class=n>i</span> <span class=o>*</span> <span class=n>N</span> <span class=o>+</span> <span class=n>col</span><span class=p>];</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span>
+</span></span><span class=line><span class=cl>        <span class=n>C</span><span class=p>[</span><span class=n>row</span> <span class=o>*</span> <span class=n>N</span> <span class=o>+</span> <span class=n>col</span><span class=p>]</span> <span class=o>=</span> <span class=n>sum</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>从逻辑上看，这个版本非常直观：每个线程负责输出矩阵中的一个元素，先定位 <code>(row, col)</code>，然后在 <code>K</code> 维上做一次最朴素的累加。它有一个很大的优点，就是几乎不需要任何 CUDA 背景知识也能读懂。如果只是为了先把题做出来，这种写法是很自然的起点。</p><p>但只要稍微从 GPU 的视角看一眼，它的问题就会立刻暴露出来。这里把 <code>threadIdx.x</code> 映射到了 <code>row</code>，把 <code>threadIdx.y</code> 映射到了 <code>col</code>。这意味着同一个 warp 内的线程，并不是沿着输出矩阵 <code>C</code> 的一行横向展开，而更像是在列方向上分散。这样的直接后果是，访问矩阵 <code>B</code> 时，warp 内线程对 <code>col</code> 的分布不连续，全局显存读取很难形成理想的合并访存。</p><p>更具体一点，内层循环每次都会访问：</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-fallback data-lang=fallback><span class=line><span class=cl>B[i * N + col]
+</span></span></code></pre></td></tr></table></div></div><p>如果同一个 warp 中的 <code>col</code> 不是连续递增的，那么这些读取就会显得零碎。对于矩阵乘法这种本来就非常吃带宽、吃访存模式的算子来说，这几乎等于一开始就把性能上限压得很低。</p><h3 id=v0-的性能表现>v0 的性能表现</h3><p>在规则尺寸 <code>1024 x 512 x 1024</code> 下，<code>v0</code> 的表现是：</p><ul><li>平均耗时：<code>1.744 ms</code></li><li>吞吐：<code>615.76 GFLOPS</code></li><li>相对 cuBLAS：<code>2.32%</code></li></ul><p>在非整齐尺寸 <code>1001 x 513 x 777</code> 下，<code>v0</code> 的表现是：</p><ul><li>平均耗时：<code>0.406 ms</code></li><li>吞吐：<code>1964.43 GFLOPS</code></li><li>相对 cuBLAS：<code>12.15%</code></li></ul><p>它的性能明显偏低，说明仅仅把矩阵乘法并行化还远远不够，访存模式本身就足以把吞吐压到很低的水平。</p><hr><h2 id=v1修正线程映射让-warp-真正沿着行展开>v1：修正线程映射，让 warp 真正沿着行展开</h2><p>第二版代码如下：</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-gdscript3 data-lang=gdscript3><span class=line><span class=cl><span class=n>__global__</span> <span class=n>void</span> <span class=n>matmul_v1</span><span class=p>(</span><span class=k>const</span> <span class=ne>float</span> <span class=o>*</span><span class=n>A</span><span class=p>,</span> <span class=k>const</span> <span class=ne>float</span> <span class=o>*</span><span class=n>B</span><span class=p>,</span> <span class=ne>float</span> <span class=o>*</span><span class=n>C</span><span class=p>,</span> <span class=ne>int</span> <span class=n>M</span><span class=p>,</span> <span class=ne>int</span> <span class=n>N</span><span class=p>,</span> <span class=ne>int</span> <span class=n>K</span><span class=p>)</span>
+</span></span><span class=line><span class=cl><span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=o>//</span> <span class=err>让</span> <span class=n>x</span> <span class=err>方向对应列，</span><span class=n>y</span> <span class=err>方向对应行，更符合行主序下的连续访问方向</span>
+</span></span><span class=line><span class=cl>    <span class=ne>int</span> <span class=n>col</span> <span class=o>=</span> <span class=n>blockIdx</span><span class=o>.</span><span class=n>x</span> <span class=o>*</span> <span class=n>blockDim</span><span class=o>.</span><span class=n>x</span> <span class=o>+</span> <span class=n>threadIdx</span><span class=o>.</span><span class=n>x</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=ne>int</span> <span class=n>row</span> <span class=o>=</span> <span class=n>blockIdx</span><span class=o>.</span><span class=n>y</span> <span class=o>*</span> <span class=n>blockDim</span><span class=o>.</span><span class=n>y</span> <span class=o>+</span> <span class=n>threadIdx</span><span class=o>.</span><span class=n>y</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=p>(</span><span class=n>row</span> <span class=o>&lt;</span> <span class=n>M</span> <span class=o>&amp;&amp;</span> <span class=n>col</span> <span class=o>&lt;</span> <span class=n>N</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=ne>float</span> <span class=n>sum</span> <span class=o>=</span> <span class=mf>0.0</span><span class=n>f</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=k>for</span> <span class=p>(</span><span class=ne>int</span> <span class=n>i</span> <span class=o>=</span> <span class=mi>0</span><span class=p>;</span> <span class=n>i</span> <span class=o>&lt;</span> <span class=n>K</span><span class=p>;</span> <span class=n>i</span><span class=o>++</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>        <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=n>sum</span> <span class=o>+=</span> <span class=n>A</span><span class=p>[</span><span class=n>row</span> <span class=o>*</span> <span class=n>K</span> <span class=o>+</span> <span class=n>i</span><span class=p>]</span> <span class=o>*</span> <span class=n>B</span><span class=p>[</span><span class=n>i</span> <span class=o>*</span> <span class=n>N</span> <span class=o>+</span> <span class=n>col</span><span class=p>];</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span>
+</span></span><span class=line><span class=cl>        <span class=n>C</span><span class=p>[</span><span class=n>row</span> <span class=o>*</span> <span class=n>N</span> <span class=o>+</span> <span class=n>col</span><span class=p>]</span> <span class=o>=</span> <span class=n>sum</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>和 <code>v0</code> 相比，这个版本做的事情几乎可以用“微不足道”来形容：它没有引入共享内存，没有改 block 规模，也没有减少任何运算量，只是把 <code>row</code> 和 <code>col</code> 的映射方式调换了一下。</p><p>但恰恰是这个小改动，让同一个 warp 中的线程更自然地在输出矩阵的一行上横向展开。于是：</p><ul><li>对 <code>B[i * N + col]</code> 的读取更容易形成连续访问</li><li>对 <code>C[row * N + col]</code> 的写回也变成连续写回</li></ul><p>这一步看似简单，实际上非常关键。因为矩阵乘法这种问题里，很多时候“线程到底在按行走还是按列走”，本身就是性能优化的一半。你甚至可以说，<code>v1</code> 的意义不在于它把 kernel 写得更复杂，而在于它第一次让线程布局真正顺着内存布局去走。</p><h3 id=v1-的性能表现>v1 的性能表现</h3><p>在规则尺寸 <code>1024 x 512 x 1024</code> 下：</p><ul><li>平均耗时：<code>0.216 ms</code></li><li>吞吐：<code>4973.53 GFLOPS</code></li><li>相对 cuBLAS：<code>18.76%</code></li></ul><p>在非整齐尺寸 <code>1001 x 513 x 777</code> 下：</p><ul><li>平均耗时：<code>0.191 ms</code></li><li>吞吐：<code>4186.53 GFLOPS</code></li><li>相对 cuBLAS：<code>25.88%</code></li></ul><p>这一步最震撼的地方在于，<strong>它几乎没有增加实现复杂度，却把性能提升了一个数量级</strong>。这对 CUDA 初学者来说是一个非常重要的提醒：在还没有碰共享内存、张量核心、warp-level primitive 之前，先把线程映射方向摆正，往往比你想象中更重要。</p><hr><h2 id=v2共享内存分块把重复读取变成块内复用>v2：共享内存分块，把“重复读取”变成“块内复用”</h2><p>第三个版本开始进入矩阵乘法优化里最经典的一步：shared memory tiling。</p><p>完整代码如下：</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span><span class=lnt>38
+</span><span class=lnt>39
+</span><span class=lnt>40
+</span><span class=lnt>41
+</span><span class=lnt>42
+</span><span class=lnt>43
+</span><span class=lnt>44
+</span><span class=lnt>45
+</span><span class=lnt>46
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-gdscript3 data-lang=gdscript3><span class=line><span class=cl><span class=n>template</span> <span class=o>&lt;</span><span class=ne>int</span> <span class=n>TILE_WIDTH</span><span class=o>&gt;</span>
+</span></span><span class=line><span class=cl><span class=n>__global__</span> <span class=n>void</span> <span class=n>matmul_v2</span><span class=p>(</span><span class=k>const</span> <span class=ne>float</span> <span class=o>*</span><span class=n>A</span><span class=p>,</span> <span class=k>const</span> <span class=ne>float</span> <span class=o>*</span><span class=n>B</span><span class=p>,</span> <span class=ne>float</span> <span class=o>*</span><span class=n>C</span><span class=p>,</span> <span class=ne>int</span> <span class=n>M</span><span class=p>,</span> <span class=ne>int</span> <span class=n>N</span><span class=p>,</span> <span class=ne>int</span> <span class=n>K</span><span class=p>)</span>
+</span></span><span class=line><span class=cl><span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=n>__shared__</span> <span class=ne>float</span> <span class=n>ads</span><span class=p>[</span><span class=n>TILE_WIDTH</span> <span class=o>*</span> <span class=n>TILE_WIDTH</span><span class=p>];</span>
+</span></span><span class=line><span class=cl>    <span class=n>__shared__</span> <span class=ne>float</span> <span class=n>bds</span><span class=p>[</span><span class=n>TILE_WIDTH</span> <span class=o>*</span> <span class=n>TILE_WIDTH</span><span class=p>];</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=ne>int</span> <span class=n>bx</span> <span class=o>=</span> <span class=n>blockIdx</span><span class=o>.</span><span class=n>x</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=ne>int</span> <span class=n>by</span> <span class=o>=</span> <span class=n>blockIdx</span><span class=o>.</span><span class=n>y</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=ne>int</span> <span class=n>tx</span> <span class=o>=</span> <span class=n>threadIdx</span><span class=o>.</span><span class=n>x</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=ne>int</span> <span class=n>ty</span> <span class=o>=</span> <span class=n>threadIdx</span><span class=o>.</span><span class=n>y</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=ne>int</span> <span class=n>row</span> <span class=o>=</span> <span class=n>by</span> <span class=o>*</span> <span class=n>TILE_WIDTH</span> <span class=o>+</span> <span class=n>ty</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=ne>int</span> <span class=n>col</span> <span class=o>=</span> <span class=n>bx</span> <span class=o>*</span> <span class=n>TILE_WIDTH</span> <span class=o>+</span> <span class=n>tx</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=ne>float</span> <span class=n>sum</span> <span class=o>=</span> <span class=mf>0.0</span><span class=n>f</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>for</span> <span class=p>(</span><span class=ne>int</span> <span class=n>ph</span> <span class=o>=</span> <span class=mi>0</span><span class=p>;</span> <span class=n>ph</span> <span class=o>&lt;</span> <span class=p>(</span><span class=n>K</span> <span class=o>+</span> <span class=n>TILE_WIDTH</span> <span class=o>-</span> <span class=mi>1</span><span class=p>)</span> <span class=o>/</span> <span class=n>TILE_WIDTH</span><span class=p>;</span> <span class=o>++</span><span class=n>ph</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=o>//</span> <span class=err>把</span> <span class=n>A</span> <span class=err>的一个</span> <span class=n>tile</span> <span class=err>搬到共享内存，不足</span> <span class=n>tile</span> <span class=err>的部分补零</span>
+</span></span><span class=line><span class=cl>        <span class=k>if</span> <span class=p>(</span><span class=n>row</span> <span class=o>&lt;</span> <span class=n>M</span> <span class=o>&amp;&amp;</span> <span class=n>tx</span> <span class=o>+</span> <span class=n>ph</span> <span class=o>*</span> <span class=n>TILE_WIDTH</span> <span class=o>&lt;</span> <span class=n>K</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>            <span class=n>ads</span><span class=p>[</span><span class=n>ty</span> <span class=o>*</span> <span class=n>blockDim</span><span class=o>.</span><span class=n>x</span> <span class=o>+</span> <span class=n>tx</span><span class=p>]</span> <span class=o>=</span> <span class=n>A</span><span class=p>[</span><span class=n>row</span> <span class=o>*</span> <span class=n>K</span> <span class=o>+</span> <span class=n>ph</span> <span class=o>*</span> <span class=n>blockDim</span><span class=o>.</span><span class=n>x</span> <span class=o>+</span> <span class=n>tx</span><span class=p>];</span>
+</span></span><span class=line><span class=cl>        <span class=k>else</span>
+</span></span><span class=line><span class=cl>            <span class=n>ads</span><span class=p>[</span><span class=n>ty</span> <span class=o>*</span> <span class=n>blockDim</span><span class=o>.</span><span class=n>x</span> <span class=o>+</span> <span class=n>tx</span><span class=p>]</span> <span class=o>=</span> <span class=mf>0.0</span><span class=n>f</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>        <span class=o>//</span> <span class=err>把</span> <span class=n>B</span> <span class=err>的一个</span> <span class=n>tile</span> <span class=err>搬到共享内存，不足</span> <span class=n>tile</span> <span class=err>的部分同样补零</span>
+</span></span><span class=line><span class=cl>        <span class=k>if</span> <span class=p>(</span><span class=n>col</span> <span class=o>&lt;</span> <span class=n>N</span> <span class=o>&amp;&amp;</span> <span class=n>ty</span> <span class=o>+</span> <span class=n>ph</span> <span class=o>*</span> <span class=n>TILE_WIDTH</span> <span class=o>&lt;</span> <span class=n>K</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>            <span class=n>bds</span><span class=p>[</span><span class=n>ty</span> <span class=o>*</span> <span class=n>TILE_WIDTH</span> <span class=o>+</span> <span class=n>tx</span><span class=p>]</span> <span class=o>=</span> <span class=n>B</span><span class=p>[(</span><span class=n>ph</span> <span class=o>*</span> <span class=n>blockDim</span><span class=o>.</span><span class=n>y</span> <span class=o>+</span> <span class=n>threadIdx</span><span class=o>.</span><span class=n>y</span><span class=p>)</span> <span class=o>*</span> <span class=n>N</span> <span class=o>+</span> <span class=n>col</span><span class=p>];</span>
+</span></span><span class=line><span class=cl>        <span class=k>else</span>
+</span></span><span class=line><span class=cl>            <span class=n>bds</span><span class=p>[</span><span class=n>ty</span> <span class=o>*</span> <span class=n>TILE_WIDTH</span> <span class=o>+</span> <span class=n>tx</span><span class=p>]</span> <span class=o>=</span> <span class=mf>0.0</span><span class=n>f</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>        <span class=n>__syncthreads</span><span class=p>();</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>        <span class=k>for</span> <span class=p>(</span><span class=ne>int</span> <span class=n>k</span> <span class=o>=</span> <span class=mi>0</span><span class=p>;</span> <span class=n>k</span> <span class=o>&lt;</span> <span class=n>TILE_WIDTH</span><span class=p>;</span> <span class=o>++</span><span class=n>k</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>        <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=o>//</span> <span class=err>在共享内存上完成这一轮</span> <span class=n>tile</span> <span class=err>的乘加</span>
+</span></span><span class=line><span class=cl>            <span class=n>sum</span> <span class=o>+=</span> <span class=n>ads</span><span class=p>[</span><span class=n>ty</span> <span class=o>*</span> <span class=n>TILE_WIDTH</span> <span class=o>+</span> <span class=n>k</span><span class=p>]</span> <span class=o>*</span> <span class=n>bds</span><span class=p>[</span><span class=n>k</span> <span class=o>*</span> <span class=n>TILE_WIDTH</span> <span class=o>+</span> <span class=n>tx</span><span class=p>];</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>        <span class=n>__syncthreads</span><span class=p>();</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=p>(</span><span class=n>row</span> <span class=o>&lt;</span> <span class=n>M</span> <span class=o>&amp;&amp;</span> <span class=n>col</span> <span class=o>&lt;</span> <span class=n>N</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=n>C</span><span class=p>[</span><span class=n>row</span> <span class=o>*</span> <span class=n>N</span> <span class=o>+</span> <span class=n>col</span><span class=p>]</span> <span class=o>=</span> <span class=n>sum</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>这一步的本质，是把“每次乘加都直接去全局显存取一对新数据”的模式，改成“先让整个 block 协同搬一小块数据到共享内存，再反复使用”。这样做的原因并不神秘：矩阵乘法天生会复用输入数据。同一个输出 tile 的计算中，<code>A</code> 的一段行片段和 <code>B</code> 的一段列片段都会被 block 内的多个线程反复访问。如果每个线程都各自去全局显存抓同一份数据，那显然浪费巨大。</p><p><code>v2</code> 的做法很典型：</p><ol><li>每个 block 对应输出矩阵中的一个 tile。</li><li>每一轮 <code>ph</code>（phase）加载 <code>A</code> 和 <code>B</code> 的一个子块进入共享内存。</li><li>通过 <code>__syncthreads()</code> 保证块内线程都看到了完整 tile。</li><li>再在共享内存上完成这一轮 tile 的乘加。</li></ol><p>因此，<code>v2</code> 优化的核心不是减少 FLOPs，而是提高数据复用率，降低全局显存压力。这版代码还有一个非常重要的工程细节：它在加载 <code>A</code> 和 <code>B</code> tile 时都做了显式的越界判断，不足一个 tile 的部分直接补零。这样避免了当矩阵维度不能整除block的大小的时候，共享内存中可能会存在的垃圾数据。</p><h3 id=v2-的性能表现>v2 的性能表现</h3><p>在规则尺寸 <code>1024 x 512 x 1024</code> 下：</p><ul><li>平均耗时：<code>0.174 ms</code></li><li>吞吐：<code>6156.44 GFLOPS</code></li><li>相对 cuBLAS：<code>23.23%</code></li></ul><p>在非整齐尺寸 <code>1001 x 513 x 777</code> 下：</p><ul><li>平均耗时：<code>0.160 ms</code></li><li>吞吐：<code>4985.70 GFLOPS</code></li><li>相对 cuBLAS：<code>30.83%</code></li></ul><p>和 <code>v1</code> 相比，这一版的提升已经没有 <code>v0 -> v1</code> 那么夸张，但它的意义并不因此降低。因为从这里开始，我们进入的已经不再是“把映射摆正”的阶段，而是开始真正用 GPU 体系结构的思维去改写数据流。</p><hr><h2 id=v31d-寄存器粗化让一个线程一次算更多结果>v3：1D 寄存器粗化，让一个线程一次算更多结果</h2><p>共享内存 tiling 能解决块内数据复用的问题，但它仍然默认每个线程只负责很少的输出元素。下一步比较自然的优化，就是把一个线程的工作量再往上提一点，让它一次计算多个输出值，从而提高寄存器里数据的复用率。</p><p>这就是 <code>v3</code> 的思路。完整代码如下：</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span><span class=lnt>38
+</span><span class=lnt>39
+</span><span class=lnt>40
+</span><span class=lnt>41
+</span><span class=lnt>42
+</span><span class=lnt>43
+</span><span class=lnt>44
+</span><span class=lnt>45
+</span><span class=lnt>46
+</span><span class=lnt>47
+</span><span class=lnt>48
+</span><span class=lnt>49
+</span><span class=lnt>50
+</span><span class=lnt>51
+</span><span class=lnt>52
+</span><span class=lnt>53
+</span><span class=lnt>54
+</span><span class=lnt>55
+</span><span class=lnt>56
+</span><span class=lnt>57
+</span><span class=lnt>58
+</span><span class=lnt>59
+</span><span class=lnt>60
+</span><span class=lnt>61
+</span><span class=lnt>62
+</span><span class=lnt>63
+</span><span class=lnt>64
+</span><span class=lnt>65
+</span><span class=lnt>66
+</span><span class=lnt>67
+</span><span class=lnt>68
+</span><span class=lnt>69
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-gdscript3 data-lang=gdscript3><span class=line><span class=cl><span class=n>template</span> <span class=o>&lt;</span><span class=ne>int</span> <span class=n>BM</span><span class=p>,</span> <span class=ne>int</span> <span class=n>BN</span><span class=p>,</span> <span class=ne>int</span> <span class=n>BK</span><span class=p>,</span> <span class=ne>int</span> <span class=n>TN</span><span class=o>&gt;</span>
+</span></span><span class=line><span class=cl><span class=n>__global__</span> <span class=n>void</span> <span class=n>matmul_v3_1d</span><span class=p>(</span><span class=k>const</span> <span class=ne>float</span> <span class=o>*</span><span class=n>A</span><span class=p>,</span> <span class=k>const</span> <span class=ne>float</span> <span class=o>*</span><span class=n>B</span><span class=p>,</span> <span class=ne>float</span> <span class=o>*</span><span class=n>C</span><span class=p>,</span> <span class=ne>int</span> <span class=n>M</span><span class=p>,</span> <span class=ne>int</span> <span class=n>N</span><span class=p>,</span> <span class=ne>int</span> <span class=n>K</span><span class=p>)</span>
+</span></span><span class=line><span class=cl><span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=n>__shared__</span> <span class=ne>float</span> <span class=n>ads</span><span class=p>[</span><span class=n>BM</span> <span class=o>*</span> <span class=n>BK</span><span class=p>];</span>
+</span></span><span class=line><span class=cl>    <span class=n>__shared__</span> <span class=ne>float</span> <span class=n>bds</span><span class=p>[</span><span class=n>BK</span> <span class=o>*</span> <span class=n>BN</span><span class=p>];</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=o>//</span> <span class=err>一个线程一次维护</span> <span class=n>TN</span> <span class=err>个输出元素</span>
+</span></span><span class=line><span class=cl>    <span class=ne>float</span> <span class=n>accumulators</span><span class=p>[</span><span class=n>TN</span><span class=p>]</span> <span class=o>=</span> <span class=p>{</span><span class=mf>0.0</span><span class=n>f</span><span class=p>};</span>
+</span></span><span class=line><span class=cl>    <span class=ne>float</span> <span class=n>b_frag</span><span class=p>[</span><span class=n>TN</span><span class=p>];</span>
+</span></span><span class=line><span class=cl>    <span class=ne>float</span> <span class=n>a_frag</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>for</span> <span class=p>(</span><span class=ne>int</span> <span class=n>ph</span> <span class=o>=</span> <span class=mi>0</span><span class=p>;</span> <span class=n>ph</span> <span class=o>&lt;</span> <span class=p>(</span><span class=n>K</span> <span class=o>+</span> <span class=n>BK</span> <span class=o>-</span> <span class=mi>1</span><span class=p>)</span> <span class=o>/</span> <span class=n>BK</span><span class=p>;</span> <span class=n>ph</span><span class=o>++</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=ne>int</span> <span class=n>a_begin_row</span> <span class=o>=</span> <span class=n>BM</span> <span class=o>*</span> <span class=n>blockIdx</span><span class=o>.</span><span class=n>y</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=ne>int</span> <span class=n>a_begin_col</span> <span class=o>=</span> <span class=n>ph</span> <span class=o>*</span> <span class=n>BK</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=ne>int</span> <span class=n>tid</span> <span class=o>=</span> <span class=n>threadIdx</span><span class=o>.</span><span class=n>y</span> <span class=o>*</span> <span class=n>blockDim</span><span class=o>.</span><span class=n>x</span> <span class=o>+</span> <span class=n>threadIdx</span><span class=o>.</span><span class=n>x</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>        <span class=k>for</span> <span class=p>(</span><span class=ne>int</span> <span class=n>i</span> <span class=o>=</span> <span class=mi>0</span><span class=p>;</span> <span class=n>i</span> <span class=o>&lt;</span> <span class=n>BM</span> <span class=o>*</span> <span class=n>BK</span> <span class=o>/</span> <span class=p>(</span><span class=n>blockDim</span><span class=o>.</span><span class=n>x</span> <span class=o>*</span> <span class=n>blockDim</span><span class=o>.</span><span class=n>y</span><span class=p>);</span> <span class=o>++</span><span class=n>i</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>        <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=ne>int</span> <span class=n>ads_row</span> <span class=o>=</span> <span class=p>(</span><span class=n>i</span> <span class=o>*</span> <span class=p>(</span><span class=n>blockDim</span><span class=o>.</span><span class=n>x</span> <span class=o>*</span> <span class=n>blockDim</span><span class=o>.</span><span class=n>y</span><span class=p>)</span> <span class=o>+</span> <span class=n>tid</span><span class=p>)</span> <span class=o>/</span> <span class=n>BK</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>            <span class=ne>int</span> <span class=n>ads_col</span> <span class=o>=</span> <span class=p>(</span><span class=n>i</span> <span class=o>*</span> <span class=p>(</span><span class=n>blockDim</span><span class=o>.</span><span class=n>x</span> <span class=o>*</span> <span class=n>blockDim</span><span class=o>.</span><span class=n>y</span><span class=p>)</span> <span class=o>+</span> <span class=n>tid</span><span class=p>)</span> <span class=o>%</span> <span class=n>BK</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>            <span class=k>if</span> <span class=p>(</span><span class=n>a_begin_row</span> <span class=o>+</span> <span class=n>ads_row</span> <span class=o>&lt;</span> <span class=n>M</span> <span class=o>&amp;&amp;</span> <span class=n>a_begin_col</span> <span class=o>+</span> <span class=n>ads_col</span> <span class=o>&lt;</span> <span class=n>K</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>                <span class=n>ads</span><span class=p>[</span><span class=n>ads_row</span> <span class=o>*</span> <span class=n>BK</span> <span class=o>+</span> <span class=n>ads_col</span><span class=p>]</span> <span class=o>=</span> <span class=n>A</span><span class=p>[(</span><span class=n>a_begin_row</span> <span class=o>+</span> <span class=n>ads_row</span><span class=p>)</span> <span class=o>*</span> <span class=n>K</span> <span class=o>+</span> <span class=n>a_begin_col</span> <span class=o>+</span> <span class=n>ads_col</span><span class=p>];</span>
+</span></span><span class=line><span class=cl>            <span class=k>else</span>
+</span></span><span class=line><span class=cl>                <span class=n>ads</span><span class=p>[</span><span class=n>ads_row</span> <span class=o>*</span> <span class=n>BK</span> <span class=o>+</span> <span class=n>ads_col</span><span class=p>]</span> <span class=o>=</span> <span class=mf>0.0</span><span class=n>f</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>        <span class=ne>int</span> <span class=n>b_begin_col</span> <span class=o>=</span> <span class=n>BN</span> <span class=o>*</span> <span class=n>blockIdx</span><span class=o>.</span><span class=n>x</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=ne>int</span> <span class=n>b_begin_row</span> <span class=o>=</span> <span class=n>ph</span> <span class=o>*</span> <span class=n>BK</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=k>for</span> <span class=p>(</span><span class=ne>int</span> <span class=n>i</span> <span class=o>=</span> <span class=mi>0</span><span class=p>;</span> <span class=n>i</span> <span class=o>&lt;</span> <span class=n>BK</span> <span class=o>*</span> <span class=n>BN</span> <span class=o>/</span> <span class=p>(</span><span class=n>blockDim</span><span class=o>.</span><span class=n>x</span> <span class=o>*</span> <span class=n>blockDim</span><span class=o>.</span><span class=n>y</span><span class=p>);</span> <span class=o>++</span><span class=n>i</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>        <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=ne>int</span> <span class=n>bds_row</span> <span class=o>=</span> <span class=p>(</span><span class=n>i</span> <span class=o>*</span> <span class=p>(</span><span class=n>blockDim</span><span class=o>.</span><span class=n>x</span> <span class=o>*</span> <span class=n>blockDim</span><span class=o>.</span><span class=n>y</span><span class=p>)</span> <span class=o>+</span> <span class=n>tid</span><span class=p>)</span> <span class=o>/</span> <span class=n>BN</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>            <span class=ne>int</span> <span class=n>bds_col</span> <span class=o>=</span> <span class=p>(</span><span class=n>i</span> <span class=o>*</span> <span class=p>(</span><span class=n>blockDim</span><span class=o>.</span><span class=n>x</span> <span class=o>*</span> <span class=n>blockDim</span><span class=o>.</span><span class=n>y</span><span class=p>)</span> <span class=o>+</span> <span class=n>tid</span><span class=p>)</span> <span class=o>%</span> <span class=n>BN</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>            <span class=k>if</span> <span class=p>(</span><span class=n>b_begin_col</span> <span class=o>+</span> <span class=n>bds_col</span> <span class=o>&lt;</span> <span class=n>N</span> <span class=o>&amp;&amp;</span> <span class=n>b_begin_row</span> <span class=o>+</span> <span class=n>bds_row</span> <span class=o>&lt;</span> <span class=n>K</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>                <span class=n>bds</span><span class=p>[</span><span class=n>bds_row</span> <span class=o>*</span> <span class=n>BN</span> <span class=o>+</span> <span class=n>bds_col</span><span class=p>]</span> <span class=o>=</span> <span class=n>B</span><span class=p>[(</span><span class=n>b_begin_row</span> <span class=o>+</span> <span class=n>bds_row</span><span class=p>)</span> <span class=o>*</span> <span class=n>N</span> <span class=o>+</span> <span class=n>b_begin_col</span> <span class=o>+</span> <span class=n>bds_col</span><span class=p>];</span>
+</span></span><span class=line><span class=cl>            <span class=k>else</span>
+</span></span><span class=line><span class=cl>                <span class=n>bds</span><span class=p>[</span><span class=n>bds_row</span> <span class=o>*</span> <span class=n>BN</span> <span class=o>+</span> <span class=n>bds_col</span><span class=p>]</span> <span class=o>=</span> <span class=mf>0.0</span><span class=n>f</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>        <span class=n>__syncthreads</span><span class=p>();</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>        <span class=ne>int</span> <span class=n>tx</span> <span class=o>=</span> <span class=n>threadIdx</span><span class=o>.</span><span class=n>x</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=ne>int</span> <span class=n>ty</span> <span class=o>=</span> <span class=n>threadIdx</span><span class=o>.</span><span class=n>y</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=k>for</span> <span class=p>(</span><span class=ne>int</span> <span class=n>k</span> <span class=o>=</span> <span class=mi>0</span><span class=p>;</span> <span class=n>k</span> <span class=o>&lt;</span> <span class=n>BK</span><span class=p>;</span> <span class=n>k</span><span class=o>++</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>        <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=o>//</span> <span class=n>A</span> <span class=err>方向只取一个标量，</span><span class=n>B</span> <span class=err>方向取</span> <span class=n>TN</span> <span class=err>个值，形成</span> <span class=mi>1</span><span class=n>D</span> <span class=err>粗化</span>
+</span></span><span class=line><span class=cl>            <span class=n>a_frag</span> <span class=o>=</span> <span class=n>ads</span><span class=p>[</span><span class=n>ty</span> <span class=o>*</span> <span class=n>BK</span> <span class=o>+</span> <span class=n>k</span><span class=p>];</span>
+</span></span><span class=line><span class=cl>            <span class=k>for</span> <span class=p>(</span><span class=ne>int</span> <span class=n>bij</span> <span class=o>=</span> <span class=mi>0</span><span class=p>;</span> <span class=n>bij</span> <span class=o>&lt;</span> <span class=n>TN</span><span class=p>;</span> <span class=n>bij</span><span class=o>++</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>            <span class=p>{</span>
+</span></span><span class=line><span class=cl>                <span class=n>b_frag</span><span class=p>[</span><span class=n>bij</span><span class=p>]</span> <span class=o>=</span> <span class=n>bds</span><span class=p>[</span><span class=n>k</span> <span class=o>*</span> <span class=n>BN</span> <span class=o>+</span> <span class=n>tx</span> <span class=o>*</span> <span class=n>TN</span> <span class=o>+</span> <span class=n>bij</span><span class=p>];</span>
+</span></span><span class=line><span class=cl>            <span class=p>}</span>
+</span></span><span class=line><span class=cl>            <span class=k>for</span> <span class=p>(</span><span class=ne>int</span> <span class=n>compute</span> <span class=o>=</span> <span class=mi>0</span><span class=p>;</span> <span class=n>compute</span> <span class=o>&lt;</span> <span class=n>TN</span><span class=p>;</span> <span class=n>compute</span><span class=o>++</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>            <span class=p>{</span>
+</span></span><span class=line><span class=cl>                <span class=n>accumulators</span><span class=p>[</span><span class=n>compute</span><span class=p>]</span> <span class=o>+=</span> <span class=n>a_frag</span> <span class=o>*</span> <span class=n>b_frag</span><span class=p>[</span><span class=n>compute</span><span class=p>];</span>
+</span></span><span class=line><span class=cl>            <span class=p>}</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>        <span class=n>__syncthreads</span><span class=p>();</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=ne>int</span> <span class=n>global_col</span> <span class=o>=</span> <span class=p>(</span><span class=n>blockDim</span><span class=o>.</span><span class=n>x</span> <span class=o>*</span> <span class=n>blockIdx</span><span class=o>.</span><span class=n>x</span> <span class=o>+</span> <span class=n>threadIdx</span><span class=o>.</span><span class=n>x</span><span class=p>)</span> <span class=o>*</span> <span class=n>TN</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=ne>int</span> <span class=n>global_row</span> <span class=o>=</span> <span class=n>blockDim</span><span class=o>.</span><span class=n>y</span> <span class=o>*</span> <span class=n>blockIdx</span><span class=o>.</span><span class=n>y</span> <span class=o>+</span> <span class=n>threadIdx</span><span class=o>.</span><span class=n>y</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=k>for</span> <span class=p>(</span><span class=ne>int</span> <span class=n>compute</span> <span class=o>=</span> <span class=mi>0</span><span class=p>;</span> <span class=n>compute</span> <span class=o>&lt;</span> <span class=n>TN</span><span class=p>;</span> <span class=n>compute</span><span class=o>++</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=o>//</span> <span class=err>修复后的尾块写回逻辑，保证非整齐尺寸也能正确落盘</span>
+</span></span><span class=line><span class=cl>        <span class=k>if</span> <span class=p>(</span><span class=n>global_row</span> <span class=o>&lt;</span> <span class=n>M</span> <span class=o>&amp;&amp;</span> <span class=n>global_col</span> <span class=o>+</span> <span class=n>compute</span> <span class=o>&lt;</span> <span class=n>N</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>            <span class=n>C</span><span class=p>[</span><span class=n>global_row</span> <span class=o>*</span> <span class=n>N</span> <span class=o>+</span> <span class=n>global_col</span> <span class=o>+</span> <span class=n>compute</span><span class=p>]</span> <span class=o>=</span> <span class=n>accumulators</span><span class=p>[</span><span class=n>compute</span><span class=p>];</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>这版最核心的变化，是让一个线程在列方向上同时负责 <code>TN = 4</code> 个输出元素。这样做的直接收益是：线程一旦把 <code>a_frag</code> 从共享内存读进寄存器，就可以立刻拿它和 4 个不同的 <code>b_frag</code> 做乘加。换句话说，<strong>同一个 <code>A</code> 元素的寄存器驻留价值被提高了</strong>。</p><p>从直觉上看，<code>v2</code> 更像是在优化“一个 block 怎么更高效地共享数据”，而 <code>v3</code> 开始进一步优化“一个线程怎么更高效地消费这些数据”。</p><p>这里还有一个非常关键的修正，就是写回阶段的边界判断：</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-fallback data-lang=fallback><span class=line><span class=cl>if (global_row &lt; M &amp;&amp; global_col + compute &lt; N)
+</span></span></code></pre></td></tr></table></div></div><p>这行判断的意义在于，当矩阵宽度 <code>N</code> 不是 <code>TN</code> 的整数倍时，最后一个线程组负责的 4 个输出位置里，可能只有前 1 个、2 个或 3 个是真正有效的。如果仍然只判断 <code>global_col &lt; N</code>，那么写尾部时就很容易越界或者把错误值写到不该写的位置。</p><h3 id=v3-的性能表现>v3 的性能表现</h3><p>在规则尺寸 <code>1024 x 512 x 1024</code> 下：</p><ul><li>平均耗时：<code>0.098 ms</code></li><li>吞吐：<code>11001.81 GFLOPS</code></li><li>相对 cuBLAS：<code>41.51%</code></li></ul><p>在非整齐尺寸 <code>1001 x 513 x 777</code> 下：</p><ul><li>平均耗时：<code>0.097 ms</code></li><li>吞吐：<code>8236.99 GFLOPS</code></li><li>相对 cuBLAS：<code>50.93%</code></li></ul><p>从结果上看，<code>v3</code> 是这条优化链里的另一个明显台阶。到了这一版，我们已经不只是“把访存做对”，而是开始显著提高单线程的算术强度了。</p><hr><h2 id=v42d-寄存器粗化把单线程计算粒度继续做大>v4：2D 寄存器粗化，把单线程计算粒度继续做大</h2><p>如果说 <code>v3</code> 是“一个线程沿着一个方向多算几个元素”，那么 <code>v4</code> 就更进一步：它直接让每个线程维护一个 <code>TM x TN</code> 的小块，也就是一个二维局部输出 tile。</p><p>完整代码如下：</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span><span class=lnt>38
+</span><span class=lnt>39
+</span><span class=lnt>40
+</span><span class=lnt>41
+</span><span class=lnt>42
+</span><span class=lnt>43
+</span><span class=lnt>44
+</span><span class=lnt>45
+</span><span class=lnt>46
+</span><span class=lnt>47
+</span><span class=lnt>48
+</span><span class=lnt>49
+</span><span class=lnt>50
+</span><span class=lnt>51
+</span><span class=lnt>52
+</span><span class=lnt>53
+</span><span class=lnt>54
+</span><span class=lnt>55
+</span><span class=lnt>56
+</span><span class=lnt>57
+</span><span class=lnt>58
+</span><span class=lnt>59
+</span><span class=lnt>60
+</span><span class=lnt>61
+</span><span class=lnt>62
+</span><span class=lnt>63
+</span><span class=lnt>64
+</span><span class=lnt>65
+</span><span class=lnt>66
+</span><span class=lnt>67
+</span><span class=lnt>68
+</span><span class=lnt>69
+</span><span class=lnt>70
+</span><span class=lnt>71
+</span><span class=lnt>72
+</span><span class=lnt>73
+</span><span class=lnt>74
+</span><span class=lnt>75
+</span><span class=lnt>76
+</span><span class=lnt>77
+</span><span class=lnt>78
+</span><span class=lnt>79
+</span><span class=lnt>80
+</span><span class=lnt>81
+</span><span class=lnt>82
+</span><span class=lnt>83
+</span><span class=lnt>84
+</span><span class=lnt>85
+</span><span class=lnt>86
+</span><span class=lnt>87
+</span><span class=lnt>88
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-gdscript3 data-lang=gdscript3><span class=line><span class=cl><span class=n>template</span> <span class=o>&lt;</span><span class=ne>int</span> <span class=n>BM</span><span class=p>,</span> <span class=ne>int</span> <span class=n>BN</span><span class=p>,</span> <span class=ne>int</span> <span class=n>BK</span><span class=p>,</span> <span class=ne>int</span> <span class=n>TM</span><span class=p>,</span> <span class=ne>int</span> <span class=n>TN</span><span class=o>&gt;</span>
+</span></span><span class=line><span class=cl><span class=n>__global__</span> <span class=n>void</span> <span class=n>matmul_v4_2d</span><span class=p>(</span><span class=k>const</span> <span class=ne>float</span> <span class=o>*</span><span class=n>A</span><span class=p>,</span> <span class=k>const</span> <span class=ne>float</span> <span class=o>*</span><span class=n>B</span><span class=p>,</span> <span class=ne>float</span> <span class=o>*</span><span class=n>C</span><span class=p>,</span> <span class=ne>int</span> <span class=n>M</span><span class=p>,</span> <span class=ne>int</span> <span class=n>N</span><span class=p>,</span> <span class=ne>int</span> <span class=n>K</span><span class=p>)</span>
+</span></span><span class=line><span class=cl><span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=ne>int</span> <span class=n>bx</span> <span class=o>=</span> <span class=n>blockIdx</span><span class=o>.</span><span class=n>x</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=ne>int</span> <span class=n>by</span> <span class=o>=</span> <span class=n>blockIdx</span><span class=o>.</span><span class=n>y</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=ne>int</span> <span class=n>tx</span> <span class=o>=</span> <span class=n>threadIdx</span><span class=o>.</span><span class=n>x</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>    <span class=ne>int</span> <span class=n>ty</span> <span class=o>=</span> <span class=n>threadIdx</span><span class=o>.</span><span class=n>y</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=n>__shared__</span> <span class=ne>float</span> <span class=n>ads</span><span class=p>[</span><span class=n>BM</span> <span class=o>*</span> <span class=n>BK</span><span class=p>];</span>
+</span></span><span class=line><span class=cl>    <span class=n>__shared__</span> <span class=ne>float</span> <span class=n>bds</span><span class=p>[</span><span class=n>BK</span> <span class=o>*</span> <span class=n>BN</span><span class=p>];</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=o>//</span> <span class=err>每个线程维护一个</span> <span class=n>TM</span> <span class=n>x</span> <span class=n>TN</span> <span class=err>的局部输出小块</span>
+</span></span><span class=line><span class=cl>    <span class=ne>float</span> <span class=n>a_frag</span><span class=p>[</span><span class=n>TM</span><span class=p>];</span>
+</span></span><span class=line><span class=cl>    <span class=ne>float</span> <span class=n>b_frag</span><span class=p>[</span><span class=n>TN</span><span class=p>];</span>
+</span></span><span class=line><span class=cl>    <span class=ne>float</span> <span class=n>acc</span><span class=p>[</span><span class=n>TM</span> <span class=o>*</span> <span class=n>TN</span><span class=p>]</span> <span class=o>=</span> <span class=p>{</span><span class=mf>0.0</span><span class=p>};</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>for</span> <span class=p>(</span><span class=ne>int</span> <span class=n>ph</span> <span class=o>=</span> <span class=mi>0</span><span class=p>;</span> <span class=n>ph</span> <span class=o>&lt;</span> <span class=p>((</span><span class=n>K</span> <span class=o>+</span> <span class=n>BK</span> <span class=o>-</span> <span class=mi>1</span><span class=p>)</span> <span class=o>/</span> <span class=n>BK</span><span class=p>);</span> <span class=n>ph</span><span class=o>++</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=ne>int</span> <span class=n>a_begin_row</span> <span class=o>=</span> <span class=n>by</span> <span class=o>*</span> <span class=n>BM</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=ne>int</span> <span class=n>a_begin_col</span> <span class=o>=</span> <span class=n>ph</span> <span class=o>*</span> <span class=n>BK</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=k>for</span> <span class=p>(</span><span class=ne>int</span> <span class=n>i</span> <span class=o>=</span> <span class=mi>0</span><span class=p>;</span> <span class=n>i</span> <span class=o>&lt;</span> <span class=p>(</span><span class=n>BM</span> <span class=o>*</span> <span class=n>BK</span><span class=p>)</span> <span class=o>/</span> <span class=p>(</span><span class=n>blockDim</span><span class=o>.</span><span class=n>x</span> <span class=o>*</span> <span class=n>blockDim</span><span class=o>.</span><span class=n>y</span><span class=p>);</span> <span class=n>i</span><span class=o>++</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>        <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=ne>int</span> <span class=n>idx_1d</span> <span class=o>=</span> <span class=n>i</span> <span class=o>*</span> <span class=p>(</span><span class=n>blockDim</span><span class=o>.</span><span class=n>x</span> <span class=o>*</span> <span class=n>blockDim</span><span class=o>.</span><span class=n>y</span><span class=p>)</span> <span class=o>+</span> <span class=n>blockDim</span><span class=o>.</span><span class=n>x</span> <span class=o>*</span> <span class=n>ty</span> <span class=o>+</span> <span class=n>tx</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>            <span class=ne>int</span> <span class=n>ads_row</span> <span class=o>=</span> <span class=n>idx_1d</span> <span class=o>/</span> <span class=n>BK</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>            <span class=ne>int</span> <span class=n>ads_col</span> <span class=o>=</span> <span class=n>idx_1d</span> <span class=o>%</span> <span class=n>BK</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>            <span class=k>if</span> <span class=p>(</span><span class=n>ads_row</span> <span class=o>+</span> <span class=n>a_begin_row</span> <span class=o>&lt;</span> <span class=n>M</span> <span class=o>&amp;&amp;</span> <span class=n>a_begin_col</span> <span class=o>+</span> <span class=n>ads_col</span> <span class=o>&lt;</span> <span class=n>K</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>                <span class=n>ads</span><span class=p>[</span><span class=n>ads_row</span> <span class=o>*</span> <span class=n>BK</span> <span class=o>+</span> <span class=n>ads_col</span><span class=p>]</span> <span class=o>=</span> <span class=n>A</span><span class=p>[(</span><span class=n>ads_row</span> <span class=o>+</span> <span class=n>a_begin_row</span><span class=p>)</span> <span class=o>*</span> <span class=n>K</span> <span class=o>+</span> <span class=n>a_begin_col</span> <span class=o>+</span> <span class=n>ads_col</span><span class=p>];</span>
+</span></span><span class=line><span class=cl>            <span class=k>else</span>
+</span></span><span class=line><span class=cl>                <span class=n>ads</span><span class=p>[</span><span class=n>ads_row</span> <span class=o>*</span> <span class=n>BK</span> <span class=o>+</span> <span class=n>ads_col</span><span class=p>]</span> <span class=o>=</span> <span class=mf>0.0</span><span class=n>f</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>        <span class=ne>int</span> <span class=n>b_begin_row</span> <span class=o>=</span> <span class=n>ph</span> <span class=o>*</span> <span class=n>BK</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=ne>int</span> <span class=n>b_begin_col</span> <span class=o>=</span> <span class=n>bx</span> <span class=o>*</span> <span class=n>BN</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=k>for</span> <span class=p>(</span><span class=ne>int</span> <span class=n>i</span> <span class=o>=</span> <span class=mi>0</span><span class=p>;</span> <span class=n>i</span> <span class=o>&lt;</span> <span class=p>(</span><span class=n>BN</span> <span class=o>*</span> <span class=n>BK</span><span class=p>)</span> <span class=o>/</span> <span class=p>(</span><span class=n>blockDim</span><span class=o>.</span><span class=n>x</span> <span class=o>*</span> <span class=n>blockDim</span><span class=o>.</span><span class=n>y</span><span class=p>);</span> <span class=n>i</span><span class=o>++</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>        <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=ne>int</span> <span class=n>idx_1d</span> <span class=o>=</span> <span class=n>i</span> <span class=o>*</span> <span class=p>(</span><span class=n>blockDim</span><span class=o>.</span><span class=n>x</span> <span class=o>*</span> <span class=n>blockDim</span><span class=o>.</span><span class=n>y</span><span class=p>)</span> <span class=o>+</span> <span class=n>blockDim</span><span class=o>.</span><span class=n>x</span> <span class=o>*</span> <span class=n>ty</span> <span class=o>+</span> <span class=n>tx</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>            <span class=ne>int</span> <span class=n>bds_row</span> <span class=o>=</span> <span class=n>idx_1d</span> <span class=o>/</span> <span class=n>BN</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>            <span class=ne>int</span> <span class=n>bds_col</span> <span class=o>=</span> <span class=n>idx_1d</span> <span class=o>%</span> <span class=n>BN</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>            <span class=k>if</span> <span class=p>(</span><span class=n>bds_row</span> <span class=o>+</span> <span class=n>b_begin_row</span> <span class=o>&lt;</span> <span class=n>K</span> <span class=o>&amp;&amp;</span> <span class=n>bds_col</span> <span class=o>+</span> <span class=n>b_begin_col</span> <span class=o>&lt;</span> <span class=n>N</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>                <span class=n>bds</span><span class=p>[</span><span class=n>bds_row</span> <span class=o>*</span> <span class=n>BN</span> <span class=o>+</span> <span class=n>bds_col</span><span class=p>]</span> <span class=o>=</span> <span class=n>B</span><span class=p>[(</span><span class=n>bds_row</span> <span class=o>+</span> <span class=n>b_begin_row</span><span class=p>)</span> <span class=o>*</span> <span class=n>N</span> <span class=o>+</span> <span class=n>bds_col</span> <span class=o>+</span> <span class=n>b_begin_col</span><span class=p>];</span>
+</span></span><span class=line><span class=cl>            <span class=k>else</span>
+</span></span><span class=line><span class=cl>                <span class=n>bds</span><span class=p>[</span><span class=n>bds_row</span> <span class=o>*</span> <span class=n>BN</span> <span class=o>+</span> <span class=n>bds_col</span><span class=p>]</span> <span class=o>=</span> <span class=mf>0.0</span><span class=n>f</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>        <span class=n>__syncthreads</span><span class=p>();</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>        <span class=k>for</span> <span class=p>(</span><span class=ne>int</span> <span class=n>p</span> <span class=o>=</span> <span class=mi>0</span><span class=p>;</span> <span class=n>p</span> <span class=o>&lt;</span> <span class=n>BK</span><span class=p>;</span> <span class=n>p</span><span class=o>++</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>        <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=o>//</span> <span class=err>从共享内存取出一列</span> <span class=n>A</span> <span class=err>片段和一行</span> <span class=n>B</span> <span class=err>片段，放进寄存器</span>
+</span></span><span class=line><span class=cl>            <span class=ne>int</span> <span class=n>ads_col</span> <span class=o>=</span> <span class=n>p</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>            <span class=k>for</span> <span class=p>(</span><span class=ne>int</span> <span class=n>i</span> <span class=o>=</span> <span class=mi>0</span><span class=p>;</span> <span class=n>i</span> <span class=o>&lt;</span> <span class=n>TM</span><span class=p>;</span> <span class=n>i</span><span class=o>++</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>            <span class=p>{</span>
+</span></span><span class=line><span class=cl>                <span class=ne>int</span> <span class=n>ads_row</span> <span class=o>=</span> <span class=n>i</span> <span class=o>+</span> <span class=n>ty</span> <span class=o>*</span> <span class=n>TM</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>                <span class=n>a_frag</span><span class=p>[</span><span class=n>i</span><span class=p>]</span> <span class=o>=</span> <span class=n>ads</span><span class=p>[</span><span class=n>ads_row</span> <span class=o>*</span> <span class=n>BK</span> <span class=o>+</span> <span class=n>ads_col</span><span class=p>];</span>
+</span></span><span class=line><span class=cl>            <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>            <span class=ne>int</span> <span class=n>bds_row</span> <span class=o>=</span> <span class=n>p</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>            <span class=k>for</span> <span class=p>(</span><span class=ne>int</span> <span class=n>i</span> <span class=o>=</span> <span class=mi>0</span><span class=p>;</span> <span class=n>i</span> <span class=o>&lt;</span> <span class=n>TN</span><span class=p>;</span> <span class=n>i</span><span class=o>++</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>            <span class=p>{</span>
+</span></span><span class=line><span class=cl>                <span class=ne>int</span> <span class=n>bds_col</span> <span class=o>=</span> <span class=n>i</span> <span class=o>+</span> <span class=n>tx</span> <span class=o>*</span> <span class=n>TN</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>                <span class=n>b_frag</span><span class=p>[</span><span class=n>i</span><span class=p>]</span> <span class=o>=</span> <span class=n>bds</span><span class=p>[</span><span class=n>bds_row</span> <span class=o>*</span> <span class=n>BN</span> <span class=o>+</span> <span class=n>bds_col</span><span class=p>];</span>
+</span></span><span class=line><span class=cl>            <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>            <span class=k>for</span> <span class=p>(</span><span class=ne>int</span> <span class=n>i</span> <span class=o>=</span> <span class=mi>0</span><span class=p>;</span> <span class=n>i</span> <span class=o>&lt;</span> <span class=n>TM</span><span class=p>;</span> <span class=n>i</span><span class=o>++</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>            <span class=p>{</span>
+</span></span><span class=line><span class=cl>                <span class=ne>float</span> <span class=n>a</span> <span class=o>=</span> <span class=n>a_frag</span><span class=p>[</span><span class=n>i</span><span class=p>];</span>
+</span></span><span class=line><span class=cl>                <span class=k>for</span> <span class=p>(</span><span class=ne>int</span> <span class=n>j</span> <span class=o>=</span> <span class=mi>0</span><span class=p>;</span> <span class=n>j</span> <span class=o>&lt;</span> <span class=n>TN</span><span class=p>;</span> <span class=n>j</span><span class=o>++</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>                <span class=p>{</span>
+</span></span><span class=line><span class=cl>                    <span class=o>//</span> <span class=err>在寄存器里完成一个小矩形块的累加</span>
+</span></span><span class=line><span class=cl>                    <span class=n>acc</span><span class=p>[</span><span class=n>i</span> <span class=o>*</span> <span class=n>TN</span> <span class=o>+</span> <span class=n>j</span><span class=p>]</span> <span class=o>+=</span> <span class=n>a</span> <span class=o>*</span> <span class=n>b_frag</span><span class=p>[</span><span class=n>j</span><span class=p>];</span>
+</span></span><span class=line><span class=cl>                <span class=p>}</span>
+</span></span><span class=line><span class=cl>            <span class=p>}</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>        <span class=n>__syncthreads</span><span class=p>();</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>    <span class=k>for</span> <span class=p>(</span><span class=ne>int</span> <span class=n>i</span> <span class=o>=</span> <span class=mi>0</span><span class=p>;</span> <span class=n>i</span> <span class=o>&lt;</span> <span class=n>TM</span><span class=p>;</span> <span class=n>i</span><span class=o>++</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=ne>int</span> <span class=n>c_row</span> <span class=o>=</span> <span class=n>blockIdx</span><span class=o>.</span><span class=n>y</span> <span class=o>*</span> <span class=n>TM</span> <span class=o>*</span> <span class=n>blockDim</span><span class=o>.</span><span class=n>y</span> <span class=o>+</span> <span class=n>threadIdx</span><span class=o>.</span><span class=n>y</span> <span class=o>*</span> <span class=n>TM</span> <span class=o>+</span> <span class=n>i</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>        <span class=k>for</span> <span class=p>(</span><span class=ne>int</span> <span class=n>j</span> <span class=o>=</span> <span class=mi>0</span><span class=p>;</span> <span class=n>j</span> <span class=o>&lt;</span> <span class=n>TN</span><span class=p>;</span> <span class=n>j</span><span class=o>++</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>        <span class=p>{</span>
+</span></span><span class=line><span class=cl>            <span class=ne>int</span> <span class=n>c_col</span> <span class=o>=</span> <span class=n>blockIdx</span><span class=o>.</span><span class=n>x</span> <span class=o>*</span> <span class=n>blockDim</span><span class=o>.</span><span class=n>x</span> <span class=o>*</span> <span class=n>TN</span> <span class=o>+</span> <span class=n>threadIdx</span><span class=o>.</span><span class=n>x</span> <span class=o>*</span> <span class=n>TN</span> <span class=o>+</span> <span class=n>j</span><span class=p>;</span>
+</span></span><span class=line><span class=cl>            <span class=k>if</span> <span class=p>(</span><span class=n>c_row</span> <span class=o>&lt;</span> <span class=n>M</span> <span class=o>&amp;&amp;</span> <span class=n>c_col</span> <span class=o>&lt;</span> <span class=n>N</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>                <span class=n>C</span><span class=p>[</span><span class=n>c_row</span> <span class=o>*</span> <span class=n>N</span> <span class=o>+</span> <span class=n>c_col</span><span class=p>]</span> <span class=o>=</span> <span class=n>acc</span><span class=p>[</span><span class=n>i</span> <span class=o>*</span> <span class=n>TN</span> <span class=o>+</span> <span class=n>j</span><span class=p>];</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span>
+</span></span><span class=line><span class=cl>    <span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>这版代码里，每个线程不再只维护一串列方向结果，而是维护一个 <code>TM x TN = 4 x 4</code> 的小矩形块。它的好处在于，线程从共享内存读出的 <code>a_frag</code> 和 <code>b_frag</code>，可以在寄存器里被更多次地交叉组合使用。于是：</p><ul><li>数据复用进一步提高</li><li>单线程计算密度进一步提高</li><li>kernel 的结构更接近高性能 GEMM 的典型形态</li></ul><p>和 <code>v3</code> 相比，<code>v4</code> 不只是“算更多元素”，而是把“一个线程内部的小矩阵乘法”也做了出来。这种二维粗化思路在很多高性能手写 GEMM kernel 中都非常常见。</p><p>写回阶段，这版代码对每个 <code>(i, j)</code> 都单独计算 <code>c_row</code> 和 <code>c_col</code>，再分别做边界检查，因此尾块处理也比较自然，不需要额外的专门 hack。</p><h3 id=v4-的性能表现>v4 的性能表现</h3><p>在规则尺寸 <code>1024 x 512 x 1024</code> 下：</p><ul><li>平均耗时：<code>0.058 ms</code></li><li>吞吐：<code>18368.88 GFLOPS</code></li><li>相对 cuBLAS：<code>69.30%</code></li></ul><p>在非整齐尺寸 <code>1001 x 513 x 777</code> 下：</p><ul><li>平均耗时：<code>0.058 ms</code></li><li>吞吐：<code>13848.77 GFLOPS</code></li><li>相对 cuBLAS：<code>85.62%</code></li></ul><p>从纯性能角度看，这已经是当前自定义 kernel 里最强的一版。它离 cuBLAS 当然还有差距，但对一份教学型手写实现来说，能够稳定到这个水平，我觉得已经说明这条优化路线非常有效了。</p><hr><h2 id=cublas-参考实现>cuBLAS 参考实现</h2><p>这里附上调用 cuBLAS的代码：</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span><span class=lnt>8
+</span><span class=lnt>9
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-fallback data-lang=fallback><span class=line><span class=cl>stat = cublasSgemm(handle,
+</span></span><span class=line><span class=cl>                   // 列主序接口下用 B^T A^T 计算出行主序想要的结果
+</span></span><span class=line><span class=cl>                   CUBLAS_OP_N, CUBLAS_OP_N,
+</span></span><span class=line><span class=cl>                   N, M, K,
+</span></span><span class=line><span class=cl>                   &amp;alpha,
+</span></span><span class=line><span class=cl>                   d_B, N,
+</span></span><span class=line><span class=cl>                   d_A, K,
+</span></span><span class=line><span class=cl>                   &amp;beta,
+</span></span><span class=line><span class=cl>                   d_C, N);
+</span></span></code></pre></td></tr></table></div></div><p>这里把参数顺序写反是因为 cuBLAS 默认使用列主序，而我们这里的矩阵是按行主序放在内存里的。为了不在调用前显式转置矩阵，代码采用了一个非常常见的技巧：利用</p>$$
+(AB)^T = B^T A^T
+$$<p>这个关系，把“行主序下的 <code>A * B</code>”映射成“列主序下的 <code>B^T * A^T</code>”来算。最终虽然 cuBLAS 内部按列主序解释数据，但我们拿回来的结果，刚好就是希望得到的行主序矩阵 <code>C</code>。</p><hr><h2 id=两组-benchmark-汇总>两组 benchmark 汇总</h2><p>为了避免把性能讨论拆得太散，这里把两组 benchmark 集中放在一起。</p><h3 id=规则尺寸1024-x-512-x-1024>规则尺寸：<code>1024 x 512 x 1024</code></h3><div class=table-wrapper><table><thead><tr><th style=text-align:left>版本</th><th style=text-align:left>状态</th><th style=text-align:left>平均耗时 (ms)</th><th style=text-align:left>性能 (GFLOPS)</th><th style=text-align:left>相对 cuBLAS</th></tr></thead><tbody><tr><td style=text-align:left>v0</td><td style=text-align:left>PASS</td><td style=text-align:left>1.744</td><td style=text-align:left>615.76</td><td style=text-align:left>2.32%</td></tr><tr><td style=text-align:left>v1</td><td style=text-align:left>PASS</td><td style=text-align:left>0.216</td><td style=text-align:left>4973.53</td><td style=text-align:left>18.76%</td></tr><tr><td style=text-align:left>v2</td><td style=text-align:left>PASS</td><td style=text-align:left>0.174</td><td style=text-align:left>6156.44</td><td style=text-align:left>23.23%</td></tr><tr><td style=text-align:left>v3</td><td style=text-align:left>PASS</td><td style=text-align:left>0.098</td><td style=text-align:left>11001.81</td><td style=text-align:left>41.51%</td></tr><tr><td style=text-align:left>v4</td><td style=text-align:left>PASS</td><td style=text-align:left>0.058</td><td style=text-align:left>18368.88</td><td style=text-align:left>69.30%</td></tr><tr><td style=text-align:left>cuBLAS</td><td style=text-align:left>PASS</td><td style=text-align:left>0.041</td><td style=text-align:left>26506.38</td><td style=text-align:left>100%</td></tr></tbody></table></div><h3 id=非整齐尺寸1001-x-513-x-777>非整齐尺寸：<code>1001 x 513 x 777</code></h3><div class=table-wrapper><table><thead><tr><th style=text-align:left>版本</th><th style=text-align:left>状态</th><th style=text-align:left>平均耗时 (ms)</th><th style=text-align:left>性能 (GFLOPS)</th><th style=text-align:left>相对 cuBLAS</th></tr></thead><tbody><tr><td style=text-align:left>v0</td><td style=text-align:left>PASS</td><td style=text-align:left>0.406</td><td style=text-align:left>1964.43</td><td style=text-align:left>12.15%</td></tr><tr><td style=text-align:left>v1</td><td style=text-align:left>PASS</td><td style=text-align:left>0.191</td><td style=text-align:left>4186.53</td><td style=text-align:left>25.88%</td></tr><tr><td style=text-align:left>v2</td><td style=text-align:left>PASS</td><td style=text-align:left>0.160</td><td style=text-align:left>4985.70</td><td style=text-align:left>30.83%</td></tr><tr><td style=text-align:left>v3</td><td style=text-align:left>PASS</td><td style=text-align:left>0.097</td><td style=text-align:left>8236.99</td><td style=text-align:left>50.93%</td></tr><tr><td style=text-align:left>v4</td><td style=text-align:left>PASS</td><td style=text-align:left>0.058</td><td style=text-align:left>13848.77</td><td style=text-align:left>85.62%</td></tr><tr><td style=text-align:left>cuBLAS</td><td style=text-align:left>PASS</td><td style=text-align:left>0.049</td><td style=text-align:left>16174.26</td><td style=text-align:left>100%</td></tr></tbody></table></div><hr><h2 id=这道题真正值得带走的东西>这道题真正值得带走的东西</h2><p>如果只把这题理解成“矩阵乘法怎么提速”，那其实还不够。对我来说，这道题更重要的价值在于它把 CUDA 优化里几个非常核心的层次关系展示得很清楚。</p><p><strong>线程映射是基础中的基础</strong>。
+很多初学者一开始会把注意力全放在 shared memory、tensor core、寄存器粗化这些更“高级”的词上，但如果 warp 的访问方向一开始就是错的，那么后面的所有优化都只能在一个已经歪掉的地基上修补。<code>v0 -> v1</code> 的结果恰好说明了这个问题：只改映射方式，性能就能暴涨。</p><p><strong>shared memory 的意义不是“看上去更高级”，而是数据复用</strong><br>只有当一块数据会被 block 内多个线程反复使用时，shared memory 才真正值得引入。矩阵乘法正好天然满足这个条件，所以 tiling 才会这么有效。</p><p><strong>寄存器粗化本质上是在提高单线程计算密度</strong>
+不论是 <code>v3</code> 的一维粗化，还是 <code>v4</code> 的二维粗化，本质上都是在想办法让已经加载进寄存器的数据，多参与几次乘加。对高性能 kernel 来说，这种“把数据榨干”的思路往往非常关键。</p><p><strong>边界正确性必须单独验证</strong>。
+如果只测 <code>1024 x 512 x 1024</code>，你很容易误以为一个 kernel 已经“完全正确”。但一旦换成 <code>1001 x 513 x 777</code> 这种不整齐尺寸，很多隐藏 bug 才会真正暴露出来。</p><hr></section><footer class=article-footer><section class=article-tags><a href=/tags/cuda/>CUDA</a>
+<a href=/tags/matrix-multiplication/>Matrix Multiplication</a>
+<a href=/tags/shared-memory/>Shared Memory</a>
+<a href=/tags/%E6%80%A7%E8%83%BD%E4%BC%98%E5%8C%96/>性能优化</a></section><section class=article-copyright><svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-copyright" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentcolor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="9"/><path d="M14.5 9a3.5 4 0 100 6"/></svg>
+<span>Licensed under CC BY-NC-ND 4.0</span></section></footer><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css integrity=sha384-n8MVd4RsNIU0tAv4ct0nTaAbDJwPJzDEaqSD1odI+WdtXRGWt2kTvGFasHpSy3SV crossorigin=anonymous><script src=https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js integrity=sha384-XjKyOOlGwcjNTAIQHIpgOno0Hl1YQqzUOEleOLALmuqehneUG+vnGctmUb0ZY0l8 crossorigin=anonymous defer></script><script src=https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js integrity=sha384-+VBxd3r6XgURycqtZ117nYw44OOcIax56Z4dCRWbxyPt0Koah1uHoK0o4+/RRE05 crossorigin=anonymous defer></script><script>window.addEventListener("DOMContentLoaded",()=>{const e=document.querySelector(".main-article");renderMathInElement(e,{delimiters:[{left:"$$",right:"$$",display:!0},{left:"$",right:"$",display:!1},{left:"\\(",right:"\\)",display:!1},{left:"\\[",right:"\\]",display:!0}],ignoredClasses:["gist"]})})</script></article><aside class=related-content--wrapper><h2 class=section-title>相关文章</h2><div class=related-content><div class="flex article-list--tile"><article><a href=/posts/leetgpu/leetgpu-vector-addition/><div class=article-details><h2 class=article-title>[向量加法] LeetGPU 第一题详解 - 基础 CUDA 核函数与性能分析</h2></div></a></article></div></div></aside><script src=https://giscus.app/client.js data-repo=KeqiYe/KeqiYe.github.io data-repo-id=R_kgDOOmo8Lw data-category=Announcements data-category-id=DIC_kwDOOmo8L84C3Bzc data-mapping=pathname data-strict=0 data-reactions-enabled=1 data-emit-metadata=0 data-input-position=top data-theme=light data-lang=en data-loading crossorigin=anonymous async></script><script>function setGiscusTheme(e){let t=document.querySelector("iframe.giscus-frame");t&&t.contentWindow.postMessage({giscus:{setConfig:{theme:e}}},"https://giscus.app")}(function(){addEventListener("message",t=>{if(event.origin!=="https://giscus.app")return;e()}),window.addEventListener("onColorSchemeChange",e);function e(){setGiscusTheme(document.documentElement.dataset.scheme==="light"?"light":"dark")}})()</script><footer class=site-footer><section class=copyright>&copy;
+2025 -
+2026 Keqi Ye</section><section class=powerby><script async src=//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js></script>🪐 本站总访问量 <span id=busuanzi_value_site_pv><i class="fa fa-spinner fa-spin"></i></span> 次 | 📖 本文阅读量 <span id=busuanzi_value_page_pv><i class="fa fa-spinner fa-spin"></i></span> 次<br>使用 <a href=https://gohugo.io/ target=_blank rel=noopener>Hugo</a> 构建<br>主题 <b><a href=https://github.com/CaiJimmy/hugo-theme-stack target=_blank rel=noopener data-version=3.30.0>Stack</a></b> 由 <a href=https://jimmycai.com target=_blank rel=noopener>Jimmy</a> 设计</section></footer><div class=pswp tabindex=-1 role=dialog aria-hidden=true><div class=pswp__bg></div><div class=pswp__scroll-wrap><div class=pswp__container><div class=pswp__item></div><div class=pswp__item></div><div class=pswp__item></div></div><div class="pswp__ui pswp__ui--hidden"><div class=pswp__top-bar><div class=pswp__counter></div><button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+<button class="pswp__button pswp__button--share" title=Share></button>
+<button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+<button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button><div class=pswp__preloader><div class=pswp__preloader__icn><div class=pswp__preloader__cut><div class=pswp__preloader__donut></div></div></div></div></div><div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap"><div class=pswp__share-tooltip></div></div><button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+</button>
+<button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)"></button><div class=pswp__caption><div class=pswp__caption__center></div></div></div></div></div><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js integrity="sha256-ePwmChbbvXbsO02lbM3HoHbSHTHFAeChekF1xKJdleo=" crossorigin=anonymous defer></script><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js integrity="sha256-UKkzOn/w1mBxRmLLGrSeyB4e1xbrp4xylgAWb3M42pU=" crossorigin=anonymous defer></script><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css crossorigin=anonymous><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css crossorigin=anonymous></main></div><script src=https://cdn.jsdelivr.net/npm/node-vibrant@3.1.6/dist/vibrant.min.js integrity="sha256-awcR2jno4kI5X0zL8ex0vi2z+KMkF24hUW8WePSA9HM=" crossorigin=anonymous></script><script type=text/javascript src=/ts/main.1e9a3bafd846ced4c345d084b355fb8c7bae75701c338f8a1f8a82c780137826.js defer></script><script>(function(){const e=document.createElement("link");e.href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap",e.type="text/css",e.rel="stylesheet",document.head.appendChild(e)})()</script></body></html>
