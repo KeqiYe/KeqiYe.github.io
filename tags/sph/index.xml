@@ -72,7 +72,7 @@
 &lt;p>[10] Jutzi, M., Benz, W., &amp;amp; Michel, P. (2008). Numerical simulations of impacts involving porous bodies: I. Implementing sub-resolution porosity in a 3D SPH hydrocode. &lt;em>Icarus&lt;/em>, &lt;em>198&lt;/em>(1), 242-255.&lt;/p>
 &lt;p>[11] Bogacki, P., &amp;amp; Shampine, L. F. (1989). A 3(2) pair of Runge-Kutta formulas. &lt;em>Applied Mathematics Letters&lt;/em>, 2(4), 321-325.&lt;/p>
 &lt;h2 id="版权">版权
-&lt;/h2>&lt;p>版权所有 (c) 2025 叶科奇。保留所有权利。&lt;/p></description></item><item><title>基于CUDA加速的SPH模拟代码GASPHiA的一些应用</title><link>https://yekq.top/posts/gasphia/</link><pubDate>Tue, 17 Mar 2026 00:00:00 +0000</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://yekq.top/posts/gasphia/</guid><description>&lt;h1 id="基于cuda的sph代码算例">基于CUDA的SPH代码算例
+&lt;/h2>&lt;p>版权所有 (c) 2025 叶科奇。保留所有权利。&lt;/p></description></item><item><title>基于CUDA加速的SPH模拟代码GASPHiA的一些应用</title><link>https://yekq.top/posts/gasphia/</link><pubDate>Tue, 17 Mar 2026 00:00:00 +0000</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://yekq.top/posts/gasphia/</guid><description>&lt;img src="https://yekq.top/section-covers/gasphia-cover.svg" alt="Featured image of post 基于CUDA加速的SPH模拟代码GASPHiA的一些应用" />&lt;h1 id="基于cuda的sph代码算例">基于CUDA的SPH代码算例
 &lt;/h1>&lt;p>本系列文章记录了我从零自研的 CUDA SPH (Smoothed Particle Hydrodynamics) 物理引擎的基准测试与验证过程。通过经典流体动力学问题的数值模拟，验证引擎的正确性与数值鲁棒性。&lt;/p>
 &lt;h2 id="系列目标">系列目标
 &lt;/h2>&lt;ul>
