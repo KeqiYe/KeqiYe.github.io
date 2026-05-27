@@ -1,1 +1,17 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Series on Keqi的博客</title><link>https://yekq.top/series/</link><description>Recent content in Series on Keqi的博客</description><generator>Hugo -- gohugo.io</generator><language>zh-cn</language><managingEditor>plloningye@gmail.com (Keqi Ye)</managingEditor><webMaster>plloningye@gmail.com (Keqi Ye)</webMaster><copyright>Keqi Ye</copyright><atom:link href="https://yekq.top/series/index.xml" rel="self" type="application/rss+xml"/></channel></rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Series on Keqi的博客</title><link>https://yekq.top/series/</link><description>Recent content in Series on Keqi的博客</description><generator>Hugo -- gohugo.io</generator><language>zh-cn</language><managingEditor>plloningye@gmail.com (Keqi Ye)</managingEditor><webMaster>plloningye@gmail.com (Keqi Ye)</webMaster><copyright>Keqi Ye</copyright><lastBuildDate>Mon, 25 May 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://yekq.top/series/index.xml" rel="self" type="application/rss+xml"/><item><title>LeetGPU 刷题系列</title><link>https://yekq.top/series/leetgpu/</link><pubDate>Mon, 25 May 2026 00:00:00 +0000</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://yekq.top/series/leetgpu/</guid><description>&lt;p>本系列将系统性地记录我在 LeetGPU 平台上的刷题过程，重点讲解每道题目的解答思路与性能优化策略。&lt;/p>
+&lt;h2 id="系列内容">系列内容
+&lt;/h2>&lt;p>LeetGPU 是一个专注于 CUDA/GPU 编程的算法练习平台，与 LeetCode 类似，但题目需要使用 CUDA 实现。从基础的向量运算到复杂的并行算法优化，每篇文章都将深入分析问题的核心解法。&lt;/p>
+&lt;h2 id="更新计划">更新计划
+&lt;/h2>&lt;ul>
+&lt;li>&lt;strong>基础运算&lt;/strong>: 向量加法、矩阵运算等&lt;/li>
+&lt;li>&lt;strong>内存优化&lt;/strong>: 显存访问模式_global_与常量内存&lt;/li>
+&lt;li>&lt;strong>并行算法&lt;/strong>: 并行归约、扫描、排序等&lt;/li>
+&lt;li>&lt;strong>高级优化&lt;/strong>: Occupancy、Stream、Multi-GPU 等&lt;/li>
+&lt;/ul>
+&lt;h2 id="前置知识">前置知识
+&lt;/h2>&lt;p>阅读此系列需要对 CUDA 编程有基础了解，建议先掌握：&lt;/p>
+&lt;ul>
+&lt;li>CUDA 核函数编写&lt;/li>
+&lt;li>线程层次结构（Grid/Block/Thread）&lt;/li>
+&lt;li>显存分配与管理&lt;/li>
+&lt;/ul></description></item><item><title>基于CUDA的SPH代码算例</title><link>https://yekq.top/series/gasphia/</link><pubDate>Fri, 17 Apr 2026 10:00:00 +0800</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://yekq.top/series/gasphia/</guid><description/></item></channel></rss>
