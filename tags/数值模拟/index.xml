@@ -244,7 +244,7 @@ data-flex-basis="222px"
 &lt;/span>&lt;span class="lnt">18
 &lt;/span>&lt;/code>&lt;/pre>&lt;/td>
 &lt;td class="lntd">
-&lt;pre tabindex="0" class="chroma">&lt;code class="language-bash" data-lang="bash">&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># 规则排列（相当于粗略排序）&lt;/span>
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-bash" data-lang="bash">&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># 打乱后（无排序）&lt;/span>
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">Calculating Gravity on GPU &lt;span class="o">(&lt;/span>Barnes-Hut, &lt;span class="nv">theta&lt;/span>&lt;span class="o">=&lt;/span>0.5&lt;span class="o">)&lt;/span>...
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">--- Gravity Computation Profiling ---
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> resetOctree: 11.6206 ms
@@ -254,7 +254,7 @@ data-flex-basis="222px"
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> computeGravity: 2955.5117 ms
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">-------------------------------------
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># 打乱后（无排序）&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># 规则排列（相当于粗略排序）&lt;/span>
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">--- Gravity Computation Profiling ---
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> resetOctree: 10.7203 ms
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> computeBoundingBox: 0.4361 ms
@@ -931,17 +931,17 @@ data-flex-basis="705px"
 &lt;blockquote>
 &lt;p>可以看到，GASPHiA 输出的物理形态与原始实验及基准论文高度吻合。&lt;/p>
 &lt;/blockquote>
-&lt;p>&lt;img src="https://yekq.top/posts/gasphia/p-alpha-porosity-model/Figure_1.png"
+&lt;p>&lt;img src="https://yekq.top/posts/gasphia/p-alpha-porosity-model/porous_cm.png"
 width="1501"
-height="956"
-srcset="https://yekq.top/posts/gasphia/p-alpha-porosity-model/Figure_1_hu696b0284888b441cdd995793feab828e_80804_480x0_resize_box_3.png 480w, https://yekq.top/posts/gasphia/p-alpha-porosity-model/Figure_1_hu696b0284888b441cdd995793feab828e_80804_1024x0_resize_box_3.png 1024w"
+height="937"
+srcset="https://yekq.top/posts/gasphia/p-alpha-porosity-model/porous_cm_hu7e112a34fc916cb838afebc430ec2b76_82955_480x0_resize_box_3.png 480w, https://yekq.top/posts/gasphia/p-alpha-porosity-model/porous_cm_hu7e112a34fc916cb838afebc430ec2b76_82955_1024x0_resize_box_3.png 1024w"
 loading="lazy"
 alt="碎片质量累积分布曲线对比"
 class="gallery-image"
-data-flex-grow="157"
-data-flex-basis="376px"
+data-flex-grow="160"
+data-flex-basis="384px"
 >&lt;/p>
 &lt;p>对撞击结果进行后处理分析，提取碎片累积质量分布数据：&lt;/p>
 &lt;blockquote>
-&lt;p>GASPHiA 计算得到的最大残余碎片质量占比为 8.35%，与实验室给出的真实实验数据 9.96% 误差极小，进一步验证了整个多孔材料求解器核心计算逻辑的可靠性。&lt;/p>
+&lt;p>GASPHiA 计算得到的最大残余碎片质量占比为 11.67%，与实验室给出的真实实验数据 9.96% 误差很小，进一步验证了整个多孔材料求解器核心计算逻辑的可靠性。&lt;/p>
 &lt;/blockquote></description></item></channel></rss>

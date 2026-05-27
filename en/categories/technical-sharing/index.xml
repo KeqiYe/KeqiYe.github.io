@@ -361,17 +361,17 @@ data-flex-basis="705px"
 &lt;blockquote>
 &lt;p>It can be seen that the physical morphology output by GASPHiA highly matches the original experiments and benchmark papers.&lt;/p>
 &lt;/blockquote>
-&lt;p>&lt;img src="https://yekq.top/posts/gasphia/p-alpha-porosity-model/Figure_1.png"
+&lt;p>&lt;img src="https://yekq.top/posts/gasphia/p-alpha-porosity-model/porous_cm.png"
 width="1501"
-height="956"
-srcset="https://yekq.top/posts/gasphia/p-alpha-porosity-model/Figure_1_hu696b0284888b441cdd995793feab828e_80804_480x0_resize_box_3.png 480w, https://yekq.top/posts/gasphia/p-alpha-porosity-model/Figure_1_hu696b0284888b441cdd995793feab828e_80804_1024x0_resize_box_3.png 1024w"
+height="937"
+srcset="https://yekq.top/posts/gasphia/p-alpha-porosity-model/porous_cm_hu7e112a34fc916cb838afebc430ec2b76_82955_480x0_resize_box_3.png 480w, https://yekq.top/posts/gasphia/p-alpha-porosity-model/porous_cm_hu7e112a34fc916cb838afebc430ec2b76_82955_1024x0_resize_box_3.png 1024w"
 loading="lazy"
 alt="Comparison of fragment mass cumulative distribution curves"
 class="gallery-image"
-data-flex-grow="157"
-data-flex-basis="376px"
+data-flex-grow="160"
+data-flex-basis="384px"
 >&lt;/p>
 &lt;p>Post-process analysis of the impact results, extracting fragment cumulative mass distribution data:&lt;/p>
 &lt;blockquote>
-&lt;p>The maximum residual fragment mass ratio calculated by GASPHiA is 8.35%, which has very small error compared with the real experimental data of 9.96% given by the laboratory, further verifying the reliability of the core computational logic of the porous material solver.&lt;/p>
+&lt;p>The maximum residual fragment mass ratio calculated by GASPHiA is 11.67%, which has small error compared with the real experimental data of 9.96% given by the laboratory, further verifying the reliability of the core computational logic of the porous material solver.&lt;/p>
 &lt;/blockquote></description></item></channel></rss>

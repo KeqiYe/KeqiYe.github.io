@@ -317,7 +317,7 @@ data-flex-basis="222px"
 &lt;/span>&lt;span class="lnt">18
 &lt;/span>&lt;/code>&lt;/pre>&lt;/td>
 &lt;td class="lntd">
-&lt;pre tabindex="0" class="chroma">&lt;code class="language-bash" data-lang="bash">&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># Regular arrangement (equivalent to roughly sorted)&lt;/span>
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-bash" data-lang="bash">&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># Shuffled (no sorting)&lt;/span>
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">Calculating Gravity on GPU &lt;span class="o">(&lt;/span>Barnes-Hut, &lt;span class="nv">theta&lt;/span>&lt;span class="o">=&lt;/span>0.5&lt;span class="o">)&lt;/span>...
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">--- Gravity Computation Profiling ---
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> resetOctree: 11.6206 ms
@@ -327,7 +327,7 @@ data-flex-basis="222px"
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> computeGravity: 2955.5117 ms
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> -------------------------------------
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># Shuffled (no sorting)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># Regular arrangement (equivalent to roughly sorted)&lt;/span>
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">--- Gravity Computation Profiling ---
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> resetOctree: 10.7203 ms
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> computeBoundingBox: 0.4361 ms
@@ -1127,19 +1127,19 @@ data-flex-basis="705px"
 &lt;blockquote>
 &lt;p>It can be seen that the physical morphology output by GASPHiA highly matches the original experiments and benchmark papers.&lt;/p>
 &lt;/blockquote>
-&lt;p>&lt;img src="https://yekq.top/posts/gasphia/p-alpha-porosity-model/Figure_1.png"
+&lt;p>&lt;img src="https://yekq.top/posts/gasphia/p-alpha-porosity-model/porous_cm.png"
 width="1501"
-height="956"
-srcset="https://yekq.top/posts/gasphia/p-alpha-porosity-model/Figure_1_hu696b0284888b441cdd995793feab828e_80804_480x0_resize_box_3.png 480w, https://yekq.top/posts/gasphia/p-alpha-porosity-model/Figure_1_hu696b0284888b441cdd995793feab828e_80804_1024x0_resize_box_3.png 1024w"
+height="937"
+srcset="https://yekq.top/posts/gasphia/p-alpha-porosity-model/porous_cm_hu7e112a34fc916cb838afebc430ec2b76_82955_480x0_resize_box_3.png 480w, https://yekq.top/posts/gasphia/p-alpha-porosity-model/porous_cm_hu7e112a34fc916cb838afebc430ec2b76_82955_1024x0_resize_box_3.png 1024w"
 loading="lazy"
 alt="Comparison of fragment mass cumulative distribution curves"
 class="gallery-image"
-data-flex-grow="157"
-data-flex-basis="376px"
+data-flex-grow="160"
+data-flex-basis="384px"
 >&lt;/p>
 &lt;p>Post-process analysis of the impact results, extracting fragment cumulative mass distribution data:&lt;/p>
 &lt;blockquote>
-&lt;p>The maximum residual fragment mass ratio calculated by GASPHiA is 8.35%, which has very small error compared with the real experimental data of 9.96% given by the laboratory, further verifying the reliability of the core computational logic of the porous material solver.&lt;/p>
+&lt;p>The maximum residual fragment mass ratio calculated by GASPHiA is 11.67%, which has small error compared with the real experimental data of 9.96% given by the laboratory, further verifying the reliability of the core computational logic of the porous material solver.&lt;/p>
 &lt;/blockquote></description></item><item><title>Strain-Based Porosity Model (ε-α Model)</title><link>https://yekq.top/en/posts/gasphia/eplison-alpha-porosity-model/</link><pubDate>Fri, 17 Apr 2026 10:00:00 +0800</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://yekq.top/en/posts/gasphia/eplison-alpha-porosity-model/</guid><description>&lt;h2 id="1-what-problem-does-the-model-solve">1. What Problem Does the Model Solve?
 &lt;/h2>&lt;p>Under impact (e.g., meteorite impact) or explosive loading, porous materials (sand, rubble pile, etc.) behave completely differently from dense materials. Most of the pressure is used for pore compaction, and the pore compaction releases large amounts of heat, causing expansion. In summary, when impacting porous materials, the following characteristics are observed:&lt;/p>
 &lt;ul>
