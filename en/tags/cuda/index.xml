@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>CUDA on Keqi's blog</title><link>https://yekq.top/en/tags/cuda/</link><description>Recent content in CUDA on Keqi's blog</description><generator>Hugo -- gohugo.io</generator><language>en</language><managingEditor>plloningye@gmail.com (Keqi Ye)</managingEditor><webMaster>plloningye@gmail.com (Keqi Ye)</webMaster><copyright>Keqi Ye</copyright><lastBuildDate>Mon, 25 May 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://yekq.top/en/tags/cuda/index.xml" rel="self" type="application/rss+xml"/><item><title>GASPHiA: A GPU-Accelerated Smoothed Particle Hydrodynamics (SPH) Code</title><link>https://yekq.top/en/posts/gasphia/introduction/</link><pubDate>Tue, 17 Mar 2026 10:00:00 +0800</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://yekq.top/en/posts/gasphia/introduction/</guid><description>&lt;h1 id="gasphia-a-gpu-accelerated-smoothed-particle-hydrodynamics-sph-code">GASPHiA: A GPU-Accelerated Smoothed Particle Hydrodynamics (SPH) Code
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>CUDA on Keqi's blog</title><link>https://yekq.top/en/tags/cuda/</link><description>Recent content in CUDA on Keqi's blog</description><generator>Hugo -- gohugo.io</generator><language>en</language><managingEditor>plloningye@gmail.com (Keqi Ye)</managingEditor><webMaster>plloningye@gmail.com (Keqi Ye)</webMaster><copyright>Keqi Ye</copyright><lastBuildDate>Tue, 26 May 2026 15:20:00 +0800</lastBuildDate><atom:link href="https://yekq.top/en/tags/cuda/index.xml" rel="self" type="application/rss+xml"/><item><title>GASPHiA: A GPU-Accelerated Smoothed Particle Hydrodynamics (SPH) Code</title><link>https://yekq.top/en/posts/gasphia/introduction/</link><pubDate>Tue, 17 Mar 2026 10:00:00 +0800</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://yekq.top/en/posts/gasphia/introduction/</guid><description>&lt;h1 id="gasphia-a-gpu-accelerated-smoothed-particle-hydrodynamics-sph-code">GASPHiA: A GPU-Accelerated Smoothed Particle Hydrodynamics (SPH) Code
 &lt;/h1>&lt;p>GASPHiA is a high-performance, three-dimensional SPH (Smoothed Particle Hydrodynamics) code developed by Keqi Ye as part of his doctoral research at the School of Aeronautics and Astronautics, Sun Yat-sen University. The code is designed for simulating complex hydrodynamical problems, particularly those involving material strength, damage, and gravitational interactions.&lt;/p>
 &lt;h2 id="features">Features
 &lt;/h2>&lt;h3 id="high-performance--scalable">High-Performance &amp;amp; Scalable
@@ -224,7 +224,362 @@ $$\frac{d\rho_i}{dt} = \sum_j m_j (v_j - v_i) \cdot \nabla_i W(r_{ij}, h)$$
 &lt;li>Sod, G. A. (1978). A survey of several finite difference methods for systems of nonlinear hyperbolic conservation laws. &lt;em>Journal of Computational Physics&lt;/em>, 27(1), 1-31.&lt;/li>
 &lt;li>Monaghan, J. J. (1992). Smoothed particle hydrodynamics. &lt;em>Annual Review of Astronomy and Astrophysics&lt;/em>, 30, 543-574.&lt;/li>
 &lt;li>Liu, G. R., &amp;amp; Liu, M. B. (2003). &lt;em>Smoothed particle hydrodynamics: a meshfree particle method&lt;/em>. World Scientific.&lt;/li>
-&lt;/ol></description></item><item><title>Strain-Based Porosity Model (ε-α Model)</title><link>https://yekq.top/en/posts/gasphia/eplison-alpha-porosity-model/</link><pubDate>Fri, 17 Apr 2026 10:00:00 +0800</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://yekq.top/en/posts/gasphia/eplison-alpha-porosity-model/</guid><description>&lt;h2 id="1-what-problem-does-the-model-solve">1. What Problem Does the Model Solve?
+&lt;/ol></description></item><item><title>1D Elastic Uniaxial Strain Wave Validation - GASPHiA Test Case</title><link>https://yekq.top/en/posts/gasphia/1d-elastic-uniaxial-strain-wave/</link><pubDate>Tue, 26 May 2026 11:30:00 +0800</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://yekq.top/en/posts/gasphia/1d-elastic-uniaxial-strain-wave/</guid><description>&lt;h1 id="1d-elastic-uniaxial-strain-wave-validation">1D Elastic Uniaxial Strain Wave Validation
+&lt;/h1>&lt;h2 id="overview">Overview
+&lt;/h2>&lt;p>A rigid piston on the right pushes an aluminum linear-elastic rod at constant velocity, with the left end fixed. The system propagates a one-dimensional elastic uniaxial strain compression wave. This case does not involve flyer-plate impact, plastic yielding, or nonlinear Hugoniot relations, making it suitable for verifying GASPHiA&amp;rsquo;s accuracy in computing &lt;strong>elastic longitudinal wave speed, pressure plateau, deviatoric stress plateau, and total axial stress plateau&lt;/strong>.&lt;/p>
+&lt;p>Results from this run:&lt;/p>
+&lt;ul>
+&lt;li>Longitudinal wave speed relative error: ~&lt;code>1.80%&lt;/code>&lt;/li>
+&lt;li>Pressure plateau relative error: ~&lt;code>0.24% - 0.27%&lt;/code>&lt;/li>
+&lt;li>Deviatoric stress plateau relative error: ~&lt;code>1.01% - 1.04%&lt;/code>&lt;/li>
+&lt;li>Total axial stress plateau relative error: ~&lt;code>0.48% - 0.51%&lt;/code>&lt;/li>
+&lt;/ul>
+&lt;p>When modifying the elastic EOS, strength model, stress update, or boundary treatment, this case serves as a quick regression test.&lt;/p>
+&lt;p>&lt;img src="https://yekq.top/posts/gasphia/1d-elastic-uniaxial-strain-wave/elastic_wave_validation.png"
+width="2491"
+height="2911"
+srcset="https://yekq.top/posts/gasphia/1d-elastic-uniaxial-strain-wave/elastic_wave_validation_hu4f0a5b9d5b35e1ee602c81a642f16504_167479_480x0_resize_box_3.png 480w, https://yekq.top/posts/gasphia/1d-elastic-uniaxial-strain-wave/elastic_wave_validation_hu4f0a5b9d5b35e1ee602c81a642f16504_167479_1024x0_resize_box_3.png 1024w"
+loading="lazy"
+alt="1D Elastic Uniaxial Strain Wave Validation"
+class="gallery-image"
+data-flex-grow="85"
+data-flex-basis="205px"
+>&lt;/p>
+&lt;hr>
+&lt;h2 id="theoretical-solution-and-validation-metrics">Theoretical Solution and Validation Metrics
+&lt;/h2>&lt;p>For a one-dimensional elastic uniaxial strain compression wave, the theoretical relations are:&lt;/p>
+$$
+c_L = \sqrt{\frac{K + 4G/3}{\rho_0}}
+$$
+$$
+\varepsilon_{xx} = \frac{U_p}{c_L}
+$$
+$$
+P = K \varepsilon_{xx}
+$$
+$$
+|S_{xx}| = \frac{4G}{3}\varepsilon_{xx}
+$$
+$$
+|\sigma_{xx}| = P + |S_{xx}| = \rho_0 c_L U_p
+$$
+&lt;p>Parameters used in this case:&lt;/p>
+&lt;ul>
+&lt;li>Initial density: &lt;code>\rho_0 = 2700 kg/m^3&lt;/code>&lt;/li>
+&lt;li>Bulk modulus: &lt;code>K = 75.2 GPa&lt;/code>&lt;/li>
+&lt;li>Shear modulus: &lt;code>G = 26.0 GPa&lt;/code>&lt;/li>
+&lt;li>Piston velocity: &lt;code>U_p = 100 m/s&lt;/code>&lt;/li>
+&lt;/ul>
+&lt;p>The resulting theoretical values:&lt;/p>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:left">Quantity&lt;/th>
+&lt;th style="text-align:left">Theoretical Value&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:left">Longitudinal wave speed &lt;code>c_L&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>6378.98 m/s&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">Pressure plateau &lt;code>P&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>1.1789 GPa&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">Deviatoric stress plateau `&lt;/td>
+&lt;td style="text-align:left">Sxx&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">Total axial stress plateau `&lt;/td>
+&lt;td style="text-align:left">\sigma_{xx}&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;p>The simulation results should be compared against the following metrics:&lt;/p>
+&lt;ol>
+&lt;li>Whether the wave front propagation speed is close to &lt;code>c_L&lt;/code>&lt;/li>
+&lt;li>Whether the post-wave pressure plateau is close to the theoretical value&lt;/li>
+&lt;li>Whether the post-wave deviatoric stress plateau is close to the theoretical value&lt;/li>
+&lt;li>Whether the total axial stress plateau is stable and of the correct order of magnitude&lt;/li>
+&lt;/ol>
+&lt;hr>
+&lt;h2 id="how-to-run">How to Run
+&lt;/h2>&lt;p>Test directory:&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-bash" data-lang="bash">&lt;span class="line">&lt;span class="cl">GASPHiA-Tests/1D_Elastic_Uniaxial_Strain_Wave
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>Run with:&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-bash" data-lang="bash">&lt;span class="line">&lt;span class="cl">./run_all.sh --source-dir /path/to/GASPHiA --cuda &lt;span class="m">0&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>The script performs the following steps in sequence:&lt;/p>
+&lt;ol>
+&lt;li>Compile the initial condition generator&lt;/li>
+&lt;li>Generate &lt;code>input/input_1d_uniaxial_strain.h5&lt;/code>&lt;/li>
+&lt;li>Compile GASPHiA using the local &lt;code>para.cuh&lt;/code>&lt;/li>
+&lt;li>Run &lt;code>ust.ini&lt;/code>&lt;/li>
+&lt;li>Post-process the output and generate validation plots&lt;/li>
+&lt;/ol>
+&lt;p>A noteworthy engineering detail: compilation uses &lt;code>PARA_CUH&lt;/code> to point to the &lt;code>para.cuh&lt;/code> in this case directory, rather than copying test parameters into the main source tree. This prevents polluting the main project configuration when switching between different tests.&lt;/p>
+&lt;hr>
+&lt;h2 id="result-interpretation">Result Interpretation
+&lt;/h2>&lt;p>The validation plot above shows numerical results at three time instants — &lt;code>20 us&lt;/code>, &lt;code>40 us&lt;/code>, and &lt;code>60 us&lt;/code> — compared against theoretical plateaus. The three rows correspond to:&lt;/p>
+&lt;ul>
+&lt;li>Pressure &lt;code>P&lt;/code>&lt;/li>
+&lt;li>Deviatoric stress magnitude &lt;code>|Sxx|&lt;/code>&lt;/li>
+&lt;li>Total axial stress magnitude &lt;code>|\sigma_{xx}|&lt;/code>&lt;/li>
+&lt;/ul>
+&lt;p>Key features observable from the plot:&lt;/p>
+&lt;ol>
+&lt;li>The wave front propagates from right to left at a steady speed, with positions close to the reference positions given by the theoretical wave speed.&lt;/li>
+&lt;li>The post-wave plateaus are flat, with no apparent non-physical oscillations.&lt;/li>
+&lt;li>The pressure, deviatoric stress, and total stress values all fall near the theoretical values, indicating that the EOS and stress decomposition coupling is self-consistent.&lt;/li>
+&lt;/ol>
+&lt;p>Compared to more complex impact cases, this test involves no wave system interference, fragmentation, plasticity, or pore compaction processes. Its value lies in its structural simplicity, making it easy to pinpoint deviations to specific implementation modules.&lt;/p>
+&lt;hr>
+&lt;h2 id="actual-run-data">Actual Run Data
+&lt;/h2>&lt;p>Key metrics extracted from this run:&lt;/p>
+&lt;h3 id="wave-speed">Wave Speed
+&lt;/h3>&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:left">Metric&lt;/th>
+&lt;th style="text-align:left">Value&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:left">Theoretical wave speed &lt;code>cL_ref&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>6378.98 m/s&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">Numerical wave speed &lt;code>cL_num&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>6494.04 m/s&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">Relative error&lt;/td>
+&lt;td style="text-align:left">&lt;code>1.80%&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="plateau-metrics-at-three-sampling-times">Plateau Metrics at Three Sampling Times
+&lt;/h3>&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:left">Time&lt;/th>
+&lt;th style="text-align:left">Wave Front Position Error&lt;/th>
+&lt;th style="text-align:left">Pressure Plateau Error&lt;/th>
+&lt;th style="text-align:left">Deviatoric Stress Plateau Error&lt;/th>
+&lt;th style="text-align:left">Total Stress Plateau Error&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:left">&lt;code>20 us&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>-2.06 mm&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>0.24%&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>1.01%&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>0.48%&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">&lt;code>40 us&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>-4.24 mm&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>0.26%&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>1.03%&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>0.50%&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">&lt;code>60 us&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>-6.67 mm&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>0.27%&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>1.04%&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>0.51%&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;p>From the plateau metrics, the results are stable overall, with pressure and total stress errors in particular well under control. The wave front position error accumulates slightly with propagation time, but remains within an acceptable range overall.&lt;/p></description></item><item><title>Aluminum Mie-Gruneisen Hugoniot Validation - GASPHiA Test Case</title><link>https://yekq.top/en/posts/gasphia/aluminum-mie-gruneisen-hugoniot/</link><pubDate>Tue, 26 May 2026 12:30:00 +0800</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://yekq.top/en/posts/gasphia/aluminum-mie-gruneisen-hugoniot/</guid><description>&lt;h1 id="aluminum-mie-gruneisen-hugoniot-validation">Aluminum Mie-Gruneisen Hugoniot Validation
+&lt;/h1>&lt;h2 id="overview">Overview
+&lt;/h2>&lt;p>This case validates the correctness of the &lt;strong>Mie-Gruneisen equation of state&lt;/strong> implementation for aluminum impact response in GASPHiA. The approach: apply a rigid piston at the right end of a 1D rod, sweep multiple piston velocities &lt;code>U_p&lt;/code>, and extract from simulation results:&lt;/p>
+&lt;ul>
+&lt;li>Shock wave speed &lt;code>U_s&lt;/code>&lt;/li>
+&lt;li>Post-wave pressure plateau &lt;code>P&lt;/code>&lt;/li>
+&lt;/ul>
+&lt;p>These are compared against the theoretical Hugoniot relations:&lt;/p>
+$$
+U_s = c_0 + sU_p, \qquad P = \rho_0 U_s U_p
+$$
+&lt;p>The case swept five velocities — &lt;code>500, 1000, 2000, 3000, 5000 m/s&lt;/code> — with stable results overall:&lt;/p>
+&lt;ul>
+&lt;li>&lt;code>U_s&lt;/code> relative error range: &lt;code>0.07% - 1.60%&lt;/code>&lt;/li>
+&lt;li>&lt;code>P&lt;/code> relative error range: &lt;code>0.30% - 1.15%&lt;/code>&lt;/li>
+&lt;/ul>
+&lt;hr>
+&lt;h2 id="validation-objective">Validation Objective
+&lt;/h2>&lt;p>Unlike the elastic uniaxial strain wave case, the focus here shifts from linear-elastic wave speed and deviatoric stress plateau to &lt;strong>post-shock thermodynamic response&lt;/strong>. For a given material model, the states before and after the shock must lie on the corresponding Hugoniot curve to ensure thermodynamic consistency.&lt;/p>
+&lt;p>This case uses a 1D aluminum target and a right-side moving rigid piston, generating shocks of varying strength through different piston velocities. For each velocity case, the post-processing steps are:&lt;/p>
+&lt;ol>
+&lt;li>Fit the shock front position from multiple output frames to obtain the numerical wave speed &lt;code>U_s&lt;/code>&lt;/li>
+&lt;li>Average pressure and particle velocity on the stable post-wave plateau to obtain numerical &lt;code>P&lt;/code> and &lt;code>U_p&lt;/code>&lt;/li>
+&lt;/ol>
+&lt;hr>
+&lt;h2 id="theoretical-relations">Theoretical Relations
+&lt;/h2>&lt;p>The linear Mie-Gruneisen Hugoniot relation for aluminum used in this case is:&lt;/p>
+$$
+U_s = c_0 + sU_p
+$$
+$$
+P = \rho_0 U_s U_p
+$$
+&lt;p>Parameter values:&lt;/p>
+&lt;ul>
+&lt;li>Initial density: &lt;code>\rho_0 = 2700 kg/m^3&lt;/code>&lt;/li>
+&lt;li>Bulk sound speed: &lt;code>c_0 = 5328 m/s&lt;/code>&lt;/li>
+&lt;li>Hugoniot linear slope: &lt;code>s = 1.338&lt;/code>&lt;/li>
+&lt;/ul>
+&lt;p>Within this validation framework, the numerical results should answer two questions:&lt;/p>
+&lt;ol>
+&lt;li>Does the fitted &lt;code>U_s&lt;/code> align with the theoretical line &lt;code>U_s = c_0 + sU_p&lt;/code>?&lt;/li>
+&lt;li>Does the extracted post-wave pressure &lt;code>P&lt;/code> follow the theoretical curve &lt;code>P = \rho_0 U_s U_p&lt;/code>?&lt;/li>
+&lt;/ol>
+&lt;p>If both hold, the basic Hugoniot response of the EOS can be considered reliable.&lt;/p>
+&lt;hr>
+&lt;h2 id="how-to-run">How to Run
+&lt;/h2>&lt;p>Test directory:&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-bash" data-lang="bash">&lt;span class="line">&lt;span class="cl">GASPHiA-Tests/AluminumMieGruneisenHugoniot
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>Run with:&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-bash" data-lang="bash">&lt;span class="line">&lt;span class="cl">./run_all.sh --source-dir /path/to/GASPHiA --cuda &lt;span class="m">0&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>The script automatically performs the following steps:&lt;/p>
+&lt;ol>
+&lt;li>Compile the input generator &lt;code>gen_input_hugoniot&lt;/code>&lt;/li>
+&lt;li>Compile GASPHiA using the local &lt;code>para.cuh&lt;/code>&lt;/li>
+&lt;li>Run five piston velocity cases — &lt;code>500, 1000, 2000, 3000, 5000 m/s&lt;/code> — sequentially&lt;/li>
+&lt;li>Archive each set of outputs to &lt;code>output_sweep/output_V*/&lt;/code>&lt;/li>
+&lt;li>Extract &lt;code>U_s&lt;/code>, &lt;code>U_p&lt;/code>, and &lt;code>P&lt;/code> and generate Hugoniot comparison plots&lt;/li>
+&lt;/ol>
+&lt;p>Consistent with other validation cases, this case references its own compilation parameters via &lt;code>PARA_CUH&lt;/code> without modifying parameter files in the main source tree.&lt;/p>
+&lt;hr>
+&lt;h2 id="result-interpretation">Result Interpretation
+&lt;/h2>&lt;h3 id="u_s---u_p-relation">&lt;code>U_s - U_p&lt;/code> Relation
+&lt;/h3>&lt;p>&lt;img src="https://yekq.top/posts/gasphia/aluminum-mie-gruneisen-hugoniot/Hugoniot_Us_Up.png"
+width="2093"
+height="1674"
+srcset="https://yekq.top/posts/gasphia/aluminum-mie-gruneisen-hugoniot/Hugoniot_Us_Up_hu82e39c6dfec2ebc335b46cc23537794c_109877_480x0_resize_box_3.png 480w, https://yekq.top/posts/gasphia/aluminum-mie-gruneisen-hugoniot/Hugoniot_Us_Up_hu82e39c6dfec2ebc335b46cc23537794c_109877_1024x0_resize_box_3.png 1024w"
+loading="lazy"
+alt="Hugoniot Us-Up Validation"
+class="gallery-image"
+data-flex-grow="125"
+data-flex-basis="300px"
+>&lt;/p>
+&lt;p>The core message of this plot: simulation-extracted shock speed points lie essentially along the theoretical line with no systematic deviation. For shock wave problems, this is the fundamental checkpoint for verifying whether the EOS wave speed response is correct.&lt;/p>
+&lt;h3 id="p---u_p-relation">&lt;code>P - U_p&lt;/code> Relation
+&lt;/h3>&lt;p>&lt;img src="https://yekq.top/posts/gasphia/aluminum-mie-gruneisen-hugoniot/Hugoniot_P_Up.png"
+width="2047"
+height="1674"
+srcset="https://yekq.top/posts/gasphia/aluminum-mie-gruneisen-hugoniot/Hugoniot_P_Up_hu99c1624cb22c632559f222471ebc3547_94871_480x0_resize_box_3.png 480w, https://yekq.top/posts/gasphia/aluminum-mie-gruneisen-hugoniot/Hugoniot_P_Up_hu99c1624cb22c632559f222471ebc3547_94871_1024x0_resize_box_3.png 1024w"
+loading="lazy"
+alt="Hugoniot P-Up Validation"
+class="gallery-image"
+data-flex-grow="122"
+data-flex-basis="293px"
+>&lt;/p>
+&lt;p>This plot shows the post-wave pressure plateau. Compared to wave front position, post-wave pressure is more sensitive to the EOS thermodynamic output. The simulation points show good agreement with the theoretical curve, indicating high consistency between post-wave pressure extraction and EOS response.&lt;/p>
+&lt;hr>
+&lt;h2 id="actual-run-data">Actual Run Data
+&lt;/h2>&lt;p>The velocity sweep results are as follows:&lt;/p>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:left">Case Piston Velocity&lt;/th>
+&lt;th style="text-align:left">Numerical &lt;code>Up&lt;/code>&lt;/th>
+&lt;th style="text-align:left">Theoretical &lt;code>Us&lt;/code>&lt;/th>
+&lt;th style="text-align:left">Numerical &lt;code>Us&lt;/code>&lt;/th>
+&lt;th style="text-align:left">&lt;code>Us&lt;/code> Relative Error&lt;/th>
+&lt;th style="text-align:left">Theoretical &lt;code>P&lt;/code>&lt;/th>
+&lt;th style="text-align:left">Numerical &lt;code>P&lt;/code>&lt;/th>
+&lt;th style="text-align:left">&lt;code>P&lt;/code> Relative Error&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:left">&lt;code>500 m/s&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>500.04 m/s&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>5997.00 m/s&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>6093.02 m/s&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>1.60%&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>8.096 GPa&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>8.032 GPa&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>-0.79%&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">&lt;code>1000 m/s&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>1000.02 m/s&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>6666.00 m/s&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>6659.35 m/s&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>-0.10%&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>17.998 GPa&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>18.052 GPa&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>0.30%&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">&lt;code>2000 m/s&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>1999.93 m/s&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>8004.00 m/s&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>7933.33 m/s&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>-0.88%&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>43.222 GPa&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>43.719 GPa&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>1.15%&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">&lt;code>3000 m/s&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>2999.66 m/s&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>9342.00 m/s&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>9319.76 m/s&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>-0.24%&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>75.670 GPa&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>75.895 GPa&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>0.30%&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">&lt;code>5000 m/s&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>4999.44 m/s&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>12018.00 m/s&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>12009.28 m/s&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>-0.07%&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>162.243 GPa&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>162.792 GPa&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>0.34%&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;p>Two conclusions can be drawn from the table:&lt;/p>
+&lt;p>First, the piston velocity plateau extraction is stable, with numerical &lt;code>Up&lt;/code> values very close to the set values, indicating that the post-wave plateau identification region is reasonably chosen. Second, neither of the two core quantities — &lt;code>Us&lt;/code> and &lt;code>P&lt;/code> — diverges as shock strength increases, demonstrating that this implementation maintains good consistency across the entire velocity range, not just for a single low-velocity case.&lt;/p></description></item><item><title>Strain-Based Porosity Model (ε-α Model)</title><link>https://yekq.top/en/posts/gasphia/eplison-alpha-porosity-model/</link><pubDate>Fri, 17 Apr 2026 10:00:00 +0800</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://yekq.top/en/posts/gasphia/eplison-alpha-porosity-model/</guid><description>&lt;h2 id="1-what-problem-does-the-model-solve">1. What Problem Does the Model Solve?
 &lt;/h2>&lt;p>Under impact (e.g., meteorite impact) or explosive loading, porous materials (sand, rubble pile, etc.) behave completely differently from dense materials. Most of the pressure is used for pore compaction, and the pore compaction releases large amounts of heat, causing expansion. In summary, when impacting porous materials, the following characteristics are observed:&lt;/p>
 &lt;ul>
 &lt;li>Absorbs large amounts of energy&lt;/li>
@@ -400,7 +755,341 @@ data-flex-basis="300px"
 &lt;/ol>
 &lt;h2 id="references">References
 &lt;/h2>&lt;p>[1] Wünnemann K, Collins GS, Melosh HJ. A strain-based porosity model for use in hydrocode simulations of impacts and implications for transient crater growth in porous targets. Icarus. 2006 Feb 1;180(2):514-27.&lt;/p>
-&lt;p>[2] Collins GS, Melosh HJ, Wünnemann K. Improvements to the ɛ-α porous compaction model for simulating impacts into high-porosity solar system objects. International Journal of Impact Engineering. 2011 Jun 1;38(6):434-9.&lt;/p></description></item><item><title>[Matrix Multiplication] LeetGPU Problem 2 - From Naive CUDA to 2D Register Blocking</title><link>https://yekq.top/en/posts/leetgpu/leetgpu-matrix-multiplication/</link><pubDate>Mon, 25 May 2026 00:00:00 +0000</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://yekq.top/en/posts/leetgpu/leetgpu-matrix-multiplication/</guid><description>&lt;h2 id="preface">Preface
+&lt;p>[2] Collins GS, Melosh HJ, Wünnemann K. Improvements to the ɛ-α porous compaction model for simulating impacts into high-porosity solar system objects. International Journal of Impact Engineering. 2011 Jun 1;38(6):434-9.&lt;/p></description></item><item><title>Jutzi 2008 1D P-alpha Compaction Wave Validation - GASPHiA Test Case</title><link>https://yekq.top/en/posts/gasphia/jutzi2008-p-alpha-compaction-wave/</link><pubDate>Tue, 26 May 2026 14:00:00 +0800</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://yekq.top/en/posts/gasphia/jutzi2008-p-alpha-compaction-wave/</guid><description>&lt;h1 id="jutzi-2008-1d-p-alpha-compaction-wave-validation">Jutzi 2008 1D P-alpha Compaction Wave Validation
+&lt;/h1>&lt;h2 id="overview">Overview
+&lt;/h2>&lt;p>This case reproduces the 1D porous aluminum compaction wave test from Jutzi et al. (2008) Section 5.1, comparing the following physical quantities at a fixed time against the paper&amp;rsquo;s SPH curves and the analytical solution:&lt;/p>
+&lt;ul>
+&lt;li>Pressure distribution&lt;/li>
+&lt;li>Distension &lt;code>alpha&lt;/code> distribution&lt;/li>
+&lt;/ul>
+&lt;p>This type of test is used to examine the performance of the p-alpha model in terms of &lt;strong>wave front structure, compaction zone thickness, and post-wave compaction degree&lt;/strong>.&lt;/p>
+&lt;p>This run used &lt;code>shock_00350.h5&lt;/code> as the reference frame. Extracted results:&lt;/p>
+&lt;ul>
+&lt;li>Material 0 particle count: &lt;code>400&lt;/code>&lt;/li>
+&lt;li>Pressure range: ~&lt;code>1.07e-01 Pa&lt;/code> to &lt;code>5.07e+09 Pa&lt;/code>&lt;/li>
+&lt;li>Distension range: &lt;code>1.0&lt;/code> to &lt;code>1.275&lt;/code>&lt;/li>
+&lt;/ul>
+&lt;p>The compaction wave has driven the material from the initial porous state to a nearly fully compacted region.&lt;/p>
+&lt;p>&lt;img src="https://yekq.top/posts/gasphia/jutzi2008-p-alpha-compaction-wave/jutzi2008_compaction_wave.png"
+width="2264"
+height="2182"
+srcset="https://yekq.top/posts/gasphia/jutzi2008-p-alpha-compaction-wave/jutzi2008_compaction_wave_hu59809991383da4a435fbe49c95627128_179395_480x0_resize_box_3.png 480w, https://yekq.top/posts/gasphia/jutzi2008-p-alpha-compaction-wave/jutzi2008_compaction_wave_hu59809991383da4a435fbe49c95627128_179395_1024x0_resize_box_3.png 1024w"
+loading="lazy"
+alt="Jutzi 2008 Compaction Wave Validation"
+class="gallery-image"
+data-flex-grow="103"
+data-flex-basis="249px"
+>&lt;/p>
+&lt;hr>
+&lt;h2 id="validation-objective">Validation Objective
+&lt;/h2>&lt;p>The physical picture of this case: a right-side moving piston drives a compaction wave through an initially porous aluminum rod. As the wave propagates forward, the material transitions from an initial distension of&lt;/p>
+$$
+\alpha_0 = 1.275
+$$
+&lt;p>toward a denser state. Unlike pure dense-material impact cases, attention must be paid not only to pressure magnitude but also to &lt;strong>how pore collapse unfolds spatially&lt;/strong>.&lt;/p>
+&lt;p>Thus, this test clearly exposes the spatial structure characteristics of the p-alpha model:&lt;/p>
+&lt;ul>
+&lt;li>Whether the wave front position is accurate&lt;/li>
+&lt;li>Whether the compaction transition zone is reasonable&lt;/li>
+&lt;li>Whether the post-wave &lt;code>alpha&lt;/code> falls to the correct level&lt;/li>
+&lt;li>Whether the pressure curve matches the reference in both magnitude and shape&lt;/li>
+&lt;/ul>
+&lt;p>If the model roughly matches the overall trend but shows significant deviations in wave front structure, compaction zone thickness, or post-wave state, this case will directly expose those issues.&lt;/p>
+&lt;hr>
+&lt;h2 id="how-to-run">How to Run
+&lt;/h2>&lt;p>Test directory:&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-bash" data-lang="bash">&lt;span class="line">&lt;span class="cl">GASPHiA-Tests/Jutzi2008_Section5_1_PAlphaCompactionWave
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>Run with:&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-bash" data-lang="bash">&lt;span class="line">&lt;span class="cl">./run_all.sh --source-dir /path/to/GASPHiA --cuda &lt;span class="m">0&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>The default workflow executes sequentially:&lt;/p>
+&lt;ol>
+&lt;li>Compile and run &lt;code>input/gen_input_1d.cpp&lt;/code>&lt;/li>
+&lt;li>Compile GASPHiA using the local &lt;code>para.cuh&lt;/code>&lt;/li>
+&lt;li>Run &lt;code>compaction_wave.ini&lt;/code>&lt;/li>
+&lt;li>Read &lt;code>output/shock_00350.h5&lt;/code>&lt;/li>
+&lt;li>Output pressure / distension comparison plots&lt;/li>
+&lt;/ol>
+&lt;p>Note: this case&amp;rsquo;s &lt;code>para.cuh&lt;/code> reserves a macro specifically for reproducing the experimental path:&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-cpp" data-lang="cpp">&lt;span class="line">&lt;span class="cl">&lt;span class="cp">#define JUTZI2008_5_1_reproduce_need 1
+&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;hr>
+&lt;h2 id="result-interpretation">Result Interpretation
+&lt;/h2>&lt;p>The figure is divided into two panels:&lt;/p>
+&lt;ul>
+&lt;li>Top: Pressure profile&lt;/li>
+&lt;li>Bottom: Distension &lt;code>alpha&lt;/code> profile&lt;/li>
+&lt;/ul>
+&lt;p>Each panel simultaneously plots three curves:&lt;/p>
+&lt;ul>
+&lt;li>GASPHiA computed results&lt;/li>
+&lt;li>Paper SPH curve&lt;/li>
+&lt;li>Analytical reference curve&lt;/li>
+&lt;/ul>
+&lt;p>For this type of case, the evaluation emphasis is not pixel-level coincidence but structural consistency at the following levels:&lt;/p>
+&lt;ol>
+&lt;li>Whether the wave front appears near the same position&lt;/li>
+&lt;li>Whether the spatial extents of the post-wave high-pressure zone and compaction zone are similar&lt;/li>
+&lt;li>Whether &lt;code>alpha&lt;/code> transitions smoothly from the initial &lt;code>1.275&lt;/code> to approximately &lt;code>1.0&lt;/code>&lt;/li>
+&lt;li>Whether the overall profile shape is consistent with the literature trend&lt;/li>
+&lt;/ol>
+&lt;p>From the result plot of this run, the above features are all clearly identifiable, indicating that the p-alpha chain is valid on this classic 1D test.&lt;/p>
+&lt;hr>
+&lt;h2 id="actual-run-data">Actual Run Data
+&lt;/h2>&lt;p>Key metrics extracted from post-processing:&lt;/p>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:left">Metric&lt;/th>
+&lt;th style="text-align:left">Value&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:left">Reference frame&lt;/td>
+&lt;td style="text-align:left">&lt;code>shock_00350.h5&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">Material 0 particle count&lt;/td>
+&lt;td style="text-align:left">&lt;code>400&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">Minimum pressure&lt;/td>
+&lt;td style="text-align:left">&lt;code>1.07e-01 Pa&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">Maximum pressure&lt;/td>
+&lt;td style="text-align:left">&lt;code>5.07e+09 Pa&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">Minimum distension&lt;/td>
+&lt;td style="text-align:left">&lt;code>1.0000&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">Maximum distension&lt;/td>
+&lt;td style="text-align:left">&lt;code>1.2750&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;p>These values validate the simulation from two perspectives:&lt;/p>
+&lt;p>On the one hand, the output &lt;code>alpha&lt;/code> covers the entire range from the initial porous state to the fully compacted state. On the other hand, the peak pressure has entered the &lt;code>GPa&lt;/code> range, indicating that the compaction wave is sufficiently strong and has formed a genuine compaction structure, not a weak perturbation state being compared ineffectively.&lt;/p>
+&lt;hr>
+&lt;h2 id="reference-value-for-future-users">Reference Value for Future Users
+&lt;/h2>&lt;p>When modifying the p-alpha model, porosity state variable update, pressure coupling, or porous material input parameters in GASPHiA, this test should be treated as mandatory.&lt;/p>
+&lt;p>Its advantage lies in direct feedback and rapid problem localization:&lt;/p>
+&lt;ul>
+&lt;li>Wave front curve offset → possible wave speed or boundary driving anomaly&lt;/li>
+&lt;li>&lt;code>alpha&lt;/code> unable to compress to target value post-wave → possible compaction model malfunction&lt;/li>
+&lt;li>Pressure plateau too high or too low → possible EOS–porosity model coupling deviation&lt;/li>
+&lt;li>Transition zone thickness significantly off → possible influence of numerical dissipation, kernel function, or artificial viscosity&lt;/li>
+&lt;/ul>
+&lt;p>For model tuning, such validation cases — where problem areas can be quickly located through profile plots — often hold greater value than tests relying solely on final integral quantities.&lt;/p>
+&lt;hr>
+&lt;h2 id="summary">Summary
+&lt;/h2>&lt;p>&lt;code>Jutzi2008_Section5_1_PAlphaCompactionWave&lt;/code> is a typical spatial profile validation case for porous materials. Unlike single-point Hugoniot tests that only provide a single state, this case fully unfolds the spatial structure of the compaction wave, making it more suitable for verifying whether the core logic of the p-alpha model is correct.&lt;/p>
+&lt;p>The actual run results show:&lt;/p>
+&lt;ul>
+&lt;li>Both pressure and &lt;code>alpha&lt;/code> profiles form reasonable comparisons with the literature reference&lt;/li>
+&lt;li>The compaction wave drives the material from &lt;code>alpha = 1.275&lt;/code> to near &lt;code>alpha = 1.0&lt;/code>&lt;/li>
+&lt;li>The overall structure of the wave front, compaction zone, and post-wave state is credible&lt;/li>
+&lt;/ul>
+&lt;p>For users solving porous material problems with GASPHiA, this case should be treated as a standard validation item for confirming model correctness, not an optional auxiliary test.&lt;/p></description></item><item><title>Nakamura 1991 Basalt Sphere Impact Fragmentation Validation - GASPHiA Test Case</title><link>https://yekq.top/en/posts/gasphia/nakamura1991-basalt-sphere-impact/</link><pubDate>Tue, 26 May 2026 15:20:00 +0800</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://yekq.top/en/posts/gasphia/nakamura1991-basalt-sphere-impact/</guid><description>&lt;h1 id="nakamura-1991-basalt-sphere-impact-fragmentation-validation">Nakamura 1991 Basalt Sphere Impact Fragmentation Validation
+&lt;/h1>&lt;h2 id="overview">Overview
+&lt;/h2>&lt;p>This is the validation case most oriented toward &amp;ldquo;final outcome verification&amp;rdquo; in the entire test suite. It reproduces the basalt sphere impact fragmentation experiment of Nakamura &amp;amp; Fujiwara (1991). The core comparison quantity is neither wave speed plateau nor profile shape, but the &lt;strong>cumulative fragment mass distribution&lt;/strong>:&lt;/p>
+&lt;blockquote>
+&lt;p>Given a fragment mass threshold &lt;code>M_f&lt;/code>, how many fragments have mass greater than it?&lt;/p>
+&lt;/blockquote>
+&lt;p>This type of statistic is sensitive to brittle damage, fracture propagation, fragment identification, and post-processing algorithms, making it suitable as a validation standard for whether the &amp;ldquo;fragmentation chain is actually usable.&amp;rdquo;&lt;/p>
+&lt;p>Key data from this run:&lt;/p>
+&lt;ul>
+&lt;li>Initial total particle count: &lt;code>524065&lt;/code>&lt;/li>
+&lt;li>Particles retained after damage threshold filtering (pre-FoF): &lt;code>157751&lt;/code>&lt;/li>
+&lt;li>Total connected fragments identified: &lt;code>1594&lt;/code>&lt;/li>
+&lt;li>Effective fragments (particle count &amp;gt; 1): &lt;code>509&lt;/code>&lt;/li>
+&lt;li>Maximum fragment mass: ~&lt;code>0.262&lt;/code> of the target sphere mass&lt;/li>
+&lt;/ul>
+&lt;p>&lt;img src="https://yekq.top/posts/gasphia/nakamura1991-basalt-sphere-impact/fragment_mass_distribution.png"
+width="1490"
+height="936"
+srcset="https://yekq.top/posts/gasphia/nakamura1991-basalt-sphere-impact/fragment_mass_distribution_hu77b22c71062a7ab97b19ef48ad3dcce0_132047_480x0_resize_box_3.png 480w, https://yekq.top/posts/gasphia/nakamura1991-basalt-sphere-impact/fragment_mass_distribution_hu77b22c71062a7ab97b19ef48ad3dcce0_132047_1024x0_resize_box_3.png 1024w"
+loading="lazy"
+alt="Nakamura 1991 Fragment Mass Cumulative Distribution"
+class="gallery-image"
+data-flex-grow="159"
+data-flex-basis="382px"
+>&lt;/p>
+&lt;hr>
+&lt;h2 id="validation-objective">Validation Objective
+&lt;/h2>&lt;p>Many impact cases appear satisfactory during the wave propagation phase, but problems only surface once entering the fragmentation and fragment statistics stage. At this point, it is not enough for stress and pressure updates to be correct; the following are also required:&lt;/p>
+&lt;ul>
+&lt;li>The damage model triggers at appropriate locations&lt;/li>
+&lt;li>Particles form reasonable fragment clusters after fracture&lt;/li>
+&lt;li>The post-processing algorithm can identify fragments&lt;/li>
+&lt;li>The final fragment mass distribution matches experimental or literature trends&lt;/li>
+&lt;/ul>
+&lt;p>Therefore, this case simultaneously validates three aspects: whether the material fractures, what the fragmentation pattern looks like, and whether the statistical results match the literature.&lt;/p>
+&lt;p>For future users, the significance of this validation is that most application scenarios care not only about the instantaneous impact field, but also about how many fragments are produced, how large the largest fragment is, and whether the distribution is reasonable.&lt;/p>
+&lt;hr>
+&lt;h2 id="physical-setup-and-references">Physical Setup and References
+&lt;/h2>&lt;p>This case is based on:&lt;/p>
+&lt;blockquote>
+&lt;p>Nakamura &amp;amp; Fujiwara (1991) basalt sphere impact fragmentation experiment&lt;/p>
+&lt;/blockquote>
+&lt;p>Model setup:&lt;/p>
+&lt;ul>
+&lt;li>Target: Basalt sphere&lt;/li>
+&lt;li>Projectile: Lucite&lt;/li>
+&lt;li>Primary validation quantity: Cumulative fragment mass distribution&lt;/li>
+&lt;/ul>
+&lt;p>Key geometric and physical quantities set in the input script:&lt;/p>
+&lt;ul>
+&lt;li>Basalt target sphere radius: &lt;code>3 cm&lt;/code>&lt;/li>
+&lt;li>Target density: &lt;code>2700 kg/m^3&lt;/code>&lt;/li>
+&lt;li>Projectile density: &lt;code>1180 kg/m^3&lt;/code>&lt;/li>
+&lt;li>Projectile initial velocity: &lt;code>3200 m/s&lt;/code>&lt;/li>
+&lt;/ul>
+&lt;p>Post-processing uses the Friends-of-Friends (FoF) method to identify fragments from the final output frame, and places GASPHiA&amp;rsquo;s distribution curve alongside the following references:&lt;/p>
+&lt;ul>
+&lt;li>Nakamura &amp;amp; Fujiwara (1991)&lt;/li>
+&lt;li>Benz &amp;amp; Asphaug (1994) two seed results&lt;/li>
+&lt;li>Schafer et al. (2016)&lt;/li>
+&lt;/ul>
+&lt;p>This allows the results to be cross-validated not just against a single experiment, but within the broader context of the relevant numerical literature.&lt;/p>
+&lt;hr>
+&lt;h2 id="how-to-run">How to Run
+&lt;/h2>&lt;p>Test directory:&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-bash" data-lang="bash">&lt;span class="line">&lt;span class="cl">GASPHiA-Tests/Nakamura1991_BasaltSphereImpact
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>The full workflow consists of four steps:&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;span class="lnt">2
+&lt;/span>&lt;span class="lnt">3
+&lt;/span>&lt;span class="lnt">4
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-bash" data-lang="bash">&lt;span class="line">&lt;span class="cl">python input/input.py
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">./compile.sh
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="nv">CUDA_VISIBLE_DEVICES&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="m">0&lt;/span> ./GASPHIA -i impact.ini
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">python post/fast_fof.py -input output_no_bals/nakamura1991_00020.h5 -outputF post/fragments.txt
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>Then plot the fragment mass distribution.&lt;/p>
+&lt;p>What distinguishes this case from the other validation cases is that it covers the complete &amp;ldquo;pre-processing → main solver → post-processing&amp;rdquo; workflow, making it better suited as an end-to-end workflow validation rather than a unit test of a single numerical module.&lt;/p>
+&lt;hr>
+&lt;h2 id="result-interpretation">Result Interpretation
+&lt;/h2>&lt;p>The horizontal axis of the plot is the normalized fragment mass:&lt;/p>
+$$
+M_f / M_T
+$$
+&lt;p>where &lt;code>M_T&lt;/code> is the total target sphere mass; the vertical axis is the cumulative count of fragments with mass greater than &lt;code>M_f&lt;/code>. On a log-log scale, this plot clearly shows the overall distribution trends at both the large-fragment and small-fragment ends.&lt;/p>
+&lt;p>Key curves in the plot:&lt;/p>
+&lt;ul>
+&lt;li>Blue: GASPHiA&lt;/li>
+&lt;li>Black: Nakamura &amp;amp; Fujiwara (1991)&lt;/li>
+&lt;li>Gray: Benz &amp;amp; Asphaug (1994) two seed runs&lt;/li>
+&lt;li>Green: Schafer et al. (2016)&lt;/li>
+&lt;/ul>
+&lt;p>For this type of validation, exact overlap of every curve across the full scale is not generally expected, as the fragmentation problem is sensitive to material parameters, flaw distributions, damage thresholds, and random seeds. However, if the main curve deviates significantly in both overall slope and order of magnitude, it indicates a fundamental issue with the fragmentation implementation.&lt;/p>
+&lt;p>From the results of this run, GASPHiA&amp;rsquo;s distribution curve can already be compared at the same order of magnitude as classical literature results, indicating that it at least captures the primary behavior of fragmentation statistics.&lt;/p>
+&lt;hr>
+&lt;h2 id="actual-run-data">Actual Run Data
+&lt;/h2>&lt;p>Key metrics extracted from this run and post-processing:&lt;/p>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:left">Metric&lt;/th>
+&lt;th style="text-align:left">Value&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:left">Initial total particle count&lt;/td>
+&lt;td style="text-align:left">&lt;code>524065&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">Particles participating in FoF after damage filtering&lt;/td>
+&lt;td style="text-align:left">&lt;code>157751&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">Total FoF-identified fragments&lt;/td>
+&lt;td style="text-align:left">&lt;code>1594&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">Effective fragments (particle count &amp;gt; 1)&lt;/td>
+&lt;td style="text-align:left">&lt;code>509&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">Maximum fragment normalized mass&lt;/td>
+&lt;td style="text-align:left">&lt;code>2.6208e-01&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">Minimum fragment normalized mass&lt;/td>
+&lt;td style="text-align:left">&lt;code>1.6694e-06&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">Target sphere total mass&lt;/td>
+&lt;td style="text-align:left">&lt;code>3.0536e-01 kg&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;p>Two figures deserve particular attention:&lt;/p>
+&lt;p>First, over 150,000 particles remain after FoF filtering, indicating that the final fragment statistics are not derived from an overly simplified sparse debris field, but from a fragmentation end-state with sufficient information content. Second, the maximum fragment mass is approximately &lt;code>26%&lt;/code> of the target sphere mass, indicating that this is not mild erosion but has entered the significant fragmentation regime.&lt;/p>
+&lt;p>This also explains why the mass distribution curve can span a relatively complete scale range on log-log coordinates.&lt;/p>
+&lt;hr>
+&lt;h2 id="reference-value-for-future-users">Reference Value for Future Users
+&lt;/h2>&lt;p>If planning to use GASPHiA for brittle material impact, catastrophic disruption, or fragment statistics research, this case should be regarded as a basic validation threshold.&lt;/p>
+&lt;p>It can simultaneously expose the following types of issues:&lt;/p>
+&lt;ul>
+&lt;li>Damage model too strong or too weak&lt;/li>
+&lt;li>Unreasonable strength model parameters&lt;/li>
+&lt;li>Issues with flaw distribution implementation&lt;/li>
+&lt;li>Incorrect fragment identification radius or linking logic&lt;/li>
+&lt;li>Excessive deviation of final distribution from the literature&lt;/li>
+&lt;/ul>
+&lt;p>In particular, after modifying the following modules, this case should be re-run as a priority:&lt;/p>
+&lt;ul>
+&lt;li>flaw / Weibull flaw generation&lt;/li>
+&lt;li>damage update logic&lt;/li>
+&lt;li>Fragmentation threshold&lt;/li>
+&lt;li>FoF algorithm in post-processing&lt;/li>
+&lt;/ul>
+&lt;hr>
+&lt;h2 id="summary">Summary
+&lt;/h2>&lt;p>&lt;code>Nakamura1991_BasaltSphereImpact&lt;/code> is a representative end-state fragmentation validation case. It does not rely on a single profile to demonstrate correctness, but directly compares the cumulative fragment mass distribution against experiments and multiple classical literature results, thus imposing a higher standard on code credibility.&lt;/p>
+&lt;p>Results from this run demonstrate:&lt;/p>
+&lt;ul>
+&lt;li>Large-scale particle impact and damage evolution workflows can run stably&lt;/li>
+&lt;li>FoF post-processing can successfully identify fragments&lt;/li>
+&lt;li>The final fragment distribution curve already has a basis for cross-comparison with classical reference results&lt;/li>
+&lt;/ul>
+&lt;p>For users solving real fragmentation problems with GASPHiA, this case should be among the first validation references consulted.&lt;/p></description></item><item><title>[Matrix Multiplication] LeetGPU Problem 2 - From Naive CUDA to 2D Register Blocking</title><link>https://yekq.top/en/posts/leetgpu/leetgpu-matrix-multiplication/</link><pubDate>Mon, 25 May 2026 00:00:00 +0000</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://yekq.top/en/posts/leetgpu/leetgpu-matrix-multiplication/</guid><description>&lt;h2 id="preface">Preface
 &lt;/h2>&lt;p>&lt;strong>All code discussed in this article can be found in the project repository &lt;a class="link" href="https://github.com/KeqiYe/LeetGPU" target="_blank" rel="noopener"
 >KeqiYe/LeetGPU&lt;/a>.&lt;/strong>&lt;/p>
 &lt;p>If vector addition is the most natural first CUDA exercise, then matrix multiplication is almost certainly the second. Vector addition teaches us how to scale a scalar operation across a large number of threads. Matrix multiplication, however, forces us to confront the deeper questions in GPU programming: how threads should be mapped to data, why memory access patterns directly shape throughput, what shared memory is really solving, and how to keep pushing performance once a kernel is already correct.&lt;/p>

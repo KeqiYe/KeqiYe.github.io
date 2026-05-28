@@ -1,0 +1,178 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Nakamura1991 on Keqi's blog</title><link>https://yekq.top/en/tags/nakamura1991/</link><description>Recent content in Nakamura1991 on Keqi's blog</description><generator>Hugo -- gohugo.io</generator><language>en</language><managingEditor>plloningye@gmail.com (Keqi Ye)</managingEditor><webMaster>plloningye@gmail.com (Keqi Ye)</webMaster><copyright>Keqi Ye</copyright><lastBuildDate>Tue, 26 May 2026 15:20:00 +0800</lastBuildDate><atom:link href="https://yekq.top/en/tags/nakamura1991/index.xml" rel="self" type="application/rss+xml"/><item><title>Nakamura 1991 Basalt Sphere Impact Fragmentation Validation - GASPHiA Test Case</title><link>https://yekq.top/en/posts/gasphia/nakamura1991-basalt-sphere-impact/</link><pubDate>Tue, 26 May 2026 15:20:00 +0800</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://yekq.top/en/posts/gasphia/nakamura1991-basalt-sphere-impact/</guid><description>&lt;h1 id="nakamura-1991-basalt-sphere-impact-fragmentation-validation">Nakamura 1991 Basalt Sphere Impact Fragmentation Validation
+&lt;/h1>&lt;h2 id="overview">Overview
+&lt;/h2>&lt;p>This is the validation case most oriented toward &amp;ldquo;final outcome verification&amp;rdquo; in the entire test suite. It reproduces the basalt sphere impact fragmentation experiment of Nakamura &amp;amp; Fujiwara (1991). The core comparison quantity is neither wave speed plateau nor profile shape, but the &lt;strong>cumulative fragment mass distribution&lt;/strong>:&lt;/p>
+&lt;blockquote>
+&lt;p>Given a fragment mass threshold &lt;code>M_f&lt;/code>, how many fragments have mass greater than it?&lt;/p>
+&lt;/blockquote>
+&lt;p>This type of statistic is sensitive to brittle damage, fracture propagation, fragment identification, and post-processing algorithms, making it suitable as a validation standard for whether the &amp;ldquo;fragmentation chain is actually usable.&amp;rdquo;&lt;/p>
+&lt;p>Key data from this run:&lt;/p>
+&lt;ul>
+&lt;li>Initial total particle count: &lt;code>524065&lt;/code>&lt;/li>
+&lt;li>Particles retained after damage threshold filtering (pre-FoF): &lt;code>157751&lt;/code>&lt;/li>
+&lt;li>Total connected fragments identified: &lt;code>1594&lt;/code>&lt;/li>
+&lt;li>Effective fragments (particle count &amp;gt; 1): &lt;code>509&lt;/code>&lt;/li>
+&lt;li>Maximum fragment mass: ~&lt;code>0.262&lt;/code> of the target sphere mass&lt;/li>
+&lt;/ul>
+&lt;p>&lt;img src="https://yekq.top/posts/gasphia/nakamura1991-basalt-sphere-impact/fragment_mass_distribution.png"
+width="1490"
+height="936"
+srcset="https://yekq.top/posts/gasphia/nakamura1991-basalt-sphere-impact/fragment_mass_distribution_hu77b22c71062a7ab97b19ef48ad3dcce0_132047_480x0_resize_box_3.png 480w, https://yekq.top/posts/gasphia/nakamura1991-basalt-sphere-impact/fragment_mass_distribution_hu77b22c71062a7ab97b19ef48ad3dcce0_132047_1024x0_resize_box_3.png 1024w"
+loading="lazy"
+alt="Nakamura 1991 Fragment Mass Cumulative Distribution"
+class="gallery-image"
+data-flex-grow="159"
+data-flex-basis="382px"
+>&lt;/p>
+&lt;hr>
+&lt;h2 id="validation-objective">Validation Objective
+&lt;/h2>&lt;p>Many impact cases appear satisfactory during the wave propagation phase, but problems only surface once entering the fragmentation and fragment statistics stage. At this point, it is not enough for stress and pressure updates to be correct; the following are also required:&lt;/p>
+&lt;ul>
+&lt;li>The damage model triggers at appropriate locations&lt;/li>
+&lt;li>Particles form reasonable fragment clusters after fracture&lt;/li>
+&lt;li>The post-processing algorithm can identify fragments&lt;/li>
+&lt;li>The final fragment mass distribution matches experimental or literature trends&lt;/li>
+&lt;/ul>
+&lt;p>Therefore, this case simultaneously validates three aspects: whether the material fractures, what the fragmentation pattern looks like, and whether the statistical results match the literature.&lt;/p>
+&lt;p>For future users, the significance of this validation is that most application scenarios care not only about the instantaneous impact field, but also about how many fragments are produced, how large the largest fragment is, and whether the distribution is reasonable.&lt;/p>
+&lt;hr>
+&lt;h2 id="physical-setup-and-references">Physical Setup and References
+&lt;/h2>&lt;p>This case is based on:&lt;/p>
+&lt;blockquote>
+&lt;p>Nakamura &amp;amp; Fujiwara (1991) basalt sphere impact fragmentation experiment&lt;/p>
+&lt;/blockquote>
+&lt;p>Model setup:&lt;/p>
+&lt;ul>
+&lt;li>Target: Basalt sphere&lt;/li>
+&lt;li>Projectile: Lucite&lt;/li>
+&lt;li>Primary validation quantity: Cumulative fragment mass distribution&lt;/li>
+&lt;/ul>
+&lt;p>Key geometric and physical quantities set in the input script:&lt;/p>
+&lt;ul>
+&lt;li>Basalt target sphere radius: &lt;code>3 cm&lt;/code>&lt;/li>
+&lt;li>Target density: &lt;code>2700 kg/m^3&lt;/code>&lt;/li>
+&lt;li>Projectile density: &lt;code>1180 kg/m^3&lt;/code>&lt;/li>
+&lt;li>Projectile initial velocity: &lt;code>3200 m/s&lt;/code>&lt;/li>
+&lt;/ul>
+&lt;p>Post-processing uses the Friends-of-Friends (FoF) method to identify fragments from the final output frame, and places GASPHiA&amp;rsquo;s distribution curve alongside the following references:&lt;/p>
+&lt;ul>
+&lt;li>Nakamura &amp;amp; Fujiwara (1991)&lt;/li>
+&lt;li>Benz &amp;amp; Asphaug (1994) two seed results&lt;/li>
+&lt;li>Schafer et al. (2016)&lt;/li>
+&lt;/ul>
+&lt;p>This allows the results to be cross-validated not just against a single experiment, but within the broader context of the relevant numerical literature.&lt;/p>
+&lt;hr>
+&lt;h2 id="how-to-run">How to Run
+&lt;/h2>&lt;p>Test directory:&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-bash" data-lang="bash">&lt;span class="line">&lt;span class="cl">GASPHiA-Tests/Nakamura1991_BasaltSphereImpact
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>The full workflow consists of four steps:&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;span class="lnt">2
+&lt;/span>&lt;span class="lnt">3
+&lt;/span>&lt;span class="lnt">4
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-bash" data-lang="bash">&lt;span class="line">&lt;span class="cl">python input/input.py
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">./compile.sh
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="nv">CUDA_VISIBLE_DEVICES&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="m">0&lt;/span> ./GASPHIA -i impact.ini
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">python post/fast_fof.py -input output_no_bals/nakamura1991_00020.h5 -outputF post/fragments.txt
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>Then plot the fragment mass distribution.&lt;/p>
+&lt;p>What distinguishes this case from the other validation cases is that it covers the complete &amp;ldquo;pre-processing → main solver → post-processing&amp;rdquo; workflow, making it better suited as an end-to-end workflow validation rather than a unit test of a single numerical module.&lt;/p>
+&lt;hr>
+&lt;h2 id="result-interpretation">Result Interpretation
+&lt;/h2>&lt;p>The horizontal axis of the plot is the normalized fragment mass:&lt;/p>
+$$
+M_f / M_T
+$$
+&lt;p>where &lt;code>M_T&lt;/code> is the total target sphere mass; the vertical axis is the cumulative count of fragments with mass greater than &lt;code>M_f&lt;/code>. On a log-log scale, this plot clearly shows the overall distribution trends at both the large-fragment and small-fragment ends.&lt;/p>
+&lt;p>Key curves in the plot:&lt;/p>
+&lt;ul>
+&lt;li>Blue: GASPHiA&lt;/li>
+&lt;li>Black: Nakamura &amp;amp; Fujiwara (1991)&lt;/li>
+&lt;li>Gray: Benz &amp;amp; Asphaug (1994) two seed runs&lt;/li>
+&lt;li>Green: Schafer et al. (2016)&lt;/li>
+&lt;/ul>
+&lt;p>For this type of validation, exact overlap of every curve across the full scale is not generally expected, as the fragmentation problem is sensitive to material parameters, flaw distributions, damage thresholds, and random seeds. However, if the main curve deviates significantly in both overall slope and order of magnitude, it indicates a fundamental issue with the fragmentation implementation.&lt;/p>
+&lt;p>From the results of this run, GASPHiA&amp;rsquo;s distribution curve can already be compared at the same order of magnitude as classical literature results, indicating that it at least captures the primary behavior of fragmentation statistics.&lt;/p>
+&lt;hr>
+&lt;h2 id="actual-run-data">Actual Run Data
+&lt;/h2>&lt;p>Key metrics extracted from this run and post-processing:&lt;/p>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:left">Metric&lt;/th>
+&lt;th style="text-align:left">Value&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:left">Initial total particle count&lt;/td>
+&lt;td style="text-align:left">&lt;code>524065&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">Particles participating in FoF after damage filtering&lt;/td>
+&lt;td style="text-align:left">&lt;code>157751&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">Total FoF-identified fragments&lt;/td>
+&lt;td style="text-align:left">&lt;code>1594&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">Effective fragments (particle count &amp;gt; 1)&lt;/td>
+&lt;td style="text-align:left">&lt;code>509&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">Maximum fragment normalized mass&lt;/td>
+&lt;td style="text-align:left">&lt;code>2.6208e-01&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">Minimum fragment normalized mass&lt;/td>
+&lt;td style="text-align:left">&lt;code>1.6694e-06&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">Target sphere total mass&lt;/td>
+&lt;td style="text-align:left">&lt;code>3.0536e-01 kg&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;p>Two figures deserve particular attention:&lt;/p>
+&lt;p>First, over 150,000 particles remain after FoF filtering, indicating that the final fragment statistics are not derived from an overly simplified sparse debris field, but from a fragmentation end-state with sufficient information content. Second, the maximum fragment mass is approximately &lt;code>26%&lt;/code> of the target sphere mass, indicating that this is not mild erosion but has entered the significant fragmentation regime.&lt;/p>
+&lt;p>This also explains why the mass distribution curve can span a relatively complete scale range on log-log coordinates.&lt;/p>
+&lt;hr>
+&lt;h2 id="reference-value-for-future-users">Reference Value for Future Users
+&lt;/h2>&lt;p>If planning to use GASPHiA for brittle material impact, catastrophic disruption, or fragment statistics research, this case should be regarded as a basic validation threshold.&lt;/p>
+&lt;p>It can simultaneously expose the following types of issues:&lt;/p>
+&lt;ul>
+&lt;li>Damage model too strong or too weak&lt;/li>
+&lt;li>Unreasonable strength model parameters&lt;/li>
+&lt;li>Issues with flaw distribution implementation&lt;/li>
+&lt;li>Incorrect fragment identification radius or linking logic&lt;/li>
+&lt;li>Excessive deviation of final distribution from the literature&lt;/li>
+&lt;/ul>
+&lt;p>In particular, after modifying the following modules, this case should be re-run as a priority:&lt;/p>
+&lt;ul>
+&lt;li>flaw / Weibull flaw generation&lt;/li>
+&lt;li>damage update logic&lt;/li>
+&lt;li>Fragmentation threshold&lt;/li>
+&lt;li>FoF algorithm in post-processing&lt;/li>
+&lt;/ul>
+&lt;hr>
+&lt;h2 id="summary">Summary
+&lt;/h2>&lt;p>&lt;code>Nakamura1991_BasaltSphereImpact&lt;/code> is a representative end-state fragmentation validation case. It does not rely on a single profile to demonstrate correctness, but directly compares the cumulative fragment mass distribution against experiments and multiple classical literature results, thus imposing a higher standard on code credibility.&lt;/p>
+&lt;p>Results from this run demonstrate:&lt;/p>
+&lt;ul>
+&lt;li>Large-scale particle impact and damage evolution workflows can run stably&lt;/li>
+&lt;li>FoF post-processing can successfully identify fragments&lt;/li>
+&lt;li>The final fragment distribution curve already has a basis for cross-comparison with classical reference results&lt;/li>
+&lt;/ul>
+&lt;p>For users solving real fragmentation problems with GASPHiA, this case should be among the first validation references consulted.&lt;/p></description></item></channel></rss>

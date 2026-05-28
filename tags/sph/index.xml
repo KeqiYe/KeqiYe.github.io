@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>SPH on Keqi的博客</title><link>https://yekq.top/tags/sph/</link><description>Recent content in SPH on Keqi的博客</description><generator>Hugo -- gohugo.io</generator><language>zh-cn</language><managingEditor>plloningye@gmail.com (Keqi Ye)</managingEditor><webMaster>plloningye@gmail.com (Keqi Ye)</webMaster><copyright>Keqi Ye</copyright><lastBuildDate>Fri, 17 Apr 2026 10:00:00 +0800</lastBuildDate><atom:link href="https://yekq.top/tags/sph/index.xml" rel="self" type="application/rss+xml"/><item><title>GASPHiA: GPU加速的光滑粒子流体动力学（SPH）代码</title><link>https://yekq.top/posts/gasphia/introduction/</link><pubDate>Tue, 17 Mar 2026 10:00:00 +0800</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://yekq.top/posts/gasphia/introduction/</guid><description>&lt;h1 id="gasphia-gpu加速的光滑粒子流体动力学代码">GASPHiA: GPU加速的光滑粒子流体动力学代码
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>SPH on Keqi的博客</title><link>https://yekq.top/tags/sph/</link><description>Recent content in SPH on Keqi的博客</description><generator>Hugo -- gohugo.io</generator><language>zh-cn</language><managingEditor>plloningye@gmail.com (Keqi Ye)</managingEditor><webMaster>plloningye@gmail.com (Keqi Ye)</webMaster><copyright>Keqi Ye</copyright><lastBuildDate>Tue, 26 May 2026 15:20:00 +0800</lastBuildDate><atom:link href="https://yekq.top/tags/sph/index.xml" rel="self" type="application/rss+xml"/><item><title>GASPHiA: GPU加速的光滑粒子流体动力学（SPH）代码</title><link>https://yekq.top/posts/gasphia/introduction/</link><pubDate>Tue, 17 Mar 2026 10:00:00 +0800</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://yekq.top/posts/gasphia/introduction/</guid><description>&lt;h1 id="gasphia-gpu加速的光滑粒子流体动力学代码">GASPHiA: GPU加速的光滑粒子流体动力学代码
 &lt;/h1>&lt;p>GASPHiA 是一个高性能的三维 SPH（光滑粒子流体动力学）代码，由中山大学航空航天学院的叶科奇在其博士研究期间开发。该代码专为模拟复杂的流体动力学问题设计，特别是涉及材料强度、损伤和引力相互作用的问题。&lt;/p>
 &lt;h2 id="特性">特性
 &lt;/h2>&lt;h3 id="高性能与可扩展性">高性能与可扩展性
@@ -795,7 +795,192 @@ $$\frac{d\rho_i}{dt} = \sum_j m_j (v_j - v_i) \cdot \nabla_i W(r_{ij}, h)$$
 &lt;li>Sod, G. A. (1978). A survey of several finite difference methods for systems of nonlinear hyperbolic conservation laws. &lt;em>Journal of Computational Physics&lt;/em>, 27(1), 1-31.&lt;/li>
 &lt;li>Monaghan, J. J. (1992). Smoothed particle hydrodynamics. &lt;em>Annual Review of Astronomy and Astrophysics&lt;/em>, 30, 543-574.&lt;/li>
 &lt;li>Liu, G. R., &amp;amp; Liu, M. B. (2003). &lt;em>Smoothed particle hydrodynamics: a meshfree particle method&lt;/em>. World Scientific.&lt;/li>
-&lt;/ol></description></item><item><title>P-alpha 孔隙度模型的实现与踩坑记录</title><link>https://yekq.top/posts/gasphia/p-alpha-porosity-model/</link><pubDate>Tue, 07 Apr 2026 14:00:00 +0800</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://yekq.top/posts/gasphia/p-alpha-porosity-model/</guid><description>&lt;h1 id="p-alpha-孔隙度模型的实现与踩的一些坑">P-alpha 孔隙度模型的实现与踩的一些坑
+&lt;/ol></description></item><item><title>1D 弹性单轴应变波验证 - GASPHiA 测试算例</title><link>https://yekq.top/posts/gasphia/1d-elastic-uniaxial-strain-wave/</link><pubDate>Tue, 26 May 2026 11:30:00 +0800</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://yekq.top/posts/gasphia/1d-elastic-uniaxial-strain-wave/</guid><description>&lt;h1 id="1d-弹性单轴应变波验证">1D 弹性单轴应变波验证
+&lt;/h1>&lt;h2 id="概述">概述
+&lt;/h2>&lt;p>右侧刚性活塞以恒定速度推动铝质线弹性杆，杆左端固定，系统中传播的是一维弹性单轴应变压缩波。该算例不涉及飞片撞击、塑性屈服或非线性 Hugoniot 关系，因此适合用于检验 GASPHiA 在&lt;strong>线弹性波速、压力平台、偏应力平台以及总轴向应力平台&lt;/strong>上的计算准确性。&lt;/p>
+&lt;p>本次运行结果：&lt;/p>
+&lt;ul>
+&lt;li>纵波波速相对理论误差约 &lt;code>1.80%&lt;/code>&lt;/li>
+&lt;li>压力平台相对理论误差约 &lt;code>0.24% - 0.27%&lt;/code>&lt;/li>
+&lt;li>偏应力平台相对理论误差约 &lt;code>1.01% - 1.04%&lt;/code>&lt;/li>
+&lt;li>总轴向应力平台相对理论误差约 &lt;code>0.48% - 0.51%&lt;/code>&lt;/li>
+&lt;/ul>
+&lt;p>若后续需修改弹性 EOS、强度模型、应力更新或边界处理，该算例适合用作快速回归验证。&lt;/p>
+&lt;p>&lt;img src="https://yekq.top/posts/gasphia/1d-elastic-uniaxial-strain-wave/elastic_wave_validation.png"
+width="2491"
+height="2911"
+srcset="https://yekq.top/posts/gasphia/1d-elastic-uniaxial-strain-wave/elastic_wave_validation_hu4f0a5b9d5b35e1ee602c81a642f16504_167479_480x0_resize_box_3.png 480w, https://yekq.top/posts/gasphia/1d-elastic-uniaxial-strain-wave/elastic_wave_validation_hu4f0a5b9d5b35e1ee602c81a642f16504_167479_1024x0_resize_box_3.png 1024w"
+loading="lazy"
+alt="1D 弹性单轴应变波验证图"
+class="gallery-image"
+data-flex-grow="85"
+data-flex-basis="205px"
+>&lt;/p>
+&lt;hr>
+&lt;h2 id="理论解与验证指标">理论解与验证指标
+&lt;/h2>&lt;p>对于一维弹性单轴应变压缩波，理论关系为：&lt;/p>
+$$
+c_L = \sqrt{\frac{K + 4G/3}{\rho_0}}
+$$
+$$
+\varepsilon_{xx} = \frac{U_p}{c_L}
+$$
+$$
+P = K \varepsilon_{xx}
+$$
+$$
+|S_{xx}| = \frac{4G}{3}\varepsilon_{xx}
+$$
+$$
+|\sigma_{xx}| = P + |S_{xx}| = \rho_0 c_L U_p
+$$
+&lt;p>本算例采用的参数是：&lt;/p>
+&lt;ul>
+&lt;li>初始密度：&lt;code>\rho_0 = 2700 kg/m^3&lt;/code>&lt;/li>
+&lt;li>体模量：&lt;code>K = 75.2 GPa&lt;/code>&lt;/li>
+&lt;li>剪切模量：&lt;code>G = 26.0 GPa&lt;/code>&lt;/li>
+&lt;li>活塞速度：&lt;code>U_p = 100 m/s&lt;/code>&lt;/li>
+&lt;/ul>
+&lt;p>据此得到的理论值为：&lt;/p>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:left">量&lt;/th>
+&lt;th style="text-align:left">理论值&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:left">纵波波速 &lt;code>c_L&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>6378.98 m/s&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">压力平台 &lt;code>P&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>1.1789 GPa&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">偏应力平台 `&lt;/td>
+&lt;td style="text-align:left">Sxx&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">总轴向应力平台 `&lt;/td>
+&lt;td style="text-align:left">\sigma_{xx}&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;p>模拟结果应对比以下指标：&lt;/p>
+&lt;ol>
+&lt;li>波头传播速度是否接近 &lt;code>c_L&lt;/code>&lt;/li>
+&lt;li>波后压力平台是否接近理论值&lt;/li>
+&lt;li>波后偏应力平台是否接近理论值&lt;/li>
+&lt;li>总轴向应力平台是否稳定，并且量级正确&lt;/li>
+&lt;/ol>
+&lt;hr>
+&lt;h2 id="运行方式">运行方式
+&lt;/h2>&lt;p>测试目录：&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-bash" data-lang="bash">&lt;span class="line">&lt;span class="cl">GASPHiA-Tests/1D_Elastic_Uniaxial_Strain_Wave
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>执行以下命令启动：&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-bash" data-lang="bash">&lt;span class="line">&lt;span class="cl">./run_all.sh --source-dir /path/to/GASPHiA --cuda &lt;span class="m">0&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>脚本依次完成以下步骤：&lt;/p>
+&lt;ol>
+&lt;li>编译初始条件生成器&lt;/li>
+&lt;li>生成 &lt;code>input/input_1d_uniaxial_strain.h5&lt;/code>&lt;/li>
+&lt;li>使用本目录的 &lt;code>para.cuh&lt;/code> 编译 GASPHiA&lt;/li>
+&lt;li>运行 &lt;code>ust.ini&lt;/code>&lt;/li>
+&lt;li>对输出结果做后处理并生成验证图&lt;/li>
+&lt;/ol>
+&lt;p>需要说明的工程细节：编译时通过 &lt;code>PARA_CUH&lt;/code> 指向本算例目录下的 &lt;code>para.cuh&lt;/code>，而非将测试参数复制进主源码目录。这样在不同测试之间切换时不会污染主工程的参数配置。&lt;/p>
+&lt;hr>
+&lt;h2 id="结果解读">结果解读
+&lt;/h2>&lt;p>上方的验证图给出了 &lt;code>20 us&lt;/code>、&lt;code>40 us&lt;/code> 和 &lt;code>60 us&lt;/code> 三个时刻的数值结果，并与理论平台进行了对比。三行分别对应：&lt;/p>
+&lt;ul>
+&lt;li>压力 &lt;code>P&lt;/code>&lt;/li>
+&lt;li>偏应力绝对值 &lt;code>|Sxx|&lt;/code>&lt;/li>
+&lt;li>总轴向应力绝对值 &lt;code>|\sigma_{xx}|&lt;/code>&lt;/li>
+&lt;/ul>
+&lt;p>从图中可观察到以下关键特征：&lt;/p>
+&lt;ol>
+&lt;li>波头以稳定速度从右向左传播，且位置与理论波速给出的参考位置接近。&lt;/li>
+&lt;li>波后平台平坦，未出现非物理振荡。&lt;/li>
+&lt;li>压力、偏应力和总应力三个量级均落在理论值附近，表明 EOS 与应力分解的耦合是自洽的。&lt;/li>
+&lt;/ol>
+&lt;p>与更复杂的冲击算例相比，该测试不涉及波系干涉、破碎、塑性或孔隙压实等复杂过程。其价值在于结构简单，便于在出现偏差时精准定位到具体实现模块。&lt;/p>
+&lt;hr>
+&lt;h2 id="实际运行数据">实际运行数据
+&lt;/h2>&lt;p>本次运行提取的关键指标如下。&lt;/p>
+&lt;h3 id="波速">波速
+&lt;/h3>&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:left">指标&lt;/th>
+&lt;th style="text-align:left">数值&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:left">理论波速 &lt;code>cL_ref&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>6378.98 m/s&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">数值波速 &lt;code>cL_num&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>6494.04 m/s&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">相对误差&lt;/td>
+&lt;td style="text-align:left">&lt;code>1.80%&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="三个采样时刻的平台指标">三个采样时刻的平台指标
+&lt;/h3>&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:left">时间&lt;/th>
+&lt;th style="text-align:left">波头位置误差&lt;/th>
+&lt;th style="text-align:left">压力平台误差&lt;/th>
+&lt;th style="text-align:left">偏应力平台误差&lt;/th>
+&lt;th style="text-align:left">总应力平台误差&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:left">&lt;code>20 us&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>-2.06 mm&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>0.24%&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>1.01%&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>0.48%&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">&lt;code>40 us&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>-4.24 mm&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>0.26%&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>1.03%&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>0.50%&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">&lt;code>60 us&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>-6.67 mm&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>0.27%&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>1.04%&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>0.51%&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;p>从平台量的角度看，结果整体稳定，尤其是压力和总应力误差均控制在较低水平。波头位置误差随传播时间有轻微累积，但整体量级仍在可接受范围内。&lt;/p></description></item><item><title>P-alpha 孔隙度模型的实现与踩坑记录</title><link>https://yekq.top/posts/gasphia/p-alpha-porosity-model/</link><pubDate>Tue, 07 Apr 2026 14:00:00 +0800</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://yekq.top/posts/gasphia/p-alpha-porosity-model/</guid><description>&lt;h1 id="p-alpha-孔隙度模型的实现与踩的一些坑">P-alpha 孔隙度模型的实现与踩的一些坑
 &lt;/h1>&lt;iframe src="//player.bilibili.com/player.html?isOutside=true&amp;bvid=BV1t7DeBiEEv&amp;p=1&amp;high_quality=1&amp;danmaku=0"
 scrolling="no" border="0" frameborder="no" framespacing="0" allowfullscreen="true"
 style="width: 100%; aspect-ratio: 16/9; border-radius: 8px; margin-bottom: 20px;">
@@ -1170,7 +1355,179 @@ data-flex-basis="384px"
 &lt;p>对撞击结果进行后处理分析，提取碎片累积质量分布数据：&lt;/p>
 &lt;blockquote>
 &lt;p>GASPHiA 计算得到的最大残余碎片质量占比为 11.67%，与实验室给出的真实实验数据 9.96% 误差很小，进一步验证了整个多孔材料求解器核心计算逻辑的可靠性。&lt;/p>
-&lt;/blockquote></description></item><item><title>基于应变的孔隙度模型（ε-α 模型）</title><link>https://yekq.top/posts/gasphia/eplison-alpha-porosity-model/</link><pubDate>Fri, 17 Apr 2026 10:00:00 +0800</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://yekq.top/posts/gasphia/eplison-alpha-porosity-model/</guid><description>&lt;h2 id="一模型要解决什么问题">一、模型要解决什么问题？
+&lt;/blockquote></description></item><item><title>铝材料 Mie-Gruneisen Hugoniot 验证 - GASPHiA 测试算例</title><link>https://yekq.top/posts/gasphia/aluminum-mie-gruneisen-hugoniot/</link><pubDate>Tue, 26 May 2026 12:30:00 +0800</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://yekq.top/posts/gasphia/aluminum-mie-gruneisen-hugoniot/</guid><description>&lt;h1 id="铝材料-mie-gruneisen-hugoniot-验证">铝材料 Mie-Gruneisen Hugoniot 验证
+&lt;/h1>&lt;h2 id="概述">概述
+&lt;/h2>&lt;p>本算例验证 GASPHiA 中 &lt;strong>Mie-Gruneisen 状态方程&lt;/strong>对铝材料冲击响应实现的正确性。方法为：在一维杆件右端施加刚性活塞，扫描多组活塞速度 &lt;code>U_p&lt;/code>，然后从模拟结果中提取&lt;/p>
+&lt;ul>
+&lt;li>冲击波速 &lt;code>U_s&lt;/code>&lt;/li>
+&lt;li>波后压力平台 &lt;code>P&lt;/code>&lt;/li>
+&lt;/ul>
+&lt;p>与理论 Hugoniot 关系&lt;/p>
+$$
+U_s = c_0 + sU_p, \qquad P = \rho_0 U_s U_p
+$$
+&lt;p>进行对比。&lt;/p>
+&lt;p>算例实际扫描了 &lt;code>500, 1000, 2000, 3000, 5000 m/s&lt;/code> 五组速度，结果整体稳定：&lt;/p>
+&lt;ul>
+&lt;li>&lt;code>U_s&lt;/code> 相对理论误差约在 &lt;code>0.07% - 1.60%&lt;/code>&lt;/li>
+&lt;li>&lt;code>P&lt;/code> 相对理论误差约在 &lt;code>0.30% - 1.15%&lt;/code>&lt;/li>
+&lt;/ul>
+&lt;hr>
+&lt;h2 id="验证目标">验证目标
+&lt;/h2>&lt;p>与弹性单轴应变波算例不同，本算例的验证重点已从线弹性波速和偏应力平台转向&lt;strong>冲击压缩后的热力学响应&lt;/strong>。对于给定的材料模型，冲击波前后的状态必须落在对应的 Hugoniot 曲线上，才能保证热力学一致性。&lt;/p>
+&lt;p>本算例采用一维铝靶和右侧移动刚性活塞，通过不同活塞速度生成不同强度的冲击波。对每个速度 case，后处理步骤为：&lt;/p>
+&lt;ol>
+&lt;li>从多帧输出中拟合冲击波前位置，得到数值波速 &lt;code>U_s&lt;/code>&lt;/li>
+&lt;li>在稳定波后平台上对压力和粒子速度取平均，得到数值 &lt;code>P&lt;/code> 和 &lt;code>U_p&lt;/code>&lt;/li>
+&lt;/ol>
+&lt;hr>
+&lt;h2 id="理论关系">理论关系
+&lt;/h2>&lt;p>本算例采用的铝材料 Mie-Gruneisen Hugoniot 线性关系为：&lt;/p>
+$$
+U_s = c_0 + sU_p
+$$
+$$
+P = \rho_0 U_s U_p
+$$
+&lt;p>参数取值为：&lt;/p>
+&lt;ul>
+&lt;li>初始密度：&lt;code>\rho_0 = 2700 kg/m^3&lt;/code>&lt;/li>
+&lt;li>体积声速：&lt;code>c_0 = 5328 m/s&lt;/code>&lt;/li>
+&lt;li>Hugoniot 线性斜率：&lt;code>s = 1.338&lt;/code>&lt;/li>
+&lt;/ul>
+&lt;p>在这个验证框架下，数值结果应该回答两个问题：&lt;/p>
+&lt;ol>
+&lt;li>拟合得到的 &lt;code>U_s&lt;/code> 是否沿着理论直线 &lt;code>U_s = c_0 + sU_p&lt;/code> 排列&lt;/li>
+&lt;li>提取出来的波后压力 &lt;code>P&lt;/code> 是否沿着理论曲线 &lt;code>P = \rho_0 U_s U_p&lt;/code> 排列&lt;/li>
+&lt;/ol>
+&lt;p>只要两者均成立，即可确认 EOS 的基本 Hugoniot 响应是可靠的。&lt;/p>
+&lt;hr>
+&lt;h2 id="运行方式">运行方式
+&lt;/h2>&lt;p>测试目录：&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-bash" data-lang="bash">&lt;span class="line">&lt;span class="cl">GASPHiA-Tests/AluminumMieGruneisenHugoniot
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>执行以下命令启动：&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-bash" data-lang="bash">&lt;span class="line">&lt;span class="cl">./run_all.sh --source-dir /path/to/GASPHiA --cuda &lt;span class="m">0&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>脚本自动完成以下步骤：&lt;/p>
+&lt;ol>
+&lt;li>编译输入生成器 &lt;code>gen_input_hugoniot&lt;/code>&lt;/li>
+&lt;li>使用本目录的 &lt;code>para.cuh&lt;/code> 编译 GASPHiA&lt;/li>
+&lt;li>依次运行 &lt;code>500, 1000, 2000, 3000, 5000 m/s&lt;/code> 五组活塞速度&lt;/li>
+&lt;li>将每组输出归档到 &lt;code>output_sweep/output_V*/&lt;/code>&lt;/li>
+&lt;li>提取 &lt;code>U_s&lt;/code>、&lt;code>U_p&lt;/code> 和 &lt;code>P&lt;/code> 并生成 Hugoniot 对比图&lt;/li>
+&lt;/ol>
+&lt;p>与其他验证算例一致，本算例通过 &lt;code>PARA_CUH&lt;/code> 引用测试目录自有的编译参数，不修改主源码树中的参数文件。&lt;/p>
+&lt;hr>
+&lt;h2 id="结果解读">结果解读
+&lt;/h2>&lt;h3 id="u_s---u_p-关系">&lt;code>U_s - U_p&lt;/code> 关系
+&lt;/h3>&lt;p>&lt;img src="https://yekq.top/posts/gasphia/aluminum-mie-gruneisen-hugoniot/Hugoniot_Us_Up.png"
+width="2093"
+height="1674"
+srcset="https://yekq.top/posts/gasphia/aluminum-mie-gruneisen-hugoniot/Hugoniot_Us_Up_hu82e39c6dfec2ebc335b46cc23537794c_109877_480x0_resize_box_3.png 480w, https://yekq.top/posts/gasphia/aluminum-mie-gruneisen-hugoniot/Hugoniot_Us_Up_hu82e39c6dfec2ebc335b46cc23537794c_109877_1024x0_resize_box_3.png 1024w"
+loading="lazy"
+alt="Hugoniot Us-Up 验证图"
+class="gallery-image"
+data-flex-grow="125"
+data-flex-basis="300px"
+>&lt;/p>
+&lt;p>该图的核心信息是：模拟提取的冲击波速点基本沿理论直线分布，未出现系统性偏离。对于冲击波问题，这是判断 EOS 波速响应是否正确的基本验证关。&lt;/p>
+&lt;h3 id="p---u_p-关系">&lt;code>P - U_p&lt;/code> 关系
+&lt;/h3>&lt;p>&lt;img src="https://yekq.top/posts/gasphia/aluminum-mie-gruneisen-hugoniot/Hugoniot_P_Up.png"
+width="2047"
+height="1674"
+srcset="https://yekq.top/posts/gasphia/aluminum-mie-gruneisen-hugoniot/Hugoniot_P_Up_hu99c1624cb22c632559f222471ebc3547_94871_480x0_resize_box_3.png 480w, https://yekq.top/posts/gasphia/aluminum-mie-gruneisen-hugoniot/Hugoniot_P_Up_hu99c1624cb22c632559f222471ebc3547_94871_1024x0_resize_box_3.png 1024w"
+loading="lazy"
+alt="Hugoniot P-Up 验证图"
+class="gallery-image"
+data-flex-grow="122"
+data-flex-basis="293px"
+>&lt;/p>
+&lt;p>该图展示的是波后压力平台。相较于波头位置，波后压力对 EOS 的热力学输出更加敏感。图中模拟点与理论曲线吻合良好，表明波后压力提取与 EOS 响应之间的一致性较高。&lt;/p>
+&lt;hr>
+&lt;h2 id="实际运行数据">实际运行数据
+&lt;/h2>&lt;p>本次速度扫描结果如下。&lt;/p>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:left">Case 活塞速度&lt;/th>
+&lt;th style="text-align:left">数值 &lt;code>Up&lt;/code>&lt;/th>
+&lt;th style="text-align:left">理论 &lt;code>Us&lt;/code>&lt;/th>
+&lt;th style="text-align:left">数值 &lt;code>Us&lt;/code>&lt;/th>
+&lt;th style="text-align:left">&lt;code>Us&lt;/code> 相对误差&lt;/th>
+&lt;th style="text-align:left">理论 &lt;code>P&lt;/code>&lt;/th>
+&lt;th style="text-align:left">数值 &lt;code>P&lt;/code>&lt;/th>
+&lt;th style="text-align:left">&lt;code>P&lt;/code> 相对误差&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:left">&lt;code>500 m/s&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>500.04 m/s&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>5997.00 m/s&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>6093.02 m/s&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>1.60%&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>8.096 GPa&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>8.032 GPa&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>-0.79%&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">&lt;code>1000 m/s&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>1000.02 m/s&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>6666.00 m/s&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>6659.35 m/s&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>-0.10%&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>17.998 GPa&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>18.052 GPa&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>0.30%&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">&lt;code>2000 m/s&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>1999.93 m/s&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>8004.00 m/s&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>7933.33 m/s&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>-0.88%&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>43.222 GPa&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>43.719 GPa&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>1.15%&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">&lt;code>3000 m/s&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>2999.66 m/s&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>9342.00 m/s&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>9319.76 m/s&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>-0.24%&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>75.670 GPa&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>75.895 GPa&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>0.30%&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">&lt;code>5000 m/s&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>4999.44 m/s&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>12018.00 m/s&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>12009.28 m/s&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>-0.07%&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>162.243 GPa&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>162.792 GPa&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>0.34%&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;p>从上表可得出两点结论：&lt;/p>
+&lt;p>其一，活塞速度平台提取稳定，数值 &lt;code>Up&lt;/code> 与设置值非常接近，表明波后平台识别区域选取合理。其二，&lt;code>Us&lt;/code> 和 &lt;code>P&lt;/code> 两个核心量均未随冲击强度升高而明显发散，说明该版实现并非仅适用于某个低速 case，而是在整段速度范围内均保持了良好的一致性。&lt;/p>
+&lt;hr></description></item><item><title>基于应变的孔隙度模型（ε-α 模型）</title><link>https://yekq.top/posts/gasphia/eplison-alpha-porosity-model/</link><pubDate>Fri, 17 Apr 2026 10:00:00 +0800</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://yekq.top/posts/gasphia/eplison-alpha-porosity-model/</guid><description>&lt;h2 id="一模型要解决什么问题">一、模型要解决什么问题？
 &lt;/h2>&lt;p>在冲击（如陨石撞击）或爆炸加载下，多孔材料（砂土、rubble pile等）的行为与密实材料完全不同。绝大多数压力用于孔隙的压实过程，而孔隙压实又会大量放热，导致膨胀。总之冲击多孔隙度材质时，有如下特点：&lt;/p>
 &lt;ul>
 &lt;li>吸收大量能量&lt;/li>
@@ -1346,4 +1703,278 @@ data-flex-basis="300px"
 &lt;/ol>
 &lt;h2 id="参考资料">参考资料
 &lt;/h2>&lt;p>[1] Wünnemann K, Collins GS, Melosh HJ. A strain-based porosity model for use in hydrocode simulations of impacts and implications for transient crater growth in porous targets. Icarus. 2006 Feb 1;180(2):514-27.&lt;/p>
-&lt;p>[2] Collins GS, Melosh HJ, Wünnemann K. Improvements to the ɛ-α porous compaction model for simulating impacts into high-porosity solar system objects. International Journal of Impact Engineering. 2011 Jun 1;38(6):434-9.&lt;/p></description></item></channel></rss>
+&lt;p>[2] Collins GS, Melosh HJ, Wünnemann K. Improvements to the ɛ-α porous compaction model for simulating impacts into high-porosity solar system objects. International Journal of Impact Engineering. 2011 Jun 1;38(6):434-9.&lt;/p></description></item><item><title>Jutzi 2008 一维 p-alpha 压实波验证 - GASPHiA 测试算例</title><link>https://yekq.top/posts/gasphia/jutzi2008-p-alpha-compaction-wave/</link><pubDate>Tue, 26 May 2026 14:00:00 +0800</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://yekq.top/posts/gasphia/jutzi2008-p-alpha-compaction-wave/</guid><description>&lt;h1 id="jutzi-2008-一维-p-alpha-压实波验证">Jutzi 2008 一维 p-alpha 压实波验证
+&lt;/h1>&lt;h2 id="概述">概述
+&lt;/h2>&lt;p>本算例复现 Jutzi et al. (2008) 第 5.1 节的一维多孔铝压实波测试，在固定时刻对比以下物理量在 GASPHiA、论文 SPH 曲线与解析解之间的一致性：&lt;/p>
+&lt;ul>
+&lt;li>压力分布&lt;/li>
+&lt;li>膨胀度 &lt;code>alpha&lt;/code> 分布&lt;/li>
+&lt;/ul>
+&lt;p>该类测试用于考察 p-alpha 模型在&lt;strong>波前结构、压实区厚度、波后压实程度&lt;/strong>方面的表现。&lt;/p>
+&lt;p>本次运行以 &lt;code>shock_00350.h5&lt;/code> 作为对照帧。提取结果：&lt;/p>
+&lt;ul>
+&lt;li>材料 0 粒子数：&lt;code>400&lt;/code>&lt;/li>
+&lt;li>压力范围：约 &lt;code>1.07e-01 Pa&lt;/code> ~ &lt;code>5.07e+09 Pa&lt;/code>&lt;/li>
+&lt;li>膨胀度范围：&lt;code>1.0&lt;/code> ~ &lt;code>1.275&lt;/code>&lt;/li>
+&lt;/ul>
+&lt;p>压实波已将材料从初始多孔态推进至近乎完全压实的区域。&lt;/p>
+&lt;p>&lt;img src="https://yekq.top/posts/gasphia/jutzi2008-p-alpha-compaction-wave/jutzi2008_compaction_wave.png"
+width="2264"
+height="2182"
+srcset="https://yekq.top/posts/gasphia/jutzi2008-p-alpha-compaction-wave/jutzi2008_compaction_wave_hu59809991383da4a435fbe49c95627128_179395_480x0_resize_box_3.png 480w, https://yekq.top/posts/gasphia/jutzi2008-p-alpha-compaction-wave/jutzi2008_compaction_wave_hu59809991383da4a435fbe49c95627128_179395_1024x0_resize_box_3.png 1024w"
+loading="lazy"
+alt="Jutzi 2008 压实波验证图"
+class="gallery-image"
+data-flex-grow="103"
+data-flex-basis="249px"
+>&lt;/p>
+&lt;hr>
+&lt;h2 id="验证目标">验证目标
+&lt;/h2>&lt;p>本算例的物理图景如下：右侧移动活塞推动压实波穿过一根初始存在孔隙的多孔铝柱。随着波向前传播，材料从初始膨胀度&lt;/p>
+$$
+\alpha_0 = 1.275
+$$
+&lt;p>逐渐向更致密状态过渡。与纯致密材料冲击算例不同，此处不仅需关注压力幅值，还需关注&lt;strong>孔隙塌缩如何随空间展开&lt;/strong>。&lt;/p>
+&lt;p>因此，该测试能清晰暴露 p-alpha 模型的空间结构特性：&lt;/p>
+&lt;ul>
+&lt;li>波前位置是否准确&lt;/li>
+&lt;li>压实过渡带是否合理&lt;/li>
+&lt;li>波后 &lt;code>alpha&lt;/code> 是否回落至正确水平&lt;/li>
+&lt;li>压力曲线是否与参考结果在量级和形态上一致&lt;/li>
+&lt;/ul>
+&lt;p>若模型仅总趋势大致吻合，但波前结构、压实区厚度或波后状态存在明显偏移，该算例能直接暴露这些问题。&lt;/p>
+&lt;hr>
+&lt;h2 id="运行方式">运行方式
+&lt;/h2>&lt;p>测试目录：&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-bash" data-lang="bash">&lt;span class="line">&lt;span class="cl">GASPHiA-Tests/Jutzi2008_Section5_1_PAlphaCompactionWave
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>执行以下命令启动：&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-bash" data-lang="bash">&lt;span class="line">&lt;span class="cl">./run_all.sh --source-dir /path/to/GASPHiA --cuda &lt;span class="m">0&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>默认流程依次执行：&lt;/p>
+&lt;ol>
+&lt;li>编译并运行 &lt;code>input/gen_input_1d.cpp&lt;/code>&lt;/li>
+&lt;li>使用当前目录下的 &lt;code>para.cuh&lt;/code> 编译 GASPHiA&lt;/li>
+&lt;li>运行 &lt;code>compaction_wave.ini&lt;/code>&lt;/li>
+&lt;li>读取 &lt;code>output/shock_00350.h5&lt;/code>&lt;/li>
+&lt;li>输出压力 / 膨胀度对比图&lt;/li>
+&lt;/ol>
+&lt;p>需额外注意：本算例的 &lt;code>para.cuh&lt;/code> 中预留了一个用于复现实验路径的宏&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-cpp" data-lang="cpp">&lt;span class="line">&lt;span class="cl">&lt;span class="cp">#define JUTZI2008_5_1_reproduce_need 1
+&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;hr>
+&lt;h2 id="结果解读">结果解读
+&lt;/h2>&lt;p>图形分为上下两部分：&lt;/p>
+&lt;ul>
+&lt;li>上图：压力剖面&lt;/li>
+&lt;li>下图：膨胀度 &lt;code>alpha&lt;/code> 剖面&lt;/li>
+&lt;/ul>
+&lt;p>每部分均同时绘制三条曲线：&lt;/p>
+&lt;ul>
+&lt;li>GASPHiA 计算结果&lt;/li>
+&lt;li>论文 SPH 曲线&lt;/li>
+&lt;li>解析参考曲线&lt;/li>
+&lt;/ul>
+&lt;p>对该类算例，评估重点并非逐点像素级重合，而是以下层面的结构一致性：&lt;/p>
+&lt;ol>
+&lt;li>波头是否出现在相同位置附近&lt;/li>
+&lt;li>波后高压区与压实区的空间范围是否相近&lt;/li>
+&lt;li>&lt;code>alpha&lt;/code> 是否从初始 &lt;code>1.275&lt;/code> 平滑过渡至约 &lt;code>1.0&lt;/code>&lt;/li>
+&lt;li>剖面整体形状是否与文献结果趋势一致&lt;/li>
+&lt;/ol>
+&lt;p>从本次运行结果图来看，上述特征均可清晰辨认，表明 p-alpha 链路在该经典一维测试上是成立的。&lt;/p>
+&lt;hr>
+&lt;h2 id="实际运行数据">实际运行数据
+&lt;/h2>&lt;p>后处理提取的关键指标如下：&lt;/p>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:left">指标&lt;/th>
+&lt;th style="text-align:left">数值&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:left">对照帧&lt;/td>
+&lt;td style="text-align:left">&lt;code>shock_00350.h5&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">材料 0 粒子数&lt;/td>
+&lt;td style="text-align:left">&lt;code>400&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">压力最小值&lt;/td>
+&lt;td style="text-align:left">&lt;code>1.07e-01 Pa&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">压力最大值&lt;/td>
+&lt;td style="text-align:left">&lt;code>5.07e+09 Pa&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">膨胀度最小值&lt;/td>
+&lt;td style="text-align:left">&lt;code>1.0000&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">膨胀度最大值&lt;/td>
+&lt;td style="text-align:left">&lt;code>1.2750&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;p>这些数值从两个角度印证了模拟的有效性：&lt;/p>
+&lt;p>一方面，输出中的 &lt;code>alpha&lt;/code> 已覆盖从初始孔隙态到完全压实态的整个范围；另一方面，压力峰值已进入 &lt;code>GPa&lt;/code> 量级，说明压实波强度足够，已形成真实压实结构，而非在弱扰动状态下进行无效比较。&lt;/p>
+&lt;hr>
+&lt;h2 id="对后续用户的参考价值">对后续用户的参考价值
+&lt;/h2>&lt;p>若需在 GASPHiA 中修改 p-alpha 模型、孔隙状态量更新、压力耦合或多孔材料输入参数，该测试应作为必测项。&lt;/p>
+&lt;p>其优势在于反馈直接、问题定位快：&lt;/p>
+&lt;ul>
+&lt;li>波前曲线偏移 → 可能为波速或边界驱动异常&lt;/li>
+&lt;li>&lt;code>alpha&lt;/code> 波后无法压至目标值 → 可能为压实模型工作不正常&lt;/li>
+&lt;li>压力平台偏高或偏低 → 可能为 EOS 与孔隙模型耦合存在偏差&lt;/li>
+&lt;li>过渡带厚度明显偏离 → 可能为数值耗散、核函数或人工粘性影响过大&lt;/li>
+&lt;/ul>
+&lt;p>对模型调参而言，此类通过剖面图即可快速定位问题区域的验证算例，其价值往往高于仅依赖最终积分量的测试。&lt;/p>
+&lt;hr>
+&lt;h2 id="小结">小结
+&lt;/h2>&lt;p>&lt;code>Jutzi2008_Section5_1_PAlphaCompactionWave&lt;/code> 是一个典型的多孔材料空间剖面验证算例。与单点 Hugoniot 仅给出单点状态不同，该算例将压实波的空间结构完整展开，更适合用于检验 p-alpha 模型的核心逻辑是否正确。&lt;/p>
+&lt;p>实际运行结果显示：&lt;/p>
+&lt;ul>
+&lt;li>压力剖面与 &lt;code>alpha&lt;/code> 剖面均与文献参考形成合理对照&lt;/li>
+&lt;li>压实波将材料从 &lt;code>alpha = 1.275&lt;/code> 推进至接近 &lt;code>alpha = 1.0&lt;/code>&lt;/li>
+&lt;li>波前、压实区和波后状态的整体结构可信&lt;/li>
+&lt;/ul>
+&lt;p>对于使用 GASPHiA 求解多孔材料问题的用户，该算例应作为确认模型正确性的标准验证项，而非可选的辅助测试。&lt;/p></description></item><item><title>Nakamura 1991 玄武岩球撞击破碎验证 - GASPHiA 测试算例</title><link>https://yekq.top/posts/gasphia/nakamura1991-basalt-sphere-impact/</link><pubDate>Tue, 26 May 2026 15:20:00 +0800</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://yekq.top/posts/gasphia/nakamura1991-basalt-sphere-impact/</guid><description>&lt;h1 id="nakamura-1991-玄武岩球撞击破碎验证">Nakamura 1991 玄武岩球撞击破碎验证
+&lt;/h1>&lt;h2 id="概述">概述
+&lt;/h2>&lt;p>本算例是整批测试中最偏向”终局结果验证”的一项。它复现 Nakamura &amp;amp; Fujiwara (1991) 的玄武岩球撞击破碎实验，核心对比量并非波速平台或剖面形状，而是&lt;strong>碎片质量累积分布&lt;/strong>：&lt;/p>
+&lt;blockquote>
+&lt;p>给定一个碎片质量阈值 &lt;code>M_f&lt;/code>，质量大于它的碎片共有多少个？&lt;/p>
+&lt;/blockquote>
+&lt;p>该类统计量对脆性损伤、断裂扩展、碎片识别及后处理算法均较为敏感，因此适合作为”破碎链路是否可用的”验证标准。&lt;/p>
+&lt;p>本次运行的关键数据：&lt;/p>
+&lt;ul>
+&lt;li>初始总粒子数：&lt;code>524065&lt;/code>&lt;/li>
+&lt;li>FoF 前经损伤阈值过滤后保留粒子：&lt;code>157751&lt;/code>&lt;/li>
+&lt;li>识别出的连通碎片总数：&lt;code>1594&lt;/code>&lt;/li>
+&lt;li>其中粒子数大于 1 的有效碎片数：&lt;code>509&lt;/code>&lt;/li>
+&lt;li>最大碎片质量约为靶球质量的 &lt;code>0.262&lt;/code>&lt;/li>
+&lt;/ul>
+&lt;p>&lt;img src="https://yekq.top/posts/gasphia/nakamura1991-basalt-sphere-impact/fragment_mass_distribution.png"
+width="1490"
+height="936"
+srcset="https://yekq.top/posts/gasphia/nakamura1991-basalt-sphere-impact/fragment_mass_distribution_hu77b22c71062a7ab97b19ef48ad3dcce0_132047_480x0_resize_box_3.png 480w, https://yekq.top/posts/gasphia/nakamura1991-basalt-sphere-impact/fragment_mass_distribution_hu77b22c71062a7ab97b19ef48ad3dcce0_132047_1024x0_resize_box_3.png 1024w"
+loading="lazy"
+alt="Nakamura 1991 碎片质量累积分布图"
+class="gallery-image"
+data-flex-grow="159"
+data-flex-basis="382px"
+>&lt;/p>
+&lt;hr>
+&lt;h2 id="验证目标">验证目标
+&lt;/h2>&lt;ul>
+&lt;li>损伤模型&lt;/li>
+&lt;li>颗粒破裂后能形成合理的碎片团簇&lt;/li>
+&lt;li>后处理算法能准确识别碎片&lt;/li>
+&lt;li>最终碎片质量分布与实验或文献趋势一致&lt;/li>
+&lt;/ul>
+&lt;hr>
+&lt;h2 id="物理设置与参考对象">物理设置与参考对象
+&lt;/h2>&lt;p>本算例基于：&lt;/p>
+&lt;blockquote>
+&lt;p>Nakamura &amp;amp; Fujiwara (1991) 玄武岩球撞击破碎实验&lt;/p>
+&lt;/blockquote>
+&lt;p>模型设置为：&lt;/p>
+&lt;ul>
+&lt;li>靶体：玄武岩球&lt;/li>
+&lt;li>弹丸：Lucite&lt;/li>
+&lt;li>主要验证量：碎片质量累积分布&lt;/li>
+&lt;/ul>
+&lt;p>输入脚本中设置的关键几何和物理量包括：&lt;/p>
+&lt;ul>
+&lt;li>玄武岩靶球半径：&lt;code>3 cm&lt;/code>&lt;/li>
+&lt;li>靶球密度：&lt;code>2700 kg/m^3&lt;/code>&lt;/li>
+&lt;li>弹丸密度：&lt;code>1180 kg/m^3&lt;/code>&lt;/li>
+&lt;li>弹丸初速度：&lt;code>3200 m/s&lt;/code>&lt;/li>
+&lt;/ul>
+&lt;h2 id="运行方式">运行方式
+&lt;/h2>&lt;p>测试目录：&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-bash" data-lang="bash">&lt;span class="line">&lt;span class="cl">GASPHiA-Tests/Nakamura1991_BasaltSphereImpact
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>完整流程分四步：&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;span class="lnt">2
+&lt;/span>&lt;span class="lnt">3
+&lt;/span>&lt;span class="lnt">4
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-bash" data-lang="bash">&lt;span class="line">&lt;span class="cl">python input/input.py
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">./compile.sh
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="nv">CUDA_VISIBLE_DEVICES&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="m">0&lt;/span> ./GASPHIA -i impact.ini
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">python post/fast_fof.py -input output_no_bals/nakamura1991_00020.h5 -outputF post/fragments.txt
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;h2 id="实际运行数据">实际运行数据
+&lt;/h2>&lt;p>本次运行与后处理提取的关键指标：&lt;/p>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:left">指标&lt;/th>
+&lt;th style="text-align:left">数值&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:left">初始总粒子数&lt;/td>
+&lt;td style="text-align:left">&lt;code>524065&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">损伤过滤后参与 FoF 的粒子数&lt;/td>
+&lt;td style="text-align:left">&lt;code>157751&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">FoF 识别总碎片数&lt;/td>
+&lt;td style="text-align:left">&lt;code>1594&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">粒子数大于 1 的有效碎片数&lt;/td>
+&lt;td style="text-align:left">&lt;code>509&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">最大碎片归一化质量&lt;/td>
+&lt;td style="text-align:left">&lt;code>2.6208e-01&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">最小碎片归一化质量&lt;/td>
+&lt;td style="text-align:left">&lt;code>1.6694e-06&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">靶球总质量&lt;/td>
+&lt;td style="text-align:left">&lt;code>3.0536e-01 kg&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;p>目前本算例使用了von mises屈服模型，有兴趣的读者可以使用lundbrog屈服模型再次运行一次，两者误差在1%左右。&lt;/p></description></item></channel></rss>

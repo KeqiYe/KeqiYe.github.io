@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>碎片统计 on Keqi的博客</title><link>https://yekq.top/tags/%E7%A2%8E%E7%89%87%E7%BB%9F%E8%AE%A1/</link><description>Recent content in 碎片统计 on Keqi的博客</description><generator>Hugo -- gohugo.io</generator><language>zh-cn</language><managingEditor>plloningye@gmail.com (Keqi Ye)</managingEditor><webMaster>plloningye@gmail.com (Keqi Ye)</webMaster><copyright>Keqi Ye</copyright><lastBuildDate>Tue, 26 May 2026 15:20:00 +0800</lastBuildDate><atom:link href="https://yekq.top/tags/%E7%A2%8E%E7%89%87%E7%BB%9F%E8%AE%A1/index.xml" rel="self" type="application/rss+xml"/><item><title>Nakamura 1991 玄武岩球撞击破碎验证 - GASPHiA 测试算例</title><link>https://yekq.top/posts/gasphia/nakamura1991-basalt-sphere-impact/</link><pubDate>Tue, 26 May 2026 15:20:00 +0800</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://yekq.top/posts/gasphia/nakamura1991-basalt-sphere-impact/</guid><description>&lt;h1 id="nakamura-1991-玄武岩球撞击破碎验证">Nakamura 1991 玄武岩球撞击破碎验证
+&lt;/h1>&lt;h2 id="概述">概述
+&lt;/h2>&lt;p>本算例是整批测试中最偏向”终局结果验证”的一项。它复现 Nakamura &amp;amp; Fujiwara (1991) 的玄武岩球撞击破碎实验，核心对比量并非波速平台或剖面形状，而是&lt;strong>碎片质量累积分布&lt;/strong>：&lt;/p>
+&lt;blockquote>
+&lt;p>给定一个碎片质量阈值 &lt;code>M_f&lt;/code>，质量大于它的碎片共有多少个？&lt;/p>
+&lt;/blockquote>
+&lt;p>该类统计量对脆性损伤、断裂扩展、碎片识别及后处理算法均较为敏感，因此适合作为”破碎链路是否可用的”验证标准。&lt;/p>
+&lt;p>本次运行的关键数据：&lt;/p>
+&lt;ul>
+&lt;li>初始总粒子数：&lt;code>524065&lt;/code>&lt;/li>
+&lt;li>FoF 前经损伤阈值过滤后保留粒子：&lt;code>157751&lt;/code>&lt;/li>
+&lt;li>识别出的连通碎片总数：&lt;code>1594&lt;/code>&lt;/li>
+&lt;li>其中粒子数大于 1 的有效碎片数：&lt;code>509&lt;/code>&lt;/li>
+&lt;li>最大碎片质量约为靶球质量的 &lt;code>0.262&lt;/code>&lt;/li>
+&lt;/ul>
+&lt;p>&lt;img src="https://yekq.top/posts/gasphia/nakamura1991-basalt-sphere-impact/fragment_mass_distribution.png"
+width="1490"
+height="936"
+srcset="https://yekq.top/posts/gasphia/nakamura1991-basalt-sphere-impact/fragment_mass_distribution_hu77b22c71062a7ab97b19ef48ad3dcce0_132047_480x0_resize_box_3.png 480w, https://yekq.top/posts/gasphia/nakamura1991-basalt-sphere-impact/fragment_mass_distribution_hu77b22c71062a7ab97b19ef48ad3dcce0_132047_1024x0_resize_box_3.png 1024w"
+loading="lazy"
+alt="Nakamura 1991 碎片质量累积分布图"
+class="gallery-image"
+data-flex-grow="159"
+data-flex-basis="382px"
+>&lt;/p>
+&lt;hr>
+&lt;h2 id="验证目标">验证目标
+&lt;/h2>&lt;ul>
+&lt;li>损伤模型&lt;/li>
+&lt;li>颗粒破裂后能形成合理的碎片团簇&lt;/li>
+&lt;li>后处理算法能准确识别碎片&lt;/li>
+&lt;li>最终碎片质量分布与实验或文献趋势一致&lt;/li>
+&lt;/ul>
+&lt;hr>
+&lt;h2 id="物理设置与参考对象">物理设置与参考对象
+&lt;/h2>&lt;p>本算例基于：&lt;/p>
+&lt;blockquote>
+&lt;p>Nakamura &amp;amp; Fujiwara (1991) 玄武岩球撞击破碎实验&lt;/p>
+&lt;/blockquote>
+&lt;p>模型设置为：&lt;/p>
+&lt;ul>
+&lt;li>靶体：玄武岩球&lt;/li>
+&lt;li>弹丸：Lucite&lt;/li>
+&lt;li>主要验证量：碎片质量累积分布&lt;/li>
+&lt;/ul>
+&lt;p>输入脚本中设置的关键几何和物理量包括：&lt;/p>
+&lt;ul>
+&lt;li>玄武岩靶球半径：&lt;code>3 cm&lt;/code>&lt;/li>
+&lt;li>靶球密度：&lt;code>2700 kg/m^3&lt;/code>&lt;/li>
+&lt;li>弹丸密度：&lt;code>1180 kg/m^3&lt;/code>&lt;/li>
+&lt;li>弹丸初速度：&lt;code>3200 m/s&lt;/code>&lt;/li>
+&lt;/ul>
+&lt;h2 id="运行方式">运行方式
+&lt;/h2>&lt;p>测试目录：&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-bash" data-lang="bash">&lt;span class="line">&lt;span class="cl">GASPHiA-Tests/Nakamura1991_BasaltSphereImpact
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>完整流程分四步：&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;span class="lnt">2
+&lt;/span>&lt;span class="lnt">3
+&lt;/span>&lt;span class="lnt">4
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-bash" data-lang="bash">&lt;span class="line">&lt;span class="cl">python input/input.py
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">./compile.sh
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="nv">CUDA_VISIBLE_DEVICES&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="m">0&lt;/span> ./GASPHIA -i impact.ini
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">python post/fast_fof.py -input output_no_bals/nakamura1991_00020.h5 -outputF post/fragments.txt
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;h2 id="实际运行数据">实际运行数据
+&lt;/h2>&lt;p>本次运行与后处理提取的关键指标：&lt;/p>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:left">指标&lt;/th>
+&lt;th style="text-align:left">数值&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:left">初始总粒子数&lt;/td>
+&lt;td style="text-align:left">&lt;code>524065&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">损伤过滤后参与 FoF 的粒子数&lt;/td>
+&lt;td style="text-align:left">&lt;code>157751&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">FoF 识别总碎片数&lt;/td>
+&lt;td style="text-align:left">&lt;code>1594&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">粒子数大于 1 的有效碎片数&lt;/td>
+&lt;td style="text-align:left">&lt;code>509&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">最大碎片归一化质量&lt;/td>
+&lt;td style="text-align:left">&lt;code>2.6208e-01&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">最小碎片归一化质量&lt;/td>
+&lt;td style="text-align:left">&lt;code>1.6694e-06&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">靶球总质量&lt;/td>
+&lt;td style="text-align:left">&lt;code>3.0536e-01 kg&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;p>目前本算例使用了von mises屈服模型，有兴趣的读者可以使用lundbrog屈服模型再次运行一次，两者误差在1%左右。&lt;/p></description></item></channel></rss>

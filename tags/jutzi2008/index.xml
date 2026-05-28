@@ -1,0 +1,158 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Jutzi2008 on Keqi的博客</title><link>https://yekq.top/tags/jutzi2008/</link><description>Recent content in Jutzi2008 on Keqi的博客</description><generator>Hugo -- gohugo.io</generator><language>zh-cn</language><managingEditor>plloningye@gmail.com (Keqi Ye)</managingEditor><webMaster>plloningye@gmail.com (Keqi Ye)</webMaster><copyright>Keqi Ye</copyright><lastBuildDate>Tue, 26 May 2026 14:00:00 +0800</lastBuildDate><atom:link href="https://yekq.top/tags/jutzi2008/index.xml" rel="self" type="application/rss+xml"/><item><title>Jutzi 2008 一维 p-alpha 压实波验证 - GASPHiA 测试算例</title><link>https://yekq.top/posts/gasphia/jutzi2008-p-alpha-compaction-wave/</link><pubDate>Tue, 26 May 2026 14:00:00 +0800</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://yekq.top/posts/gasphia/jutzi2008-p-alpha-compaction-wave/</guid><description>&lt;h1 id="jutzi-2008-一维-p-alpha-压实波验证">Jutzi 2008 一维 p-alpha 压实波验证
+&lt;/h1>&lt;h2 id="概述">概述
+&lt;/h2>&lt;p>本算例复现 Jutzi et al. (2008) 第 5.1 节的一维多孔铝压实波测试，在固定时刻对比以下物理量在 GASPHiA、论文 SPH 曲线与解析解之间的一致性：&lt;/p>
+&lt;ul>
+&lt;li>压力分布&lt;/li>
+&lt;li>膨胀度 &lt;code>alpha&lt;/code> 分布&lt;/li>
+&lt;/ul>
+&lt;p>该类测试用于考察 p-alpha 模型在&lt;strong>波前结构、压实区厚度、波后压实程度&lt;/strong>方面的表现。&lt;/p>
+&lt;p>本次运行以 &lt;code>shock_00350.h5&lt;/code> 作为对照帧。提取结果：&lt;/p>
+&lt;ul>
+&lt;li>材料 0 粒子数：&lt;code>400&lt;/code>&lt;/li>
+&lt;li>压力范围：约 &lt;code>1.07e-01 Pa&lt;/code> ~ &lt;code>5.07e+09 Pa&lt;/code>&lt;/li>
+&lt;li>膨胀度范围：&lt;code>1.0&lt;/code> ~ &lt;code>1.275&lt;/code>&lt;/li>
+&lt;/ul>
+&lt;p>压实波已将材料从初始多孔态推进至近乎完全压实的区域。&lt;/p>
+&lt;p>&lt;img src="https://yekq.top/posts/gasphia/jutzi2008-p-alpha-compaction-wave/jutzi2008_compaction_wave.png"
+width="2264"
+height="2182"
+srcset="https://yekq.top/posts/gasphia/jutzi2008-p-alpha-compaction-wave/jutzi2008_compaction_wave_hu59809991383da4a435fbe49c95627128_179395_480x0_resize_box_3.png 480w, https://yekq.top/posts/gasphia/jutzi2008-p-alpha-compaction-wave/jutzi2008_compaction_wave_hu59809991383da4a435fbe49c95627128_179395_1024x0_resize_box_3.png 1024w"
+loading="lazy"
+alt="Jutzi 2008 压实波验证图"
+class="gallery-image"
+data-flex-grow="103"
+data-flex-basis="249px"
+>&lt;/p>
+&lt;hr>
+&lt;h2 id="验证目标">验证目标
+&lt;/h2>&lt;p>本算例的物理图景如下：右侧移动活塞推动压实波穿过一根初始存在孔隙的多孔铝柱。随着波向前传播，材料从初始膨胀度&lt;/p>
+$$
+\alpha_0 = 1.275
+$$
+&lt;p>逐渐向更致密状态过渡。与纯致密材料冲击算例不同，此处不仅需关注压力幅值，还需关注&lt;strong>孔隙塌缩如何随空间展开&lt;/strong>。&lt;/p>
+&lt;p>因此，该测试能清晰暴露 p-alpha 模型的空间结构特性：&lt;/p>
+&lt;ul>
+&lt;li>波前位置是否准确&lt;/li>
+&lt;li>压实过渡带是否合理&lt;/li>
+&lt;li>波后 &lt;code>alpha&lt;/code> 是否回落至正确水平&lt;/li>
+&lt;li>压力曲线是否与参考结果在量级和形态上一致&lt;/li>
+&lt;/ul>
+&lt;p>若模型仅总趋势大致吻合，但波前结构、压实区厚度或波后状态存在明显偏移，该算例能直接暴露这些问题。&lt;/p>
+&lt;hr>
+&lt;h2 id="运行方式">运行方式
+&lt;/h2>&lt;p>测试目录：&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-bash" data-lang="bash">&lt;span class="line">&lt;span class="cl">GASPHiA-Tests/Jutzi2008_Section5_1_PAlphaCompactionWave
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>执行以下命令启动：&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-bash" data-lang="bash">&lt;span class="line">&lt;span class="cl">./run_all.sh --source-dir /path/to/GASPHiA --cuda &lt;span class="m">0&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>默认流程依次执行：&lt;/p>
+&lt;ol>
+&lt;li>编译并运行 &lt;code>input/gen_input_1d.cpp&lt;/code>&lt;/li>
+&lt;li>使用当前目录下的 &lt;code>para.cuh&lt;/code> 编译 GASPHiA&lt;/li>
+&lt;li>运行 &lt;code>compaction_wave.ini&lt;/code>&lt;/li>
+&lt;li>读取 &lt;code>output/shock_00350.h5&lt;/code>&lt;/li>
+&lt;li>输出压力 / 膨胀度对比图&lt;/li>
+&lt;/ol>
+&lt;p>需额外注意：本算例的 &lt;code>para.cuh&lt;/code> 中预留了一个用于复现实验路径的宏&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-cpp" data-lang="cpp">&lt;span class="line">&lt;span class="cl">&lt;span class="cp">#define JUTZI2008_5_1_reproduce_need 1
+&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;hr>
+&lt;h2 id="结果解读">结果解读
+&lt;/h2>&lt;p>图形分为上下两部分：&lt;/p>
+&lt;ul>
+&lt;li>上图：压力剖面&lt;/li>
+&lt;li>下图：膨胀度 &lt;code>alpha&lt;/code> 剖面&lt;/li>
+&lt;/ul>
+&lt;p>每部分均同时绘制三条曲线：&lt;/p>
+&lt;ul>
+&lt;li>GASPHiA 计算结果&lt;/li>
+&lt;li>论文 SPH 曲线&lt;/li>
+&lt;li>解析参考曲线&lt;/li>
+&lt;/ul>
+&lt;p>对该类算例，评估重点并非逐点像素级重合，而是以下层面的结构一致性：&lt;/p>
+&lt;ol>
+&lt;li>波头是否出现在相同位置附近&lt;/li>
+&lt;li>波后高压区与压实区的空间范围是否相近&lt;/li>
+&lt;li>&lt;code>alpha&lt;/code> 是否从初始 &lt;code>1.275&lt;/code> 平滑过渡至约 &lt;code>1.0&lt;/code>&lt;/li>
+&lt;li>剖面整体形状是否与文献结果趋势一致&lt;/li>
+&lt;/ol>
+&lt;p>从本次运行结果图来看，上述特征均可清晰辨认，表明 p-alpha 链路在该经典一维测试上是成立的。&lt;/p>
+&lt;hr>
+&lt;h2 id="实际运行数据">实际运行数据
+&lt;/h2>&lt;p>后处理提取的关键指标如下：&lt;/p>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:left">指标&lt;/th>
+&lt;th style="text-align:left">数值&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:left">对照帧&lt;/td>
+&lt;td style="text-align:left">&lt;code>shock_00350.h5&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">材料 0 粒子数&lt;/td>
+&lt;td style="text-align:left">&lt;code>400&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">压力最小值&lt;/td>
+&lt;td style="text-align:left">&lt;code>1.07e-01 Pa&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">压力最大值&lt;/td>
+&lt;td style="text-align:left">&lt;code>5.07e+09 Pa&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">膨胀度最小值&lt;/td>
+&lt;td style="text-align:left">&lt;code>1.0000&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">膨胀度最大值&lt;/td>
+&lt;td style="text-align:left">&lt;code>1.2750&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;p>这些数值从两个角度印证了模拟的有效性：&lt;/p>
+&lt;p>一方面，输出中的 &lt;code>alpha&lt;/code> 已覆盖从初始孔隙态到完全压实态的整个范围；另一方面，压力峰值已进入 &lt;code>GPa&lt;/code> 量级，说明压实波强度足够，已形成真实压实结构，而非在弱扰动状态下进行无效比较。&lt;/p>
+&lt;hr>
+&lt;h2 id="对后续用户的参考价值">对后续用户的参考价值
+&lt;/h2>&lt;p>若需在 GASPHiA 中修改 p-alpha 模型、孔隙状态量更新、压力耦合或多孔材料输入参数，该测试应作为必测项。&lt;/p>
+&lt;p>其优势在于反馈直接、问题定位快：&lt;/p>
+&lt;ul>
+&lt;li>波前曲线偏移 → 可能为波速或边界驱动异常&lt;/li>
+&lt;li>&lt;code>alpha&lt;/code> 波后无法压至目标值 → 可能为压实模型工作不正常&lt;/li>
+&lt;li>压力平台偏高或偏低 → 可能为 EOS 与孔隙模型耦合存在偏差&lt;/li>
+&lt;li>过渡带厚度明显偏离 → 可能为数值耗散、核函数或人工粘性影响过大&lt;/li>
+&lt;/ul>
+&lt;p>对模型调参而言，此类通过剖面图即可快速定位问题区域的验证算例，其价值往往高于仅依赖最终积分量的测试。&lt;/p>
+&lt;hr>
+&lt;h2 id="小结">小结
+&lt;/h2>&lt;p>&lt;code>Jutzi2008_Section5_1_PAlphaCompactionWave&lt;/code> 是一个典型的多孔材料空间剖面验证算例。与单点 Hugoniot 仅给出单点状态不同，该算例将压实波的空间结构完整展开，更适合用于检验 p-alpha 模型的核心逻辑是否正确。&lt;/p>
+&lt;p>实际运行结果显示：&lt;/p>
+&lt;ul>
+&lt;li>压力剖面与 &lt;code>alpha&lt;/code> 剖面均与文献参考形成合理对照&lt;/li>
+&lt;li>压实波将材料从 &lt;code>alpha = 1.275&lt;/code> 推进至接近 &lt;code>alpha = 1.0&lt;/code>&lt;/li>
+&lt;li>波前、压实区和波后状态的整体结构可信&lt;/li>
+&lt;/ul>
+&lt;p>对于使用 GASPHiA 求解多孔材料问题的用户，该算例应作为确认模型正确性的标准验证项，而非可选的辅助测试。&lt;/p></description></item></channel></rss>

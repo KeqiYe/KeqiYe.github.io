@@ -1,0 +1,171 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Hugoniot on Keqi's blog</title><link>https://yekq.top/en/tags/hugoniot/</link><description>Recent content in Hugoniot on Keqi's blog</description><generator>Hugo -- gohugo.io</generator><language>en</language><managingEditor>plloningye@gmail.com (Keqi Ye)</managingEditor><webMaster>plloningye@gmail.com (Keqi Ye)</webMaster><copyright>Keqi Ye</copyright><lastBuildDate>Tue, 26 May 2026 12:30:00 +0800</lastBuildDate><atom:link href="https://yekq.top/en/tags/hugoniot/index.xml" rel="self" type="application/rss+xml"/><item><title>Aluminum Mie-Gruneisen Hugoniot Validation - GASPHiA Test Case</title><link>https://yekq.top/en/posts/gasphia/aluminum-mie-gruneisen-hugoniot/</link><pubDate>Tue, 26 May 2026 12:30:00 +0800</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://yekq.top/en/posts/gasphia/aluminum-mie-gruneisen-hugoniot/</guid><description>&lt;h1 id="aluminum-mie-gruneisen-hugoniot-validation">Aluminum Mie-Gruneisen Hugoniot Validation
+&lt;/h1>&lt;h2 id="overview">Overview
+&lt;/h2>&lt;p>This case validates the correctness of the &lt;strong>Mie-Gruneisen equation of state&lt;/strong> implementation for aluminum impact response in GASPHiA. The approach: apply a rigid piston at the right end of a 1D rod, sweep multiple piston velocities &lt;code>U_p&lt;/code>, and extract from simulation results:&lt;/p>
+&lt;ul>
+&lt;li>Shock wave speed &lt;code>U_s&lt;/code>&lt;/li>
+&lt;li>Post-wave pressure plateau &lt;code>P&lt;/code>&lt;/li>
+&lt;/ul>
+&lt;p>These are compared against the theoretical Hugoniot relations:&lt;/p>
+$$
+U_s = c_0 + sU_p, \qquad P = \rho_0 U_s U_p
+$$
+&lt;p>The case swept five velocities — &lt;code>500, 1000, 2000, 3000, 5000 m/s&lt;/code> — with stable results overall:&lt;/p>
+&lt;ul>
+&lt;li>&lt;code>U_s&lt;/code> relative error range: &lt;code>0.07% - 1.60%&lt;/code>&lt;/li>
+&lt;li>&lt;code>P&lt;/code> relative error range: &lt;code>0.30% - 1.15%&lt;/code>&lt;/li>
+&lt;/ul>
+&lt;hr>
+&lt;h2 id="validation-objective">Validation Objective
+&lt;/h2>&lt;p>Unlike the elastic uniaxial strain wave case, the focus here shifts from linear-elastic wave speed and deviatoric stress plateau to &lt;strong>post-shock thermodynamic response&lt;/strong>. For a given material model, the states before and after the shock must lie on the corresponding Hugoniot curve to ensure thermodynamic consistency.&lt;/p>
+&lt;p>This case uses a 1D aluminum target and a right-side moving rigid piston, generating shocks of varying strength through different piston velocities. For each velocity case, the post-processing steps are:&lt;/p>
+&lt;ol>
+&lt;li>Fit the shock front position from multiple output frames to obtain the numerical wave speed &lt;code>U_s&lt;/code>&lt;/li>
+&lt;li>Average pressure and particle velocity on the stable post-wave plateau to obtain numerical &lt;code>P&lt;/code> and &lt;code>U_p&lt;/code>&lt;/li>
+&lt;/ol>
+&lt;hr>
+&lt;h2 id="theoretical-relations">Theoretical Relations
+&lt;/h2>&lt;p>The linear Mie-Gruneisen Hugoniot relation for aluminum used in this case is:&lt;/p>
+$$
+U_s = c_0 + sU_p
+$$
+$$
+P = \rho_0 U_s U_p
+$$
+&lt;p>Parameter values:&lt;/p>
+&lt;ul>
+&lt;li>Initial density: &lt;code>\rho_0 = 2700 kg/m^3&lt;/code>&lt;/li>
+&lt;li>Bulk sound speed: &lt;code>c_0 = 5328 m/s&lt;/code>&lt;/li>
+&lt;li>Hugoniot linear slope: &lt;code>s = 1.338&lt;/code>&lt;/li>
+&lt;/ul>
+&lt;p>Within this validation framework, the numerical results should answer two questions:&lt;/p>
+&lt;ol>
+&lt;li>Does the fitted &lt;code>U_s&lt;/code> align with the theoretical line &lt;code>U_s = c_0 + sU_p&lt;/code>?&lt;/li>
+&lt;li>Does the extracted post-wave pressure &lt;code>P&lt;/code> follow the theoretical curve &lt;code>P = \rho_0 U_s U_p&lt;/code>?&lt;/li>
+&lt;/ol>
+&lt;p>If both hold, the basic Hugoniot response of the EOS can be considered reliable.&lt;/p>
+&lt;hr>
+&lt;h2 id="how-to-run">How to Run
+&lt;/h2>&lt;p>Test directory:&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-bash" data-lang="bash">&lt;span class="line">&lt;span class="cl">GASPHiA-Tests/AluminumMieGruneisenHugoniot
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>Run with:&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-bash" data-lang="bash">&lt;span class="line">&lt;span class="cl">./run_all.sh --source-dir /path/to/GASPHiA --cuda &lt;span class="m">0&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>The script automatically performs the following steps:&lt;/p>
+&lt;ol>
+&lt;li>Compile the input generator &lt;code>gen_input_hugoniot&lt;/code>&lt;/li>
+&lt;li>Compile GASPHiA using the local &lt;code>para.cuh&lt;/code>&lt;/li>
+&lt;li>Run five piston velocity cases — &lt;code>500, 1000, 2000, 3000, 5000 m/s&lt;/code> — sequentially&lt;/li>
+&lt;li>Archive each set of outputs to &lt;code>output_sweep/output_V*/&lt;/code>&lt;/li>
+&lt;li>Extract &lt;code>U_s&lt;/code>, &lt;code>U_p&lt;/code>, and &lt;code>P&lt;/code> and generate Hugoniot comparison plots&lt;/li>
+&lt;/ol>
+&lt;p>Consistent with other validation cases, this case references its own compilation parameters via &lt;code>PARA_CUH&lt;/code> without modifying parameter files in the main source tree.&lt;/p>
+&lt;hr>
+&lt;h2 id="result-interpretation">Result Interpretation
+&lt;/h2>&lt;h3 id="u_s---u_p-relation">&lt;code>U_s - U_p&lt;/code> Relation
+&lt;/h3>&lt;p>&lt;img src="https://yekq.top/posts/gasphia/aluminum-mie-gruneisen-hugoniot/Hugoniot_Us_Up.png"
+width="2093"
+height="1674"
+srcset="https://yekq.top/posts/gasphia/aluminum-mie-gruneisen-hugoniot/Hugoniot_Us_Up_hu82e39c6dfec2ebc335b46cc23537794c_109877_480x0_resize_box_3.png 480w, https://yekq.top/posts/gasphia/aluminum-mie-gruneisen-hugoniot/Hugoniot_Us_Up_hu82e39c6dfec2ebc335b46cc23537794c_109877_1024x0_resize_box_3.png 1024w"
+loading="lazy"
+alt="Hugoniot Us-Up Validation"
+class="gallery-image"
+data-flex-grow="125"
+data-flex-basis="300px"
+>&lt;/p>
+&lt;p>The core message of this plot: simulation-extracted shock speed points lie essentially along the theoretical line with no systematic deviation. For shock wave problems, this is the fundamental checkpoint for verifying whether the EOS wave speed response is correct.&lt;/p>
+&lt;h3 id="p---u_p-relation">&lt;code>P - U_p&lt;/code> Relation
+&lt;/h3>&lt;p>&lt;img src="https://yekq.top/posts/gasphia/aluminum-mie-gruneisen-hugoniot/Hugoniot_P_Up.png"
+width="2047"
+height="1674"
+srcset="https://yekq.top/posts/gasphia/aluminum-mie-gruneisen-hugoniot/Hugoniot_P_Up_hu99c1624cb22c632559f222471ebc3547_94871_480x0_resize_box_3.png 480w, https://yekq.top/posts/gasphia/aluminum-mie-gruneisen-hugoniot/Hugoniot_P_Up_hu99c1624cb22c632559f222471ebc3547_94871_1024x0_resize_box_3.png 1024w"
+loading="lazy"
+alt="Hugoniot P-Up Validation"
+class="gallery-image"
+data-flex-grow="122"
+data-flex-basis="293px"
+>&lt;/p>
+&lt;p>This plot shows the post-wave pressure plateau. Compared to wave front position, post-wave pressure is more sensitive to the EOS thermodynamic output. The simulation points show good agreement with the theoretical curve, indicating high consistency between post-wave pressure extraction and EOS response.&lt;/p>
+&lt;hr>
+&lt;h2 id="actual-run-data">Actual Run Data
+&lt;/h2>&lt;p>The velocity sweep results are as follows:&lt;/p>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:left">Case Piston Velocity&lt;/th>
+&lt;th style="text-align:left">Numerical &lt;code>Up&lt;/code>&lt;/th>
+&lt;th style="text-align:left">Theoretical &lt;code>Us&lt;/code>&lt;/th>
+&lt;th style="text-align:left">Numerical &lt;code>Us&lt;/code>&lt;/th>
+&lt;th style="text-align:left">&lt;code>Us&lt;/code> Relative Error&lt;/th>
+&lt;th style="text-align:left">Theoretical &lt;code>P&lt;/code>&lt;/th>
+&lt;th style="text-align:left">Numerical &lt;code>P&lt;/code>&lt;/th>
+&lt;th style="text-align:left">&lt;code>P&lt;/code> Relative Error&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:left">&lt;code>500 m/s&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>500.04 m/s&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>5997.00 m/s&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>6093.02 m/s&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>1.60%&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>8.096 GPa&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>8.032 GPa&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>-0.79%&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">&lt;code>1000 m/s&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>1000.02 m/s&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>6666.00 m/s&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>6659.35 m/s&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>-0.10%&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>17.998 GPa&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>18.052 GPa&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>0.30%&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">&lt;code>2000 m/s&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>1999.93 m/s&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>8004.00 m/s&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>7933.33 m/s&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>-0.88%&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>43.222 GPa&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>43.719 GPa&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>1.15%&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">&lt;code>3000 m/s&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>2999.66 m/s&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>9342.00 m/s&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>9319.76 m/s&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>-0.24%&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>75.670 GPa&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>75.895 GPa&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>0.30%&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:left">&lt;code>5000 m/s&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>4999.44 m/s&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>12018.00 m/s&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>12009.28 m/s&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>-0.07%&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>162.243 GPa&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>162.792 GPa&lt;/code>&lt;/td>
+&lt;td style="text-align:left">&lt;code>0.34%&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;p>Two conclusions can be drawn from the table:&lt;/p>
+&lt;p>First, the piston velocity plateau extraction is stable, with numerical &lt;code>Up&lt;/code> values very close to the set values, indicating that the post-wave plateau identification region is reasonably chosen. Second, neither of the two core quantities — &lt;code>Us&lt;/code> and &lt;code>P&lt;/code> — diverges as shock strength increases, demonstrating that this implementation maintains good consistency across the entire velocity range, not just for a single low-velocity case.&lt;/p></description></item></channel></rss>
