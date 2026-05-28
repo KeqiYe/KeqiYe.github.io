@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>碎片统计 on Keqi的博客</title><link>https://yekq.top/tags/%E7%A2%8E%E7%89%87%E7%BB%9F%E8%AE%A1/</link><description>Recent content in 碎片统计 on Keqi的博客</description><generator>Hugo -- gohugo.io</generator><language>zh-cn</language><managingEditor>plloningye@gmail.com (Keqi Ye)</managingEditor><webMaster>plloningye@gmail.com (Keqi Ye)</webMaster><copyright>Keqi Ye</copyright><lastBuildDate>Tue, 26 May 2026 15:20:00 +0800</lastBuildDate><atom:link href="https://yekq.top/tags/%E7%A2%8E%E7%89%87%E7%BB%9F%E8%AE%A1/index.xml" rel="self" type="application/rss+xml"/><item><title>Nakamura 1991 玄武岩球撞击破碎验证 - GASPHiA 测试算例</title><link>https://yekq.top/posts/gasphia/nakamura1991-basalt-sphere-impact/</link><pubDate>Tue, 26 May 2026 15:20:00 +0800</pubDate><author>plloningye@gmail.com (Keqi Ye)</author><guid>https://yekq.top/posts/gasphia/nakamura1991-basalt-sphere-impact/</guid><description>&lt;h1 id="nakamura-1991-玄武岩球撞击破碎验证">Nakamura 1991 玄武岩球撞击破碎验证
 &lt;/h1>&lt;h2 id="概述">概述
-&lt;/h2>&lt;p>本算例是整批测试中最偏向”终局结果验证”的一项。它复现 Nakamura &amp;amp; Fujiwara (1991) 的玄武岩球撞击破碎实验，核心对比量并非波速平台或剖面形状，而是&lt;strong>碎片质量累积分布&lt;/strong>：&lt;/p>
+&lt;/h2>&lt;p>本算例复现 Nakamura &amp;amp; Fujiwara (1991) 的玄武岩球撞击破碎实验，核心对比量是&lt;strong>碎片质量累积分布&lt;/strong>：&lt;/p>
 &lt;blockquote>
 &lt;p>给定一个碎片质量阈值 &lt;code>M_f&lt;/code>，质量大于它的碎片共有多少个？&lt;/p>
 &lt;/blockquote>

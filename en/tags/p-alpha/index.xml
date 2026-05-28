@@ -405,15 +405,7 @@ data-flex-basis="249px"
 $$
 \alpha_0 = 1.275
 $$
-&lt;p>toward a denser state. Unlike pure dense-material impact cases, attention must be paid not only to pressure magnitude but also to &lt;strong>how pore collapse unfolds spatially&lt;/strong>.&lt;/p>
-&lt;p>Thus, this test clearly exposes the spatial structure characteristics of the p-alpha model:&lt;/p>
-&lt;ul>
-&lt;li>Whether the wave front position is accurate&lt;/li>
-&lt;li>Whether the compaction transition zone is reasonable&lt;/li>
-&lt;li>Whether the post-wave &lt;code>alpha&lt;/code> falls to the correct level&lt;/li>
-&lt;li>Whether the pressure curve matches the reference in both magnitude and shape&lt;/li>
-&lt;/ul>
-&lt;p>If the model roughly matches the overall trend but shows significant deviations in wave front structure, compaction zone thickness, or post-wave state, this case will directly expose those issues.&lt;/p>
+&lt;p>toward a denser state.&lt;/p>
 &lt;hr>
 &lt;h2 id="how-to-run">How to Run
 &lt;/h2>&lt;p>Test directory:&lt;/p>
@@ -464,14 +456,6 @@ $$
 &lt;li>Paper SPH curve&lt;/li>
 &lt;li>Analytical reference curve&lt;/li>
 &lt;/ul>
-&lt;p>For this type of case, the evaluation emphasis is not pixel-level coincidence but structural consistency at the following levels:&lt;/p>
-&lt;ol>
-&lt;li>Whether the wave front appears near the same position&lt;/li>
-&lt;li>Whether the spatial extents of the post-wave high-pressure zone and compaction zone are similar&lt;/li>
-&lt;li>Whether &lt;code>alpha&lt;/code> transitions smoothly from the initial &lt;code>1.275&lt;/code> to approximately &lt;code>1.0&lt;/code>&lt;/li>
-&lt;li>Whether the overall profile shape is consistent with the literature trend&lt;/li>
-&lt;/ol>
-&lt;p>From the result plot of this run, the above features are all clearly identifiable, indicating that the p-alpha chain is valid on this classic 1D test.&lt;/p>
 &lt;hr>
 &lt;h2 id="actual-run-data">Actual Run Data
 &lt;/h2>&lt;p>Key metrics extracted from post-processing:&lt;/p>
@@ -510,25 +494,4 @@ $$
 &lt;/tbody>
 &lt;/table>
 &lt;p>These values validate the simulation from two perspectives:&lt;/p>
-&lt;p>On the one hand, the output &lt;code>alpha&lt;/code> covers the entire range from the initial porous state to the fully compacted state. On the other hand, the peak pressure has entered the &lt;code>GPa&lt;/code> range, indicating that the compaction wave is sufficiently strong and has formed a genuine compaction structure, not a weak perturbation state being compared ineffectively.&lt;/p>
-&lt;hr>
-&lt;h2 id="reference-value-for-future-users">Reference Value for Future Users
-&lt;/h2>&lt;p>When modifying the p-alpha model, porosity state variable update, pressure coupling, or porous material input parameters in GASPHiA, this test should be treated as mandatory.&lt;/p>
-&lt;p>Its advantage lies in direct feedback and rapid problem localization:&lt;/p>
-&lt;ul>
-&lt;li>Wave front curve offset → possible wave speed or boundary driving anomaly&lt;/li>
-&lt;li>&lt;code>alpha&lt;/code> unable to compress to target value post-wave → possible compaction model malfunction&lt;/li>
-&lt;li>Pressure plateau too high or too low → possible EOS–porosity model coupling deviation&lt;/li>
-&lt;li>Transition zone thickness significantly off → possible influence of numerical dissipation, kernel function, or artificial viscosity&lt;/li>
-&lt;/ul>
-&lt;p>For model tuning, such validation cases — where problem areas can be quickly located through profile plots — often hold greater value than tests relying solely on final integral quantities.&lt;/p>
-&lt;hr>
-&lt;h2 id="summary">Summary
-&lt;/h2>&lt;p>&lt;code>Jutzi2008_Section5_1_PAlphaCompactionWave&lt;/code> is a typical spatial profile validation case for porous materials. Unlike single-point Hugoniot tests that only provide a single state, this case fully unfolds the spatial structure of the compaction wave, making it more suitable for verifying whether the core logic of the p-alpha model is correct.&lt;/p>
-&lt;p>The actual run results show:&lt;/p>
-&lt;ul>
-&lt;li>Both pressure and &lt;code>alpha&lt;/code> profiles form reasonable comparisons with the literature reference&lt;/li>
-&lt;li>The compaction wave drives the material from &lt;code>alpha = 1.275&lt;/code> to near &lt;code>alpha = 1.0&lt;/code>&lt;/li>
-&lt;li>The overall structure of the wave front, compaction zone, and post-wave state is credible&lt;/li>
-&lt;/ul>
-&lt;p>For users solving porous material problems with GASPHiA, this case should be treated as a standard validation item for confirming model correctness, not an optional auxiliary test.&lt;/p></description></item></channel></rss>
+&lt;p>On the one hand, the output &lt;code>alpha&lt;/code> covers the entire range from the initial porous state to the fully compacted state. On the other hand, the peak pressure has entered the &lt;code>GPa&lt;/code> range, indicating that the compaction wave is sufficiently strong and has formed a genuine compaction structure.&lt;/p></description></item></channel></rss>
