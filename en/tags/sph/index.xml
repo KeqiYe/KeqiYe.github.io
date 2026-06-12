@@ -1,0 +1,1658 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>SPH | Keqi's Blog</title><link>https://yekq.top/en/tags/sph/</link><atom:link href="https://yekq.top/en/tags/sph/index.xml" rel="self" type="application/rss+xml"/><description>SPH</description><generator>HugoBlox Kit (https://hugoblox.com)</generator><language>en-us</language><lastBuildDate>Tue, 26 May 2026 15:20:00 +0800</lastBuildDate><image><url>https://yekq.top/media/icon_hu_bf3b12c4891d2eeb.png</url><title>SPH</title><link>https://yekq.top/en/tags/sph/</link></image><item><title>GASPHiA: A GPU-Accelerated Smoothed Particle Hydrodynamics (SPH) Code</title><link>https://yekq.top/en/blog/gasphia/introduction/</link><pubDate>Tue, 17 Mar 2026 10:00:00 +0800</pubDate><guid>https://yekq.top/en/blog/gasphia/introduction/</guid><description>&lt;h1 id="gasphia-a-gpu-accelerated-smoothed-particle-hydrodynamics-sph-code"&gt;GASPHiA: A GPU-Accelerated Smoothed Particle Hydrodynamics (SPH) Code&lt;/h1&gt;
+&lt;p&gt;GASPHiA is a high-performance, three-dimensional SPH (Smoothed Particle Hydrodynamics) code developed by Keqi Ye as part of his doctoral research at the School of Aeronautics and Astronautics, Sun Yat-sen University. The code is designed for simulating complex hydrodynamical problems, particularly those involving material strength, damage, and gravitational interactions.&lt;/p&gt;
+&lt;h2 id="features"&gt;Features&lt;/h2&gt;
+&lt;h3 id="high-performance--scalable"&gt;High-Performance &amp;amp; Scalable&lt;/h3&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Fully parallelized with CUDA&lt;/strong&gt;: Leverages the massive computational power of modern NVIDIA GPUs.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Barnes-Hut tree algorithm&lt;/strong&gt; [1-4]: Accelerates both neighbor search (&lt;code&gt;O(N log N)&lt;/code&gt;) and self-gravity force calculations, enabling efficient simulation of large particle systems.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3 id="configurable--flexible"&gt;Configurable &amp;amp; Flexible&lt;/h3&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Switchable Precision&lt;/strong&gt;: Easily toggle between single-precision (&lt;code&gt;float&lt;/code&gt;) and double-precision (&lt;code&gt;double&lt;/code&gt;) calculations. Maximize performance on consumer-grade GPUs (&lt;code&gt;float&lt;/code&gt;) or ensure high accuracy for scientific applications (&lt;code&gt;double&lt;/code&gt;).&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Multi-Dimensional&lt;/strong&gt;: Natively supports both 2D and 3D simulation domains.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3 id="advanced-physics-modeling"&gt;Advanced Physics Modeling&lt;/h3&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Gravity Models&lt;/strong&gt;: Choose between uniform external gravity field and/or N-body self-gravity for astrophysical scenarios.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Strength &amp;amp; Yield Models&lt;/strong&gt;: A suite of sophisticated constitutive models to define the elastic limit and subsequent plastic flow of solids, including:
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Von Mises&lt;/strong&gt;: A classic pressure-independent yield criterion, serving as a fundamental model for plastic flow.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Lundborg&lt;/strong&gt;: A pressure-dependent model with strength saturation for brittle materials. This implementation is based on the formulation originally proposed by Lundborg (1968) [6] and later adopted by Collins et al. (2004) [7] and Jutzi (2015) [8].&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Damage &amp;amp; Fracture Model&lt;/strong&gt;: An optional damage model, based on the concepts proposed by Melosh et al. (1992) [9], simulates material weakening and failure under tensile stress. This is crucial for modeling fracture and fragmentation, following the SPH approaches pioneered by Benz &amp;amp; Asphaug (1995) [5] and Collins et al. (2004) [7].&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Porosity Model&lt;/strong&gt;: An optional &lt;em&gt;p-α&lt;/em&gt; porosity model to simulate the crushing of porous geological materials like pumice or regolith, following the classic framework developed by Jutzi et al. (2008) [10].&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3 id="numerical-methods"&gt;Numerical Methods&lt;/h3&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Time Integration&lt;/strong&gt;: Currently implemented as predictor-corrector integration with adaptive Bogacki–Shampine RK23 [11].&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3 id="user-friendly-workflow"&gt;User-Friendly Workflow&lt;/h3&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;INI Configuration&lt;/strong&gt;: Simulation parameters are controlled via readable INI files, parsed by the lightweight &lt;code&gt;inih&lt;/code&gt; library.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Standardized Output&lt;/strong&gt;: Results are written in the widely adopted HDF5 format, with accompanying XDMF files generated for direct visualization in scientific software like &lt;strong&gt;ParaView&lt;/strong&gt; and &lt;strong&gt;VisIt&lt;/strong&gt;.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2 id="code-access-and-usage-policy"&gt;Code Access and Usage Policy&lt;/h2&gt;
+&lt;p&gt;GASPHiA source code is available to academic researchers and collaborators upon request, for non-commercial, educational, and research purposes only.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;To request access to the source code, please send an email to:&lt;/strong&gt;&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Keqi Ye&lt;/strong&gt; (Author): &lt;code&gt;yekq6@mail2.sysu.edu.cn&lt;/code&gt; | &lt;code&gt;plloningye@gmail.com&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Prof. Xiaodong Liu&lt;/strong&gt; (Supervisor, School of Aeronautics and Astronautics): &lt;code&gt;liuxd36@mail.sysu.edu.cn&lt;/code&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;In your request, please briefly introduce yourself, your institution, and your intended research application for the code.&lt;/p&gt;
+&lt;p&gt;All usage of this code must adhere to the terms specified in the copyright notice at the beginning of each source file. Any form of redistribution, modification for commercial purposes, or use without prior written permission from the authors is strictly prohibited.&lt;/p&gt;
+&lt;h2 id="acknowledgements"&gt;Acknowledgements&lt;/h2&gt;
+&lt;p&gt;I would like to express my sincere gratitude to my supervisor, &lt;strong&gt;Prof. Xiaodong Liu&lt;/strong&gt;, for his support and guidance throughout my doctoral studies.&lt;/p&gt;
+&lt;p&gt;The development of GASPHiA has also benefited from the open-source community. Special thanks are extended to the authors of the following projects, whose work provided crucial insights and architectural inspiration:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;
+&lt;/strong&gt;&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;
+&lt;/strong&gt;&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;
+&lt;/strong&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;This project utilizes the following third-party libraries:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;HDF5&lt;/strong&gt;: For high-performance data storage (
+)&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;inih&lt;/strong&gt;: For parsing INI configuration files (
+)&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2 id="references"&gt;References&lt;/h2&gt;
+&lt;p&gt;[1] Schäfer, C., Riecker, S., Maindl, T. I., Schaal, K., &amp;amp; Speith, R. (2016). A smooth particle hydrodynamics code to model collisions between solid, self-gravitating objects. &lt;em&gt;Astronomy &amp;amp; Astrophysics&lt;/em&gt;, &lt;em&gt;590&lt;/em&gt;, A19.&lt;/p&gt;
+&lt;p&gt;[2] Barnes, J., &amp;amp; Hut, P. (1986). A hierarchical O(N log N) force-calculation algorithm. &lt;em&gt;Nature&lt;/em&gt;, &lt;em&gt;324&lt;/em&gt;(6096), 446–449.&lt;/p&gt;
+&lt;p&gt;[3] Nyland, L., Harris, M., &amp;amp; Prins, J. (2007). Fast n-body simulation with CUDA. &lt;em&gt;GPU Gems&lt;/em&gt;, 3, 62-66.&lt;/p&gt;
+&lt;p&gt;[4] Burtscher, M., &amp;amp; Pingali, K. (2011). An efficient CUDA implementation of the tree-based barnes hut n-body algorithm. In &lt;em&gt;GPU Computing Gems Emerald Edition&lt;/em&gt; (pp. 75-92). Morgan Kaufmann.&lt;/p&gt;
+&lt;p&gt;[5] Benz, W., &amp;amp; Asphaug, E. (1995). Simulations of brittle solids using smooth particle hydrodynamics. &lt;em&gt;Computer Physics Communications&lt;/em&gt;, &lt;em&gt;87&lt;/em&gt;(1-2), 253–265.&lt;/p&gt;
+&lt;p&gt;[6] Lundborg, N. (1968). Strength of rock-like materials. &lt;em&gt;International Journal of Rock Mechanics and Mining Sciences &amp;amp; Geomechanics Abstracts&lt;/em&gt;, &lt;em&gt;5&lt;/em&gt;(5), 427-454.&lt;/p&gt;
+&lt;p&gt;[7] Collins, G. S., Melosh, H. J., &amp;amp; Ivanov, B. A. (2004). Modeling damage and deformation in impact simulations. &lt;em&gt;Meteoritics &amp;amp; Planetary Science&lt;/em&gt;, &lt;em&gt;39&lt;/em&gt;(2), 217-231.&lt;/p&gt;
+&lt;p&gt;[8] Jutzi, M. (2015). SPH calculations of asteroid disruptions: The role of pressure dependent failure models. &lt;em&gt;Icarus&lt;/em&gt;, &lt;em&gt;250&lt;/em&gt;, 356-362.&lt;/p&gt;
+&lt;p&gt;[9] Melosh, H. J., Ryan, E. V., &amp;amp; Asphaug, E. (1992). Dynamic fragmentation in impacts: Hydrocode simulation of laboratory impacts. &lt;em&gt;Journal of Geophysical Research: Planets&lt;/em&gt;, &lt;em&gt;97&lt;/em&gt;(E9), 14735-14759.&lt;/p&gt;
+&lt;p&gt;[10] Jutzi, M., Benz, W., &amp;amp; Michel, P. (2008). Numerical simulations of impacts involving porous bodies: I. Implementing sub-resolution porosity in a 3D SPH hydrocode. &lt;em&gt;Icarus&lt;/em&gt;, &lt;em&gt;198&lt;/em&gt;(1), 242-255.&lt;/p&gt;
+&lt;p&gt;[11] Bogacki, P., &amp;amp; Shampine, L. F. (1989). A 3(2) pair of Runge-Kutta formulas. &lt;em&gt;Applied Mathematics Letters&lt;/em&gt;, 2(4), 321-325.&lt;/p&gt;
+&lt;h2 id="copyright"&gt;Copyright&lt;/h2&gt;
+&lt;p&gt;Copyright (c) 2025 Keqi Ye. All Rights Reserved.&lt;/p&gt;</description></item><item><title>Applications of CUDA-accelerated SPH Simulation Code GASPHiA</title><link>https://yekq.top/en/blog/gasphia/</link><pubDate>Tue, 17 Mar 2026 00:00:00 +0000</pubDate><guid>https://yekq.top/en/blog/gasphia/</guid><description>&lt;h1 id="cuda-based-sph-code-examples"&gt;CUDA-based SPH Code Examples&lt;/h1&gt;
+&lt;p&gt;This series documents the benchmark and validation process of a custom CUDA SPH (Smoothed Particle Hydrodynamics) physics engine built from scratch. Through numerical simulations of classical fluid dynamics and impact problems, we verify the engine&amp;rsquo;s correctness and numerical robustness.&lt;/p&gt;
+&lt;h2 id="series-goals"&gt;Series Goals&lt;/h2&gt;
+&lt;ul&gt;
+&lt;li&gt;Verify the correctness of SPH core algorithms&lt;/li&gt;
+&lt;li&gt;Test the engine&amp;rsquo;s capability to handle multi-physics and complex impact problems&lt;/li&gt;
+&lt;li&gt;Explore improvements and optimizations in numerical methods&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2 id="core-method-summation-density-vs-continuity-density"&gt;Core Method: Summation Density vs Continuity Density&lt;/h2&gt;
+&lt;p&gt;In SPH, there are two main approaches for density computation:&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Summation Density&lt;/strong&gt;:
+&lt;/p&gt;
+$$\rho_i = \sum_j m_j W(r_{ij}, h)$$&lt;p&gt;&lt;strong&gt;Continuity Density&lt;/strong&gt;:
+&lt;/p&gt;
+$$\frac{d\rho}{dt} = \sum_j m_j v_{ij} \cdot \nabla_i W_{ij}$$&lt;p&gt;This series demonstrates the significant advantages of summation density in handling strong discontinuity problems.&lt;/p&gt;
+&lt;h2 id="series-contents"&gt;Series Contents&lt;/h2&gt;
+&lt;ol&gt;
+&lt;li&gt;&lt;strong&gt;GASPHiA Code Introduction&lt;/strong&gt; - Overview of features and capabilities of our custom CUDA SPH code&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;1D Sod Shock Tube Experiment&lt;/strong&gt; - Verifying the engine&amp;rsquo;s ability to capture strong shock discontinuities&lt;/li&gt;
+&lt;li&gt;
+&lt;ul&gt;
+&lt;li&gt;(To be continued)&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;hr&gt;
+&lt;blockquote class="border-l-4 border-neutral-300 dark:border-neutral-600 pl-4 italic text-neutral-600 dark:text-neutral-400 my-6"&gt;
+&lt;p&gt;📁 &lt;strong&gt;Resources&lt;/strong&gt;: Videos and images for this series are located in &lt;code&gt;/images/GASPHiA/1DShockTube/&lt;/code&gt;&lt;/p&gt;
+&lt;/blockquote&gt;</description></item><item><title>Self-Gravity Tree Code Efficiency and Optimization Analysis in GASPHiA</title><link>https://yekq.top/en/blog/gasphia/treecode/</link><pubDate>Tue, 07 Apr 2026 14:00:00 +0800</pubDate><guid>https://yekq.top/en/blog/gasphia/treecode/</guid><description>&lt;iframe src="//player.bilibili.com/player.html?isOutside=true&amp;aid=116482834958240&amp;bvid=BV1u69yBGEwJ&amp;cid=37919327464&amp;p=1" scrolling="no" border="0" frameborder="no" framespacing="0" allowfullscreen="true"
+style="width: 100%; aspect-ratio: 16/9; border-radius: 8px; margin-bottom: 20px;"&gt;
+&lt;/iframe&gt;
+&lt;p align="center" style="font-size: 0.9em; color: gray; margin-top: -10px; margin-bottom: 20px;"&gt;
+&lt;em&gt; 500-Million Particle Pure Gravitational N-Body Simulation: Tidal Tail Structures from a Galaxy Collision
+This simulation is implemented using the pure N-body module of GASPHiA. The initial model was constructed with the open-source tool DICE, incorporating both a complete dark matter halo and a stellar disk component. The focus is on showcasing the process by which particles in the galactic disk evolve into characteristic tidal tails under gravitational perturbations during the interaction.&lt;/em&gt;
+&lt;/p&gt;
+&lt;h2 id="why-consider-gravity"&gt;Why Consider Gravity?&lt;/h2&gt;
+&lt;p&gt;In astrophysical SPH simulations, besides the impact process itself, the self-gravity of celestial bodies plays a crucial role in the final results. This also explains why we often do not introduce material strength models when simulating solid planet impacts, instead treating them as pure fluids. For some giant impact simulations, gravity not only requires real-time computation during the simulation but also demands solving the Poisson equation in the pre-processing stage to construct an initial celestial body in gravitational equilibrium before the impact calculation.&lt;/p&gt;
+&lt;p&gt;The gravity discussed here, namely self-gravity, refers to the mutual attractive force between SPH particles due to their mass distribution. This is entirely different from the gravity model used in hydrodynamic simulations (such as dam breaks) — the latter only needs to apply a uniform constant acceleration pointing toward the ground for each particle.&lt;/p&gt;
+&lt;h2 id="how-to-compute-self-gravity-and-why-do-we-need-a-tree-code"&gt;How to Compute Self-Gravity, and Why Do We Need a Tree Code?&lt;/h2&gt;
+&lt;p&gt;In SPH simulations, computing self-gravity essentially means solving the gravitational force on each particle. According to Newton&amp;rsquo;s law of universal gravitation, any two particles exert a gravitational force on each other. For a system with $N$ particles, computing all pairwise interactions directly requires $O(N^2)$ operations. When the number of particles in astrophysical simulations reaches millions or even tens of millions, this direct summation approach becomes completely unacceptable in terms of computational cost.&lt;/p&gt;
+&lt;p&gt;This is the core motivation for introducing the &lt;strong&gt;Tree Code&lt;/strong&gt;. The fundamental idea stems from a simple physical intuition: when a distant cluster of particles is far enough away, we don&amp;rsquo;t need to compute the contribution of each particle individually. Instead, we can approximate the entire cluster as a single equivalent mass point located at its center of mass. Through this approximation, the computational complexity can be dramatically reduced from $O(N^2)$ to $O(N\log N)$.&lt;/p&gt;
+&lt;p&gt;
+&lt;figure &gt;
+&lt;div class="flex justify-center "&gt;
+&lt;div class="w-full" &gt;
+&lt;img alt="Conceptual diagram of tree-based gravity computation, from reference [2]"
+srcset="https://yekq.top/blog/gasphia/treecode/concept_hu_304f8c4caece7885.webp 297w"
+sizes="(max-width: 480px) 100vw, (max-width: 768px) 90vw, (max-width: 1024px) 80vw, 760px"
+src="https://yekq.top/blog/gasphia/treecode/concept_hu_304f8c4caece7885.webp"
+width="297"
+height="320"
+loading="lazy" data-zoomable /&gt;&lt;/div&gt;
+&lt;/div&gt;&lt;/figure&gt;
+&lt;/p&gt;
+&lt;p&gt;The Tree Code was first proposed by Barnes and Hut[1], so the tree structure based on their work is typically called the &lt;strong&gt;Barnes-Hut Tree&lt;/strong&gt;. When implementing this data structure for CUDA architecture, GASPHiA draws from the parallel implementation approach in reference [2].&lt;/p&gt;
+&lt;p&gt;However, the method in reference [2] was designed for pure N-body simulations, where the data structure only needs to satisfy the requirements of self-gravity computation. In contrast, the SPH method not only needs to compute self-gravity but also relies on the tree structure for efficient neighbor particle searching. This fundamental difference in requirements leads to significant differences between GASPHiA&amp;rsquo;s final tree code structure and that in reference [2]. The specific differences are mainly reflected in two aspects: first, the management strategy for the number of child nodes in tree nodes; second, the warp voting mechanism during parallel tree traversal — reference [2] only needs to determine the condition for gravitational interaction, while GASPHiA, as an SPH code, must additionally integrate the logic for neighbor searching.&lt;/p&gt;
+&lt;p&gt;Despite these differences in implementation details, both approaches maintain a high degree of consistency in their core concept of spatial recursive partitioning. Therefore, readers can still use reference [2] as an important reference for understanding the underlying spatial partitioning logic.&lt;/p&gt;
+&lt;h2 id="efficiency-comparison-and-optimization"&gt;Efficiency Comparison and Optimization&lt;/h2&gt;
+&lt;h3 id="background"&gt;Background&lt;/h3&gt;
+&lt;p&gt;Currently, GASPHiA has implemented self-gravity computation based on the Barnes-Hut Tree. However, compared to reference [2], during tree traversal, the lack of spatial sorting for particles means the efficiency is certainly not as high as with spatial sorting. To intuitively demonstrate the power of the Barnes-Hut Tree, we implemented brute-force pairwise self-gravity computation as a reference, and used the efficiency without spatial sorting as a baseline to explore the efficiency improvement after including the sorting process.&lt;/p&gt;
+&lt;h3 id="computation-kernels"&gt;Computation Kernels&lt;/h3&gt;
+&lt;p&gt;The tree-based self-gravity computation consists of the following kernels:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Reset Tree Structure&lt;/strong&gt;&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-cpp" data-lang="cpp"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="kt"&gt;void&lt;/span&gt; &lt;span class="n"&gt;SPHOctree&lt;/span&gt;&lt;span class="o"&gt;::&lt;/span&gt;&lt;span class="n"&gt;resetOctree&lt;/span&gt;&lt;span class="p"&gt;()&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="p"&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="n"&gt;resetOctreeKernel&lt;/span&gt;&lt;span class="o"&gt;&amp;lt;&amp;lt;&amp;lt;&lt;/span&gt;&lt;span class="n"&gt;numBlocks&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;ThreadsPerBlock&lt;/span&gt;&lt;span class="o"&gt;&amp;gt;&amp;gt;&amp;gt;&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="k"&gt;this&lt;/span&gt;&lt;span class="o"&gt;-&amp;gt;&lt;/span&gt;&lt;span class="n"&gt;d_child&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="k"&gt;this&lt;/span&gt;&lt;span class="o"&gt;-&amp;gt;&lt;/span&gt;&lt;span class="n"&gt;d_count&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="k"&gt;this&lt;/span&gt;&lt;span class="o"&gt;-&amp;gt;&lt;/span&gt;&lt;span class="n"&gt;d_start&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="k"&gt;this&lt;/span&gt;&lt;span class="o"&gt;-&amp;gt;&lt;/span&gt;&lt;span class="n"&gt;d_sorted&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="k"&gt;this&lt;/span&gt;&lt;span class="o"&gt;-&amp;gt;&lt;/span&gt;&lt;span class="n"&gt;d_node_com_mass&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="k"&gt;this&lt;/span&gt;&lt;span class="o"&gt;-&amp;gt;&lt;/span&gt;&lt;span class="n"&gt;d_node_hmax&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="k"&gt;this&lt;/span&gt;&lt;span class="o"&gt;-&amp;gt;&lt;/span&gt;&lt;span class="n"&gt;d_mutex&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="k"&gt;this&lt;/span&gt;&lt;span class="o"&gt;-&amp;gt;&lt;/span&gt;&lt;span class="n"&gt;d_node_index&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="k"&gt;this&lt;/span&gt;&lt;span class="o"&gt;-&amp;gt;&lt;/span&gt;&lt;span class="n"&gt;num_particles&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="k"&gt;this&lt;/span&gt;&lt;span class="o"&gt;-&amp;gt;&lt;/span&gt;&lt;span class="n"&gt;max_nodes&lt;/span&gt;&lt;span class="p"&gt;);&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="n"&gt;CUDA_CHECK&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;cudaGetLastError&lt;/span&gt;&lt;span class="p"&gt;());&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="p"&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Compute Particle Bounding Box&lt;/strong&gt;&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-cpp" data-lang="cpp"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="kt"&gt;void&lt;/span&gt; &lt;span class="n"&gt;SPHOctree&lt;/span&gt;&lt;span class="o"&gt;::&lt;/span&gt;&lt;span class="n"&gt;computeBoundingBox&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;RealType4&lt;/span&gt; &lt;span class="o"&gt;*&lt;/span&gt;&lt;span class="n"&gt;d_particles&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="p"&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="n"&gt;computeMin&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;d_particles&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;d_reduceTmp&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;num_particles&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;d_bounding_box_min&lt;/span&gt;&lt;span class="p"&gt;);&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="n"&gt;computeMax&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;d_particles&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;d_reduceTmp&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;num_particles&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;d_bounding_box_max&lt;/span&gt;&lt;span class="p"&gt;);&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="n"&gt;CUDA_CHECK&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;cudaDeviceSynchronize&lt;/span&gt;&lt;span class="p"&gt;());&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="n"&gt;CUDA_CHECK&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;cudaGetLastError&lt;/span&gt;&lt;span class="p"&gt;());&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="p"&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Build Tree Top-Down&lt;/strong&gt;&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-cpp" data-lang="cpp"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="kt"&gt;void&lt;/span&gt; &lt;span class="n"&gt;SPHOctree&lt;/span&gt;&lt;span class="o"&gt;::&lt;/span&gt;&lt;span class="n"&gt;buildTree&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;RealType4&lt;/span&gt; &lt;span class="o"&gt;*&lt;/span&gt;&lt;span class="n"&gt;d_positions&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="p"&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="n"&gt;buildTreeKernel&lt;/span&gt;&lt;span class="o"&gt;&amp;lt;&amp;lt;&amp;lt;&lt;/span&gt;&lt;span class="n"&gt;numBlocks&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;ThreadsPerBlock&lt;/span&gt;&lt;span class="o"&gt;&amp;gt;&amp;gt;&amp;gt;&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="n"&gt;d_positions&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="k"&gt;this&lt;/span&gt;&lt;span class="o"&gt;-&amp;gt;&lt;/span&gt;&lt;span class="n"&gt;d_node_com_mass&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="k"&gt;this&lt;/span&gt;&lt;span class="o"&gt;-&amp;gt;&lt;/span&gt;&lt;span class="n"&gt;d_count&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="k"&gt;this&lt;/span&gt;&lt;span class="o"&gt;-&amp;gt;&lt;/span&gt;&lt;span class="n"&gt;d_start&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="k"&gt;this&lt;/span&gt;&lt;span class="o"&gt;-&amp;gt;&lt;/span&gt;&lt;span class="n"&gt;d_child&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="k"&gt;this&lt;/span&gt;&lt;span class="o"&gt;-&amp;gt;&lt;/span&gt;&lt;span class="n"&gt;d_node_index&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="k"&gt;this&lt;/span&gt;&lt;span class="o"&gt;-&amp;gt;&lt;/span&gt;&lt;span class="n"&gt;d_bounding_box_min&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="k"&gt;this&lt;/span&gt;&lt;span class="o"&gt;-&amp;gt;&lt;/span&gt;&lt;span class="n"&gt;d_bounding_box_max&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="k"&gt;this&lt;/span&gt;&lt;span class="o"&gt;-&amp;gt;&lt;/span&gt;&lt;span class="n"&gt;num_particles&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="k"&gt;this&lt;/span&gt;&lt;span class="o"&gt;-&amp;gt;&lt;/span&gt;&lt;span class="n"&gt;max_nodes&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="p"&gt;);&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="n"&gt;CUDA_CHECK&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;cudaGetLastError&lt;/span&gt;&lt;span class="p"&gt;());&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="n"&gt;CUDA_CHECK&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;cudaDeviceSynchronize&lt;/span&gt;&lt;span class="p"&gt;());&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="p"&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Compute Center of Mass&lt;/strong&gt;&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-cpp" data-lang="cpp"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="kt"&gt;void&lt;/span&gt; &lt;span class="n"&gt;SPHOctree&lt;/span&gt;&lt;span class="o"&gt;::&lt;/span&gt;&lt;span class="n"&gt;computeCenterOfMass&lt;/span&gt;&lt;span class="p"&gt;()&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="p"&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="n"&gt;computeCenterOfMassKernel&lt;/span&gt;&lt;span class="o"&gt;&amp;lt;&amp;lt;&amp;lt;&lt;/span&gt;&lt;span class="n"&gt;numBlocks&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;ThreadsPerBlock&lt;/span&gt;&lt;span class="o"&gt;&amp;gt;&amp;gt;&amp;gt;&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="k"&gt;this&lt;/span&gt;&lt;span class="o"&gt;-&amp;gt;&lt;/span&gt;&lt;span class="n"&gt;d_node_com_mass&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="k"&gt;this&lt;/span&gt;&lt;span class="o"&gt;-&amp;gt;&lt;/span&gt;&lt;span class="n"&gt;d_node_index&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="k"&gt;this&lt;/span&gt;&lt;span class="o"&gt;-&amp;gt;&lt;/span&gt;&lt;span class="n"&gt;num_particles&lt;/span&gt;&lt;span class="p"&gt;);&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="n"&gt;CUDA_CHECK&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;cudaGetLastError&lt;/span&gt;&lt;span class="p"&gt;());&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="n"&gt;CUDA_CHECK&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;cudaDeviceSynchronize&lt;/span&gt;&lt;span class="p"&gt;());&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="p"&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Compute Self-Gravity&lt;/strong&gt;&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-cpp" data-lang="cpp"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="n"&gt;computeGravityKernel&lt;/span&gt;&lt;span class="o"&gt;&amp;lt;&amp;lt;&amp;lt;&lt;/span&gt;&lt;span class="n"&gt;numBlocks&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;ThreadsPerBlock&lt;/span&gt;&lt;span class="o"&gt;&amp;gt;&amp;gt;&amp;gt;&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="n"&gt;d_positions&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="k"&gt;this&lt;/span&gt;&lt;span class="o"&gt;-&amp;gt;&lt;/span&gt;&lt;span class="n"&gt;d_node_com_mass&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="k"&gt;this&lt;/span&gt;&lt;span class="o"&gt;-&amp;gt;&lt;/span&gt;&lt;span class="n"&gt;d_child&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="n"&gt;d_accelerations&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="k"&gt;this&lt;/span&gt;&lt;span class="o"&gt;-&amp;gt;&lt;/span&gt;&lt;span class="n"&gt;d_bounding_box_min&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="k"&gt;this&lt;/span&gt;&lt;span class="o"&gt;-&amp;gt;&lt;/span&gt;&lt;span class="n"&gt;d_bounding_box_max&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="k"&gt;this&lt;/span&gt;&lt;span class="o"&gt;-&amp;gt;&lt;/span&gt;&lt;span class="n"&gt;num_particles&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="k"&gt;this&lt;/span&gt;&lt;span class="o"&gt;-&amp;gt;&lt;/span&gt;&lt;span class="n"&gt;theta&lt;/span&gt; &lt;span class="o"&gt;*&lt;/span&gt; &lt;span class="k"&gt;this&lt;/span&gt;&lt;span class="o"&gt;-&amp;gt;&lt;/span&gt;&lt;span class="n"&gt;theta&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="k"&gt;this&lt;/span&gt;&lt;span class="o"&gt;-&amp;gt;&lt;/span&gt;&lt;span class="n"&gt;constG&lt;/span&gt;&lt;span class="p"&gt;);&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;h3 id="performance-bottleneck-analysis"&gt;Performance Bottleneck Analysis&lt;/h3&gt;
+&lt;p&gt;According to reference [2], the most time-consuming part of the entire tree code workflow is the final step — traversing the tree structure to compute self-gravity. The root cause lies in the mismatch between thread access patterns and data spatial distribution: if particle data is not explicitly sorted, particles within the same Warp may be far apart in physical space. This spatial distribution scatter directly leads to severe divergence among threads within a Warp when performing pruning decisions:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-cpp" data-lang="cpp"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="kt"&gt;bool&lt;/span&gt; &lt;span class="n"&gt;mac_satisfied&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;child&lt;/span&gt; &lt;span class="o"&gt;&amp;lt;&lt;/span&gt; &lt;span class="n"&gt;n&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt; &lt;span class="o"&gt;||&lt;/span&gt; &lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="o"&gt;!&lt;/span&gt;&lt;span class="n"&gt;is_active&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt; &lt;span class="o"&gt;||&lt;/span&gt; &lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;w_sq&lt;/span&gt; &lt;span class="o"&gt;/&lt;/span&gt; &lt;span class="n"&gt;theta_sq&lt;/span&gt; &lt;span class="o"&gt;&amp;lt;&lt;/span&gt; &lt;span class="n"&gt;r_sq&lt;/span&gt;&lt;span class="p"&gt;);&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="k"&gt;if&lt;/span&gt; &lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;__all_sync&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="mh"&gt;0xffffffff&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;mac_satisfied&lt;/span&gt;&lt;span class="p"&gt;))&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="p"&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="c1"&gt;// Prune
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="p"&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;When different particles in the same Warp face their respective target nodes, some threads may satisfy the pruning condition (&lt;code&gt;mac_satisfied&lt;/code&gt; is true), while others still need to continue traversing deeper (false). Since CUDA&amp;rsquo;s Warp execution follows the single-instruction multiple-thread (SIMT) model, all threads must execute the same instruction path. Therefore, as long as any thread in the Warp does not satisfy the pruning condition — even if the majority could have terminated early — the entire Warp must enter the subsequent node drilling process. This execution path divergence caused by differences in data dependencies between threads greatly weakens the effectiveness of the pruning mechanism, causing substantial computational resources to be wasted on unnecessary deep node visits.&lt;/p&gt;
+&lt;h3 id="performance-test-and-comparison"&gt;Performance Test and Comparison&lt;/h3&gt;
+&lt;p&gt;To verify the above analysis, I first conducted a test: discretizing a cube to obtain regularly arranged particles, using single-precision computation with 1 million particles. The test results show that traversing the tree to compute gravity is indeed the most time-consuming step:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="c1"&gt;# Shuffled (no sorting)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;Calculating Gravity on GPU &lt;span class="o"&gt;(&lt;/span&gt;Barnes-Hut, &lt;span class="nv"&gt;theta&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;0.5&lt;span class="o"&gt;)&lt;/span&gt;...
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;--- Gravity Computation Profiling ---
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; resetOctree: 11.6206 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; computeBoundingBox: 0.4268 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; buildTree: 45.4690 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; computeCoM: 0.1025 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; computeGravity: 2955.5117 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; -------------------------------------
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="c1"&gt;# Regular arrangement (equivalent to roughly sorted)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;--- Gravity Computation Profiling ---
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; resetOctree: 10.7203 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; computeBoundingBox: 0.4361 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; buildTree: 44.1606 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; computeCoM: 0.1303 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; computeGravity: 202.4100 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; -------------------------------------
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;&lt;strong&gt;Key finding&lt;/strong&gt;: The time difference reaches &lt;strong&gt;15x&lt;/strong&gt;, and the only difference is whether particles are shuffled. Without shuffling, it is equivalent to having performed sorting (since the initial particle arrangement is regular); with shuffling, time skyrockets.&lt;/p&gt;
+&lt;p&gt;Detailed Profile data is as follows:&lt;/p&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th style="text-align: left"&gt;Metric Name&lt;/th&gt;
+&lt;th style="text-align: left"&gt;Meaning&lt;/th&gt;
+&lt;th style="text-align: center"&gt;Regular&lt;/th&gt;
+&lt;th style="text-align: center"&gt;Shuffled&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;&lt;strong&gt;Elapsed Cycles&lt;/strong&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;Total GPU clock cycles consumed by Kernel&lt;/td&gt;
+&lt;td style="text-align: center"&gt;~0.29 Billion&lt;/td&gt;
+&lt;td style="text-align: center"&gt;~2.58 Billion&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;&lt;strong&gt;Duration&lt;/strong&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;Actual kernel runtime&lt;/td&gt;
+&lt;td style="text-align: center"&gt;~0.19 s&lt;/td&gt;
+&lt;td style="text-align: center"&gt;~3.10 s&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;&lt;strong&gt;SM Frequency&lt;/strong&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;Average streaming multiprocessor frequency&lt;/td&gt;
+&lt;td style="text-align: center"&gt;~1.55 GHz&lt;/td&gt;
+&lt;td style="text-align: center"&gt;~830 MHz&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;&lt;strong&gt;Compute (SM) Throughput&lt;/strong&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;Compute unit busyness&lt;/td&gt;
+&lt;td style="text-align: center"&gt;~80.4%&lt;/td&gt;
+&lt;td style="text-align: center"&gt;~79.2%&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;&lt;strong&gt;Memory Throughput&lt;/strong&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;Overall memory subsystem busyness&lt;/td&gt;
+&lt;td style="text-align: center"&gt;~61.5%&lt;/td&gt;
+&lt;td style="text-align: center"&gt;~59.0%&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;&lt;span style="color: red;"&gt;&lt;strong&gt;L2 Cache Throughput&lt;/strong&gt;&lt;/span&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;span style="color: red;"&gt;L2 cache access throughput&lt;/span&gt;&lt;/td&gt;
+&lt;td style="text-align: center"&gt;&lt;span style="color: red;"&gt;~23.9%&lt;/span&gt;&lt;/td&gt;
+&lt;td style="text-align: center"&gt;&lt;span style="color: red;"&gt;~14.1%&lt;/span&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;&lt;span style="color: red;"&gt;&lt;strong&gt;DRAM Throughput&lt;/strong&gt;&lt;/span&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;span style="color: red;"&gt;VRAM direct access throughput&lt;/span&gt;&lt;/td&gt;
+&lt;td style="text-align: center"&gt;&lt;span style="color: red;"&gt;~0.35%&lt;/span&gt;&lt;/td&gt;
+&lt;td style="text-align: center"&gt;&lt;span style="color: red;"&gt;~15.7%&lt;/span&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;&lt;strong&gt;Achieved Occupancy&lt;/strong&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;Actual active Warp ratio&lt;/td&gt;
+&lt;td style="text-align: center"&gt;~98.6%&lt;/td&gt;
+&lt;td style="text-align: center"&gt;~95.2%&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;From the table, it is clear that after shuffling, &lt;strong&gt;L2 Cache Throughput&lt;/strong&gt; drops from 23.9% to 14.1%, while &lt;strong&gt;DRAM Throughput&lt;/strong&gt; increases from 0.35% to 15.7%. This demonstrates that particle sorting is crucial for improving data locality, fully utilizing L2 cache, and reducing direct VRAM access — directly causing the 15x performance difference.&lt;/p&gt;
+&lt;h3 id="sorting-algorithm"&gt;Sorting Algorithm&lt;/h3&gt;
+&lt;p&gt;The previous section&amp;rsquo;s shuffle experiment revealed that &lt;strong&gt;spatial locality&lt;/strong&gt; plays a decisive role in implementing tree algorithms on CUDA. Better locality means that within a single Warp, the 32 threads are more likely to access the same tree nodes when traversing the octree, thereby greatly reducing Warp divergence and pushing L1/L2 cache hit rates to the limit, avoiding massive direct reads/writes to the slow DRAM.&lt;/p&gt;
+&lt;blockquote class="border-l-4 border-neutral-300 dark:border-neutral-600 pl-4 italic text-neutral-600 dark:text-neutral-400 my-6"&gt;
+&lt;p&gt;&lt;strong&gt;Note&lt;/strong&gt;: Although I used the expression &amp;ldquo;reduce Warp divergence (Warp Divergence)&amp;rdquo;, the threads are not actually diverging — they are simply opening too many nodes. In a sense, the inconsistency of &lt;code&gt;mac_satisfied&lt;/code&gt; in warp voting is relatively strong. So I still borrowed the term &amp;ldquo;Warp divergence.&amp;rdquo;&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;However, in actual SPH or N-body simulations, as time progresses, particles violently collide and mix in space, and their indices in the memory array become completely decoupled from their real geometric positions. Therefore, we need to perform efficient spatial sorting after each frame&amp;rsquo;s tree construction.&lt;/p&gt;
+&lt;h4 id="1-core-idea-utilizing-natural-tree-topology-sorting"&gt;1. Core Idea: Utilizing Natural Tree Topology Sorting&lt;/h4&gt;
+&lt;p&gt;Since the octree itself is a perfect mesh partitioning of three-dimensional space, reading leaf nodes in the order of tree traversal (e.g., depth-first DFS or breadth-first BFS) yields a particle sequence clustered in three-dimensional space.&lt;/p&gt;
+&lt;h4 id="2-gather-addressing-strategy-sort-indices-only-dont-move-data"&gt;2. Gather Addressing Strategy: Sort Indices Only, Don&amp;rsquo;t Move Data&lt;/h4&gt;
+&lt;p&gt;In a system with millions of particles, copying tens of megabytes of particle coordinates (float4 data) back and forth in global memory each time would not only be extremely time-consuming but also consume significant additional memory. We adopt the &lt;strong&gt;Gather addressing strategy&lt;/strong&gt;:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Do not move the actual particle positions in memory&lt;/li&gt;
+&lt;li&gt;Generate a one-dimensional mapping array &lt;code&gt;sort&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;sort[i]&lt;/code&gt; stores &amp;ldquo;the actual particle number that thread i should process&amp;rdquo;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;During subsequent gravity computation, adjacent threads within the same Warp read adjacent values from the &lt;code&gt;sort&lt;/code&gt; array. This way, particles processed by the same Warp are spatially close, and their tree traversal paths are also likely to be consistent.&lt;/p&gt;
+&lt;h4 id="3-top-down-sort"&gt;3. Top-Down Sort&lt;/h4&gt;
+&lt;p&gt;To complete sorting at extreme speed on the GPU, we utilize the &lt;code&gt;count&lt;/code&gt; (subtree particle count) already computed during the tree-building phase, adopting a top-down parallel allocation mechanism. The parent node divides exclusive &amp;ldquo;memory intervals&amp;rdquo; for each child node in the &lt;code&gt;sort&lt;/code&gt; array based on their &lt;code&gt;count&lt;/code&gt;.&lt;/p&gt;
+&lt;h4 id="4-profile-validation"&gt;4. Profile Validation&lt;/h4&gt;
+&lt;p&gt;Theoretically, after tree sorting and traversal, path divergence is further reduced because the parent nodes of particles in the same Warp are almost always together. To quantify this improvement, I reduced the particle count to 1 million and performed Profile analysis on the following three computation modes:&lt;/p&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th style="text-align: left"&gt;Computation Mode&lt;/th&gt;
+&lt;th style="text-align: left"&gt;Description&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;1. Fully Random&lt;/td&gt;
+&lt;td style="text-align: left"&gt;No tree sorting, particles randomly distributed in space&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;2. Initial Regular&lt;/td&gt;
+&lt;td style="text-align: left"&gt;No tree sorting, particles regularly arranged in space&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;3. Tree Sorting&lt;/td&gt;
+&lt;td style="text-align: left"&gt;Fully random but using tree sorting&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;Profile command:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;ncu --set full -f -o profile/no_shuffle_no_sort_profile -k computeGravityKernel -s &lt;span class="m"&gt;2&lt;/span&gt; -c &lt;span class="m"&gt;2&lt;/span&gt; ./sph_simulator
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Command parameter descriptions:&lt;/p&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th style="text-align: left"&gt;Parameter&lt;/th&gt;
+&lt;th style="text-align: left"&gt;Meaning&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;--set full&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;Collect all available performance metrics&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;-f&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;Force overwrite existing output files&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;-o profile/xxx&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;Specify output file path and name&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;-k computeGravityKernel&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;Specify the Kernel name to Profile&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;-s 2&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;Skip the first 2 iterations after program startup before starting Profile (avoid cold start effects)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;-c 2&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;Execute 2 repetitions and average (reduce measurement error)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;Comparison results:&lt;/p&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th style="text-align: left"&gt;Computation Mode&lt;/th&gt;
+&lt;th style="text-align: center"&gt;Kernel Time&lt;/th&gt;
+&lt;th style="text-align: center"&gt;Executed Instructions&lt;/th&gt;
+&lt;th style="text-align: center"&gt;L1/TEX Hit Rate&lt;/th&gt;
+&lt;th style="text-align: center"&gt;Memory Throughput&lt;/th&gt;
+&lt;th style="text-align: center"&gt;Executed IPC&lt;/th&gt;
+&lt;th style="text-align: center"&gt;Warp Avg Instruction Cycles (CPI)&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;1. Fully Random&lt;/td&gt;
+&lt;td style="text-align: center"&gt;33.13 ms&lt;/td&gt;
+&lt;td style="text-align: center"&gt;246.2 Billion&lt;/td&gt;
+&lt;td style="text-align: center"&gt;48.23%&lt;/td&gt;
+&lt;td style="text-align: center"&gt;2.37 GB/s&lt;/td&gt;
+&lt;td style="text-align: center"&gt;2.97&lt;/td&gt;
+&lt;td style="text-align: center"&gt;13.75 cycles&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;2. Initial Regular&lt;/td&gt;
+&lt;td style="text-align: center"&gt;5.13 ms&lt;/td&gt;
+&lt;td style="text-align: center"&gt;41.9 Billion&lt;/td&gt;
+&lt;td style="text-align: center"&gt;57.52%&lt;/td&gt;
+&lt;td style="text-align: center"&gt;8.14 GB/s&lt;/td&gt;
+&lt;td style="text-align: center"&gt;2.99&lt;/td&gt;
+&lt;td style="text-align: center"&gt;13.44 cycles&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;3. Tree Sorting&lt;/td&gt;
+&lt;td style="text-align: center"&gt;3.11 ms&lt;/td&gt;
+&lt;td style="text-align: center"&gt;22.1 Billion&lt;/td&gt;
+&lt;td style="text-align: center"&gt;58.66%&lt;/td&gt;
+&lt;td style="text-align: center"&gt;12.25 GB/s&lt;/td&gt;
+&lt;td style="text-align: center"&gt;2.74&lt;/td&gt;
+&lt;td style="text-align: center"&gt;13.28 cycles&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;From the results, &lt;strong&gt;tree sorting mode (3.11 ms) is approximately 10x faster than fully random mode (33.13 ms)&lt;/strong&gt;, and better than initial regular mode (5.13 ms). This proves that the spatial sorting strategy based on tree topology can significantly improve self-gravity computation efficiency.&lt;/p&gt;
+&lt;p&gt;Now, GASPHiA uses the code optimized with the tree sorting mode.&lt;/p&gt;
+&lt;h3 id="performance-curves"&gt;Performance Curves&lt;/h3&gt;
+&lt;p&gt;The following two figures show the performance comparison of different computation modes across varying particle counts (linear and logarithmic scales):&lt;/p&gt;
+&lt;p&gt;
+&lt;figure &gt;
+&lt;div class="flex justify-center "&gt;
+&lt;div class="w-full" &gt;
+&lt;img alt="Performance validation linear scale"
+srcset="https://yekq.top/blog/gasphia/treecode/performance_plot_linear_hu_436347fef38bab0.webp 320w, https://yekq.top/blog/gasphia/treecode/performance_plot_linear_hu_139d486729524e7e.webp 480w, https://yekq.top/blog/gasphia/treecode/performance_plot_linear_hu_8e03cf9c7201e221.webp 760w"
+sizes="(max-width: 480px) 100vw, (max-width: 768px) 90vw, (max-width: 1024px) 80vw, 760px"
+src="https://yekq.top/blog/gasphia/treecode/performance_plot_linear_hu_436347fef38bab0.webp"
+width="760"
+height="532"
+loading="lazy" data-zoomable /&gt;&lt;/div&gt;
+&lt;/div&gt;&lt;/figure&gt;
+&lt;/p&gt;
+&lt;p&gt;
+&lt;figure &gt;
+&lt;div class="flex justify-center "&gt;
+&lt;div class="w-full" &gt;
+&lt;img alt="Performance validation logarithmic scale"
+srcset="https://yekq.top/blog/gasphia/treecode/performance_plot_hu_c499050c7dec6a45.webp 320w, https://yekq.top/blog/gasphia/treecode/performance_plot_hu_1e5ea06260a027eb.webp 480w, https://yekq.top/blog/gasphia/treecode/performance_plot_hu_f6507774b439d1db.webp 760w"
+sizes="(max-width: 480px) 100vw, (max-width: 768px) 90vw, (max-width: 1024px) 80vw, 760px"
+src="https://yekq.top/blog/gasphia/treecode/performance_plot_hu_c499050c7dec6a45.webp"
+width="760"
+height="532"
+loading="lazy" data-zoomable /&gt;&lt;/div&gt;
+&lt;/div&gt;&lt;/figure&gt;
+&lt;/p&gt;
+&lt;blockquote class="border-l-4 border-neutral-300 dark:border-neutral-600 pl-4 italic text-neutral-600 dark:text-neutral-400 my-6"&gt;
+&lt;p&gt;&lt;strong&gt;Note&lt;/strong&gt;: In the figures above, &amp;ldquo;Build Tree&amp;rdquo; includes all processes such as bounding box computation and sorting. Compared to traversing trees for gravity or neighbor computation, the time for building the tree can be ignored.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;h3 id="accuracy-and-speedup-validation"&gt;Accuracy and Speedup Validation&lt;/h3&gt;
+&lt;p&gt;I also tested the speedup and error of the Barnes-Hut algorithm relative to brute-force computation with 1 million particles. Note that the errors here are relative errors.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Performance and accuracy comparison across different $\theta$ parameters&lt;/strong&gt;:&lt;/p&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th style="text-align: center"&gt;$\theta$&lt;/th&gt;
+&lt;th style="text-align: center"&gt;Computation Time (ms)&lt;/th&gt;
+&lt;th style="text-align: center"&gt;Max Relative Error&lt;/th&gt;
+&lt;th style="text-align: center"&gt;Avg Relative Error&lt;/th&gt;
+&lt;th style="text-align: center"&gt;Speedup&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td style="text-align: center"&gt;0.1&lt;/td&gt;
+&lt;td style="text-align: center"&gt;181.877&lt;/td&gt;
+&lt;td style="text-align: center"&gt;0.00219153&lt;/td&gt;
+&lt;td style="text-align: center"&gt;3.27768e-05&lt;/td&gt;
+&lt;td style="text-align: center"&gt;7.42231x&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: center"&gt;0.2&lt;/td&gt;
+&lt;td style="text-align: center"&gt;39.5222&lt;/td&gt;
+&lt;td style="text-align: center"&gt;0.00502609&lt;/td&gt;
+&lt;td style="text-align: center"&gt;6.86399e-05&lt;/td&gt;
+&lt;td style="text-align: center"&gt;34.1566x&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: center"&gt;0.3&lt;/td&gt;
+&lt;td style="text-align: center"&gt;14.9356&lt;/td&gt;
+&lt;td style="text-align: center"&gt;0.0214612&lt;/td&gt;
+&lt;td style="text-align: center"&gt;0.00015996&lt;/td&gt;
+&lt;td style="text-align: center"&gt;90.3847x&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: center"&gt;0.4&lt;/td&gt;
+&lt;td style="text-align: center"&gt;8.75622&lt;/td&gt;
+&lt;td style="text-align: center"&gt;0.0335255&lt;/td&gt;
+&lt;td style="text-align: center"&gt;0.00028779&lt;/td&gt;
+&lt;td style="text-align: center"&gt;154.17x&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: center"&gt;0.5&lt;/td&gt;
+&lt;td style="text-align: center"&gt;5.88032&lt;/td&gt;
+&lt;td style="text-align: center"&gt;0.0711218&lt;/td&gt;
+&lt;td style="text-align: center"&gt;0.00053247&lt;/td&gt;
+&lt;td style="text-align: center"&gt;229.57x&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: center"&gt;0.6&lt;/td&gt;
+&lt;td style="text-align: center"&gt;4.20147&lt;/td&gt;
+&lt;td style="text-align: center"&gt;0.0565245&lt;/td&gt;
+&lt;td style="text-align: center"&gt;0.000783245&lt;/td&gt;
+&lt;td style="text-align: center"&gt;321.303x&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: center"&gt;0.7&lt;/td&gt;
+&lt;td style="text-align: center"&gt;3.52717&lt;/td&gt;
+&lt;td style="text-align: center"&gt;0.106591&lt;/td&gt;
+&lt;td style="text-align: center"&gt;0.00153542&lt;/td&gt;
+&lt;td style="text-align: center"&gt;382.728x&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: center"&gt;0.8&lt;/td&gt;
+&lt;td style="text-align: center"&gt;3.21018&lt;/td&gt;
+&lt;td style="text-align: center"&gt;0.170889&lt;/td&gt;
+&lt;td style="text-align: center"&gt;0.002965&lt;/td&gt;
+&lt;td style="text-align: center"&gt;420.521x&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;Accuracy validation figure:&lt;/p&gt;
+&lt;p&gt;
+&lt;figure &gt;
+&lt;div class="flex justify-center "&gt;
+&lt;div class="w-full" &gt;
+&lt;img alt="Accuracy validation"
+srcset="https://yekq.top/blog/gasphia/treecode/Accuracy_hu_bb58122b1cf606db.webp 320w, https://yekq.top/blog/gasphia/treecode/Accuracy_hu_58cca8fb70eaee31.webp 480w, https://yekq.top/blog/gasphia/treecode/Accuracy_hu_c814807be1efb0b9.webp 760w"
+sizes="(max-width: 480px) 100vw, (max-width: 768px) 90vw, (max-width: 1024px) 80vw, 760px"
+src="https://yekq.top/blog/gasphia/treecode/Accuracy_hu_bb58122b1cf606db.webp"
+width="760"
+height="456"
+loading="lazy" data-zoomable /&gt;&lt;/div&gt;
+&lt;/div&gt;&lt;/figure&gt;
+&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Conclusion&lt;/strong&gt;: As $\theta$ increases, computational accuracy decreases (error increases), but computational speed significantly improves. At $\theta = 0.5$, we can achieve a 200x speedup while maintaining approximately 7% maximum relative error, making it a relatively ideal balance point.&lt;/p&gt;
+&lt;h2 id="references"&gt;References&lt;/h2&gt;
+&lt;p&gt;[1] Barnes J, Hut P. A hierarchical O (N log N) force-calculation algorithm. nature. 1986 Dec 4;324(6096):446-9.&lt;/p&gt;
+&lt;p&gt;[2] Burtscher M, Pingali K. An efficient CUDA implementation of the tree-based barnes hut n-body algorithm. In GPU computing Gems Emerald edition 2011 Jan 1 (pp. 75-92). Morgan Kaufmann.&lt;/p&gt;</description></item><item><title>1D Sod Shock Tube Experiment - CUDA SPH Benchmark</title><link>https://yekq.top/en/blog/gasphia/1d-shock-tube/</link><pubDate>Tue, 17 Mar 2026 10:00:00 +0800</pubDate><guid>https://yekq.top/en/blog/gasphia/1d-shock-tube/</guid><description>&lt;h1 id="1d-sod-shock-tube-experiment"&gt;1D Sod Shock Tube Experiment&lt;/h1&gt;
+&lt;h2 id="tldr"&gt;TL;DR&lt;/h2&gt;
+&lt;p&gt;This article presents a reproduction of the classic 1D Sod Shock Tube benchmark test using a custom-built CUDA SPH (Smoothed Particle Hydrodynamics) physics engine from scratch. The primary objective is to verify the engine&amp;rsquo;s capability to capture strong shock discontinuities. A critical numerical pitfall was identified and resolved: when handling initial step density fields, the traditional Continuity Density method causes severe non-physical oscillations, while the direct Summation Density demonstrates better robustness. In fact, continuity density is more suitable for high-speed impact problems.&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id="1-simulation-results"&gt;1. Simulation Results&lt;/h2&gt;
+&lt;p&gt;Comparison of two density calculation methods:&lt;/p&gt;
+&lt;div style="display: flex; gap: 20px; flex-wrap: wrap;"&gt;
+&lt;div style="flex: 1; min-width: 300px;"&gt;
+&lt;h4 style="text-align: center;"&gt;Summation Density (Success)&lt;/h4&gt;
+&lt;img src="1D_ShockTube_Evolution.gif" alt="Summation Density" style="width: 100%;"&gt;
+&lt;/div&gt;
+&lt;div style="flex: 1; min-width: 300px;"&gt;
+&lt;h4 style="text-align: center;"&gt;Continuity Density (Failure)&lt;/h4&gt;
+&lt;img src="1D_ShockTube_Evolution_lianxv.gif" alt="Continuity Density" style="width: 100%;"&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Left (Success)&lt;/strong&gt;: Using summation density, the shock front, contact discontinuity, and rarefaction wave can be clearly observed propagating smoothly.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Right (Failure)&lt;/strong&gt;: Using continuity density, oscillations appear at the initial density jump in the shock tube.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;
+&lt;figure &gt;
+&lt;div class="flex justify-center "&gt;
+&lt;div class="w-full" &gt;
+&lt;img alt="Validation Comparison"
+srcset="https://yekq.top/blog/gasphia/1d-shock-tube/ShockTube_Validation_Zoom_hu_eecbe48c32100b86.webp 320w, https://yekq.top/blog/gasphia/1d-shock-tube/ShockTube_Validation_Zoom_hu_91384d445a4e1303.webp 480w, https://yekq.top/blog/gasphia/1d-shock-tube/ShockTube_Validation_Zoom_hu_40ca4714bc4bf504.webp 760w"
+sizes="(max-width: 480px) 100vw, (max-width: 768px) 90vw, (max-width: 1024px) 80vw, 760px"
+src="https://yekq.top/blog/gasphia/1d-shock-tube/ShockTube_Validation_Zoom_hu_eecbe48c32100b86.webp"
+width="760"
+height="543"
+loading="lazy" data-zoomable /&gt;&lt;/div&gt;
+&lt;/div&gt;&lt;/figure&gt;
+&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Figure 1&lt;/strong&gt;: Density distribution comparison for the Sod shock tube. Shows the density along the x-direction at $t=0.2$ for three methods compared with the analytical solution. The red solid line is the analytical solution, blue dots are numerical results from the summation density method, and orange dots are numerical results from the continuity density method.&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id="2-problem-background"&gt;2. Problem Background&lt;/h2&gt;
+&lt;h3 id="21-what-is-the-sod-shock-tube"&gt;2.1 What is the Sod Shock Tube?&lt;/h3&gt;
+&lt;p&gt;The Sod shock tube is a classic benchmark problem in fluid dynamics, used to verify numerical methods&amp;rsquo; capability to capture shocks, contact discontinuities, and rarefaction waves. This problem simulates the instantaneous release of two gases at different states separated by a membrane in a one-dimensional tube.&lt;/p&gt;
+&lt;h3 id="22-physical-model"&gt;2.2 Physical Model&lt;/h3&gt;
+&lt;p&gt;This simulation uses the ideal gas model with the following governing equations:&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Continuity Equation&lt;/strong&gt;:
+&lt;/p&gt;
+$$\frac{\partial \rho}{\partial t} + \nabla \cdot (\rho \mathbf{v}) = 0$$&lt;p&gt;&lt;strong&gt;Momentum Equation&lt;/strong&gt;:
+&lt;/p&gt;
+$$\frac{\partial (\rho \mathbf{v})}{\partial t} + \nabla \cdot (\rho \mathbf{v} \otimes \mathbf{v}) = -\nabla p$$&lt;p&gt;&lt;strong&gt;Energy Equation&lt;/strong&gt;:
+&lt;/p&gt;
+$$\frac{\partial (\rho e)}{\partial t} + \nabla \cdot (\rho e \mathbf{v}) = -p \nabla \cdot \mathbf{v}$$&lt;p&gt;&lt;strong&gt;Equation of State&lt;/strong&gt; (Ideal Gas):
+&lt;/p&gt;
+$$p = (\gamma - 1) \rho e$$&lt;p&gt;where $\gamma = 5/3$ is the adiabatic index.&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id="3-initial-conditions"&gt;3. Initial Conditions&lt;/h2&gt;
+&lt;p&gt;At the initial time, the shock tube is divided into two regions by a membrane at $x=0$:&lt;/p&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th style="text-align: center"&gt;Parameter&lt;/th&gt;
+&lt;th style="text-align: center"&gt;High Density Region (Left)&lt;/th&gt;
+&lt;th style="text-align: center"&gt;Low Density Region (Right)&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td style="text-align: center"&gt;Density $\rho$&lt;/td&gt;
+&lt;td style="text-align: center"&gt;1.0&lt;/td&gt;
+&lt;td style="text-align: center"&gt;0.25&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: center"&gt;Velocity $v$&lt;/td&gt;
+&lt;td style="text-align: center"&gt;0.0&lt;/td&gt;
+&lt;td style="text-align: center"&gt;0.0&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: center"&gt;Internal Energy $e$&lt;/td&gt;
+&lt;td style="text-align: center"&gt;2.5&lt;/td&gt;
+&lt;td style="text-align: center"&gt;1.795&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: center"&gt;Particle Spacing $\Delta x$&lt;/td&gt;
+&lt;td style="text-align: center"&gt;0.001875&lt;/td&gt;
+&lt;td style="text-align: center"&gt;0.0075&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: center"&gt;Smoothing Length $h$&lt;/td&gt;
+&lt;td style="text-align: center"&gt;0.01&lt;/td&gt;
+&lt;td style="text-align: center"&gt;0.01&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: center"&gt;Region Range&lt;/td&gt;
+&lt;td style="text-align: center"&gt;$[-1.2, 0)$&lt;/td&gt;
+&lt;td style="text-align: center"&gt;$(0, 1.2]$&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: center"&gt;Number of Particles&lt;/td&gt;
+&lt;td style="text-align: center"&gt;640&lt;/td&gt;
+&lt;td style="text-align: center"&gt;160&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;&lt;strong&gt;Total Particles&lt;/strong&gt;: 800&lt;/p&gt;
+&lt;p&gt;The initial conditions set the left side as a high-pressure, high-density region and the right side as a low-pressure, low-density region. After the membrane is removed, the high-pressure gas on the left accelerates to the right, forming three wave structures: shock, contact discontinuity, and rarefaction wave.&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id="4-numerical-methods"&gt;4. Numerical Methods&lt;/h2&gt;
+&lt;h3 id="41-sph-density-calculation-approaches"&gt;4.1 SPH Density Calculation Approaches&lt;/h3&gt;
+&lt;p&gt;This benchmark compares two SPH density computation methods:&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Method 1: Summation Density&lt;/strong&gt;&lt;/p&gt;
+$$\rho_i = \sum_j m_j W(r_{ij}, h)$$&lt;p&gt;where $W(r, h)$ is the kernel function and $h$ is the smoothing length. This method directly sums the masses of neighboring particles with clear physical meaning.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Method 2: Continuity Density&lt;/strong&gt;&lt;/p&gt;
+$$\frac{d\rho_i}{dt} = \sum_j m_j (v_j - v_i) \cdot \nabla_i W(r_{ij}, h)$$&lt;p&gt;This equation is derived from the divergence of the momentum equation and is theoretically equivalent to the continuity equation.&lt;/p&gt;
+&lt;h3 id="future-work"&gt;Future Work&lt;/h3&gt;
+&lt;ul&gt;
+&lt;li&gt;2D/3D Dam Break Simulation&lt;/li&gt;
+&lt;li&gt;Simulations with Material Strength&lt;/li&gt;
+&lt;/ul&gt;
+&lt;hr&gt;
+&lt;h2 id="references"&gt;References&lt;/h2&gt;
+&lt;ol&gt;
+&lt;li&gt;Sod, G. A. (1978). A survey of several finite difference methods for systems of nonlinear hyperbolic conservation laws. &lt;em&gt;Journal of Computational Physics&lt;/em&gt;, 27(1), 1-31.&lt;/li&gt;
+&lt;li&gt;Monaghan, J. J. (1992). Smoothed particle hydrodynamics. &lt;em&gt;Annual Review of Astronomy and Astrophysics&lt;/em&gt;, 30, 543-574.&lt;/li&gt;
+&lt;li&gt;Liu, G. R., &amp;amp; Liu, M. B. (2003). &lt;em&gt;Smoothed particle hydrodynamics: a meshfree particle method&lt;/em&gt;. World Scientific.&lt;/li&gt;
+&lt;/ol&gt;</description></item><item><title>1D Elastic Uniaxial Strain Wave Validation - GASPHiA Test Case</title><link>https://yekq.top/en/blog/gasphia/1d-elastic-uniaxial-strain-wave/</link><pubDate>Tue, 26 May 2026 11:30:00 +0800</pubDate><guid>https://yekq.top/en/blog/gasphia/1d-elastic-uniaxial-strain-wave/</guid><description>&lt;h1 id="1d-elastic-uniaxial-strain-wave-validation"&gt;1D Elastic Uniaxial Strain Wave Validation&lt;/h1&gt;
+&lt;h2 id="overview"&gt;Overview&lt;/h2&gt;
+&lt;p&gt;A rigid piston on the right pushes an aluminum linear-elastic rod at constant velocity, with the left end fixed. The system propagates a one-dimensional elastic uniaxial strain compression wave. This case does not involve flyer-plate impact, plastic yielding, or nonlinear Hugoniot relations, making it suitable for verifying GASPHiA&amp;rsquo;s accuracy in computing &lt;strong&gt;elastic longitudinal wave speed, pressure plateau, deviatoric stress plateau, and total axial stress plateau&lt;/strong&gt;.&lt;/p&gt;
+&lt;p&gt;Results from this run:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Longitudinal wave speed relative error: ~&lt;code&gt;1.80%&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;Pressure plateau relative error: ~&lt;code&gt;0.24% - 0.27%&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;Deviatoric stress plateau relative error: ~&lt;code&gt;1.01% - 1.04%&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;Total axial stress plateau relative error: ~&lt;code&gt;0.48% - 0.51%&lt;/code&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;When modifying the elastic EOS, strength model, stress update, or boundary treatment, this case serves as a quick regression test.&lt;/p&gt;
+&lt;p&gt;
+&lt;figure &gt;
+&lt;div class="flex justify-center "&gt;
+&lt;div class="w-full" &gt;
+&lt;img alt="1D Elastic Uniaxial Strain Wave Validation"
+srcset="https://yekq.top/blog/gasphia/1d-elastic-uniaxial-strain-wave/elastic_wave_validation_hu_e9d8d44720543445.webp 320w, https://yekq.top/blog/gasphia/1d-elastic-uniaxial-strain-wave/elastic_wave_validation_hu_78ed8013ae9ef41d.webp 480w, https://yekq.top/blog/gasphia/1d-elastic-uniaxial-strain-wave/elastic_wave_validation_hu_8c661a2579b50747.webp 650w"
+sizes="(max-width: 480px) 100vw, (max-width: 768px) 90vw, (max-width: 1024px) 80vw, 760px"
+src="https://yekq.top/blog/gasphia/1d-elastic-uniaxial-strain-wave/elastic_wave_validation_hu_e9d8d44720543445.webp"
+width="650"
+height="760"
+loading="lazy" data-zoomable /&gt;&lt;/div&gt;
+&lt;/div&gt;&lt;/figure&gt;
+&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id="theoretical-solution-and-validation-metrics"&gt;Theoretical Solution and Validation Metrics&lt;/h2&gt;
+&lt;p&gt;For a one-dimensional elastic uniaxial strain compression wave, the theoretical relations are:&lt;/p&gt;
+$$
+c_L = \sqrt{\frac{K + 4G/3}{\rho_0}}
+$$$$
+\varepsilon_{xx} = \frac{U_p}{c_L}
+$$$$
+P = K \varepsilon_{xx}
+$$$$
+|S_{xx}| = \frac{4G}{3}\varepsilon_{xx}
+$$$$
+|\sigma_{xx}| = P + |S_{xx}| = \rho_0 c_L U_p
+$$&lt;p&gt;Parameters used in this case:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Initial density: &lt;code&gt;\rho_0 = 2700 kg/m^3&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;Bulk modulus: &lt;code&gt;K = 75.2 GPa&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;Shear modulus: &lt;code&gt;G = 26.0 GPa&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;Piston velocity: &lt;code&gt;U_p = 100 m/s&lt;/code&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;The resulting theoretical values:&lt;/p&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th style="text-align: left"&gt;Quantity&lt;/th&gt;
+&lt;th style="text-align: left"&gt;Theoretical Value&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;Longitudinal wave speed &lt;code&gt;c_L&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;6378.98 m/s&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;Pressure plateau &lt;code&gt;P&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;1.1789 GPa&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;Deviatoric stress plateau `&lt;/td&gt;
+&lt;td style="text-align: left"&gt;Sxx&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;Total axial stress plateau `&lt;/td&gt;
+&lt;td style="text-align: left"&gt;\sigma_{xx}&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;The simulation results should be compared against the following metrics:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;Whether the wave front propagation speed is close to &lt;code&gt;c_L&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;Whether the post-wave pressure plateau is close to the theoretical value&lt;/li&gt;
+&lt;li&gt;Whether the post-wave deviatoric stress plateau is close to the theoretical value&lt;/li&gt;
+&lt;li&gt;Whether the total axial stress plateau is stable and of the correct order of magnitude&lt;/li&gt;
+&lt;/ol&gt;
+&lt;hr&gt;
+&lt;h2 id="how-to-run"&gt;How to Run&lt;/h2&gt;
+&lt;p&gt;Test directory:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;GASPHiA-Tests/1D_Elastic_Uniaxial_Strain_Wave
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Run with:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;./run_all.sh --source-dir /path/to/GASPHiA --cuda &lt;span class="m"&gt;0&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;The script performs the following steps in sequence:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;Compile the initial condition generator&lt;/li&gt;
+&lt;li&gt;Generate &lt;code&gt;input/input_1d_uniaxial_strain.h5&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;Compile GASPHiA using the local &lt;code&gt;para.cuh&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;Run &lt;code&gt;ust.ini&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;Post-process the output and generate validation plots&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;A noteworthy engineering detail: compilation uses &lt;code&gt;PARA_CUH&lt;/code&gt; to point to the &lt;code&gt;para.cuh&lt;/code&gt; in this case directory, rather than copying test parameters into the main source tree. This prevents polluting the main project configuration when switching between different tests.&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id="result-interpretation"&gt;Result Interpretation&lt;/h2&gt;
+&lt;p&gt;The validation plot above shows numerical results at three time instants — &lt;code&gt;20 us&lt;/code&gt;, &lt;code&gt;40 us&lt;/code&gt;, and &lt;code&gt;60 us&lt;/code&gt; — compared against theoretical plateaus. The three rows correspond to:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Pressure &lt;code&gt;P&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;Deviatoric stress magnitude &lt;code&gt;|Sxx|&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;Total axial stress magnitude &lt;code&gt;|\sigma_{xx}|&lt;/code&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Key features observable from the plot:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;The wave front propagates from right to left at a steady speed, with positions close to the reference positions given by the theoretical wave speed.&lt;/li&gt;
+&lt;li&gt;The post-wave plateaus are flat, with no apparent non-physical oscillations.&lt;/li&gt;
+&lt;li&gt;The pressure, deviatoric stress, and total stress values all fall near the theoretical values, indicating that the EOS and stress decomposition coupling is self-consistent.&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;Compared to more complex impact cases, this test involves no wave system interference, fragmentation, plasticity, or pore compaction processes. Its value lies in its structural simplicity, making it easy to pinpoint deviations to specific implementation modules.&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id="actual-run-data"&gt;Actual Run Data&lt;/h2&gt;
+&lt;p&gt;Key metrics extracted from this run:&lt;/p&gt;
+&lt;h3 id="wave-speed"&gt;Wave Speed&lt;/h3&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th style="text-align: left"&gt;Metric&lt;/th&gt;
+&lt;th style="text-align: left"&gt;Value&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;Theoretical wave speed &lt;code&gt;cL_ref&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;6378.98 m/s&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;Numerical wave speed &lt;code&gt;cL_num&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;6494.04 m/s&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;Relative error&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;1.80%&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;h3 id="plateau-metrics-at-three-sampling-times"&gt;Plateau Metrics at Three Sampling Times&lt;/h3&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th style="text-align: left"&gt;Time&lt;/th&gt;
+&lt;th style="text-align: left"&gt;Wave Front Position Error&lt;/th&gt;
+&lt;th style="text-align: left"&gt;Pressure Plateau Error&lt;/th&gt;
+&lt;th style="text-align: left"&gt;Deviatoric Stress Plateau Error&lt;/th&gt;
+&lt;th style="text-align: left"&gt;Total Stress Plateau Error&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;20 us&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;-2.06 mm&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;0.24%&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;1.01%&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;0.48%&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;40 us&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;-4.24 mm&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;0.26%&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;1.03%&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;0.50%&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;60 us&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;-6.67 mm&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;0.27%&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;1.04%&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;0.51%&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;From the plateau metrics, the results are stable overall, with pressure and total stress errors in particular well under control. The wave front position error accumulates slightly with propagation time, but remains within an acceptable range overall.&lt;/p&gt;</description></item><item><title>Implementation and Pitfalls of the P-alpha Porosity Model</title><link>https://yekq.top/en/blog/gasphia/p-alpha-porosity-model/</link><pubDate>Tue, 07 Apr 2026 14:00:00 +0800</pubDate><guid>https://yekq.top/en/blog/gasphia/p-alpha-porosity-model/</guid><description>&lt;h1 id="implementation-and-pitfalls-of-the-p-alpha-porosity-model"&gt;Implementation and Pitfalls of the P-alpha Porosity Model&lt;/h1&gt;
+&lt;iframe src="//player.bilibili.com/player.html?isOutside=true&amp;bvid=BV1t7DeBiEEv&amp;p=1&amp;high_quality=1&amp;danmaku=0"
+scrolling="no" border="0" frameborder="no" framespacing="0" allowfullscreen="true"
+style="width: 100%; aspect-ratio: 16/9; border-radius: 8px; margin-bottom: 20px;"&gt;
+&lt;/iframe&gt;
+&lt;p align="center" style="font-size: 0.9em; color: gray; margin-top: -10px; margin-bottom: 20px;"&gt;
+&lt;em&gt; In the animation of high-porosity pumice impact simulation (2.58 km/s), completely damaged particles are removed, and only kernel correction is enabled. &lt;/em&gt;
+&lt;/p&gt;
+&lt;p&gt;The animation above shows simulation results from GASPHiA of a projectile impacting a high-porosity pumice target at 2.58 km/s. The impact results are consistent with those given in the paper, demonstrating the accuracy of the damage model and P-alpha porosity model implementation in GASPHiA.&lt;/p&gt;
+&lt;hr&gt;
+&lt;p&gt;GASPHiA implements the P-alpha model described in the following two papers:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Numerical simulations of impacts involving porous bodies I. Implementing sub-resolution porosity in a 3D SPH hydrocode&lt;/li&gt;
+&lt;li&gt;Numerical simulations of impacts involving porous bodies: II. Comparison with laboratory experiments&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Below is a note on the problems encountered during the implementation process.&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id="1-physical-problem-definition-p-alpha-model"&gt;1. Physical Problem Definition: P-alpha Model&lt;/h2&gt;
+&lt;p&gt;In shock dynamics of porous materials (such as rubble piles and pumice), the macroscopic pressure $P$ satisfies the following relationship with the solid phase pressure $P_{\text{eos}}$ and porosity $\alpha$ (also called &lt;strong&gt;inflation factor&lt;/strong&gt;):&lt;/p&gt;
+$$P = \frac{P_{\text{eos}}(\rho_s, e)}{\alpha}$$&lt;p&gt;where $\rho_s = \alpha \rho$ is the &lt;strong&gt;solid phase density&lt;/strong&gt;, $\rho$ is the &lt;strong&gt;macroscopic density&lt;/strong&gt;, and $e$ is the &lt;strong&gt;internal energy&lt;/strong&gt;.&lt;/p&gt;
+&lt;blockquote class="border-l-4 border-neutral-300 dark:border-neutral-600 pl-4 italic text-neutral-600 dark:text-neutral-400 my-6"&gt;
+&lt;p&gt;&lt;strong&gt;Note&lt;/strong&gt;: $\alpha$ must be greater than 1. A value of 1 represents that the space represented by this particle has no voids.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;hr&gt;
+&lt;h3 id="compaction-curve"&gt;Compaction Curve&lt;/h3&gt;
+&lt;p&gt;The compression process of materials follows the compaction curve $\alpha_{\text{curve}}(P)$, defined as follows:&lt;/p&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th style="text-align: left"&gt;Stage&lt;/th&gt;
+&lt;th style="text-align: center"&gt;Pressure Range&lt;/th&gt;
+&lt;th style="text-align: left"&gt;Formula&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;&lt;strong&gt;Elastic Stage&lt;/strong&gt;&lt;/td&gt;
+&lt;td style="text-align: center"&gt;$P \le P_e$&lt;/td&gt;
+&lt;td style="text-align: left"&gt;$\alpha = \alpha_0$&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;&lt;strong&gt;Plastic Crushing Stage&lt;/strong&gt;&lt;/td&gt;
+&lt;td style="text-align: center"&gt;$P_e &lt; P &lt; P_s$&lt;/td&gt;
+&lt;td style="text-align: left"&gt;$\displaystyle \alpha = 1.0 + (\alpha_0 - 1.0) \left( \frac{P_s - P}{P_s - P_e} \right)^2$&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;&lt;strong&gt;Full Compaction Stage&lt;/strong&gt;&lt;/td&gt;
+&lt;td style="text-align: center"&gt;$P \ge P_s$&lt;/td&gt;
+&lt;td style="text-align: left"&gt;$\alpha = 1.0$&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;blockquote class="border-l-4 border-neutral-300 dark:border-neutral-600 pl-4 italic text-neutral-600 dark:text-neutral-400 my-6"&gt;
+&lt;p&gt;Additionally, it should be noted that pore compaction is plastic and irreversible. If the theoretical $\alpha$ caused by the current pressure is greater than the historical minimum porosity $\alpha_{\text{old}}$, then take $\alpha = \alpha_{\text{old}}$.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;hr&gt;
+&lt;h2 id="2-nonlinear-equation"&gt;2. Nonlinear Equation&lt;/h2&gt;
+&lt;p&gt;We need to find an $\alpha$ that satisfies both the equation of state (EOS) generated pressure and lies on the compaction curve. Define the objective function:&lt;/p&gt;
+$$F(\alpha) = \alpha - \min\left( \alpha_{\text{curve}}\left( \frac{P_{\text{eos}}(\alpha \rho, e)}{\alpha} \right), \alpha_{\text{old}} \right) = 0$$
+&lt;blockquote class="border-l-4 border-neutral-300 dark:border-neutral-600 pl-4 italic text-neutral-600 dark:text-neutral-400 my-6"&gt;
+&lt;p&gt;In the equation, $\alpha_{\text{curve}}$ refers to the compaction curve.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;hr&gt;
+&lt;h2 id="3-bisection-method"&gt;3. Bisection Method&lt;/h2&gt;
+&lt;p&gt;The simplest and most intuitive approach is bisection, although it may take slightly longer execution time.&lt;/p&gt;
+&lt;h3 id="31-iteration-count-analysis"&gt;3.1 Iteration Count Analysis&lt;/h3&gt;
+&lt;p&gt;Assume for a high-porosity material, the initial porosity $\alpha = 4$, corresponding to a physical porosity of $\phi = 1 - 1/\alpha$, which is &lt;strong&gt;75%&lt;/strong&gt;. If the final convergence accuracy required for iteration is:&lt;/p&gt;
+$$\alpha_{n+1} - \alpha_n &lt; \text{tol} = 10^{-12}$$&lt;p&gt;Then in the worst case, iteration is needed:&lt;/p&gt;
+$$n \ge \log_2 \left( \frac{L_0}{\text{tol}} \right) = \log_2 \left( \frac{4-1}{10^{-12}} \right)=42$$&lt;h3 id="32-accuracy-requirements"&gt;3.2 Accuracy Requirements&lt;/h3&gt;
+&lt;p&gt;It is worth noting that EOS is extremely sensitive to density. In practice, it has been tested that &lt;strong&gt;tol must be less than 1e-7&lt;/strong&gt; to prevent artificial oscillations in the damage field. This is difficult to achieve for single-precision computation, so the porosity model in GASPHiA is forced to run in double precision, but when writing back, precision adjustment is performed to adapt to the overall computational workflow.&lt;/p&gt;
+&lt;h3 id="33-performance-test-results"&gt;3.3 Performance Test Results&lt;/h3&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;$ grep &lt;span class="s2"&gt;&amp;#34;calPressureSoundSpeed execution time:&amp;#34;&lt;/span&gt; run.log &lt;span class="p"&gt;|&lt;/span&gt; tail -n &lt;span class="m"&gt;20&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;calPressureSoundSpeed execution time: 2.882 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;calPressureSoundSpeed execution time: 2.807 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;calPressureSoundSpeed execution time: 2.775 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;calPressureSoundSpeed execution time: 2.766 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;calPressureSoundSpeed execution time: 2.822 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;calPressureSoundSpeed execution time: 2.873 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;calPressureSoundSpeed execution time: 2.766 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;calPressureSoundSpeed execution time: 2.765 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;calPressureSoundSpeed execution time: 2.753 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;calPressureSoundSpeed execution time: 2.774 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;calPressureSoundSpeed execution time: 2.776 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;calPressureSoundSpeed execution time: 2.756 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;calPressureSoundSpeed execution time: 3.197 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;calPressureSoundSpeed execution time: 2.786 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;calPressureSoundSpeed execution time: 2.854 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;calPressureSoundSpeed execution time: 2.885 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;calPressureSoundSpeed execution time: 2.816 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;calPressureSoundSpeed execution time: 2.799 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;calPressureSoundSpeed execution time: 2.787 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;calPressureSoundSpeed execution time: 2.891 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;...
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;$ tail -n &lt;span class="m"&gt;10&lt;/span&gt; run.log
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; └─ Sub2: 0.050 ms &lt;span class="o"&gt;(&lt;/span&gt; 2.3%&lt;span class="o"&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;calPressureSoundSpeed execution time: 2.891 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="o"&gt;[&lt;/span&gt;Step 2273&lt;span class="o"&gt;]&lt;/span&gt; &lt;span class="nv"&gt;t&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;3.200656e-05 &lt;span class="p"&gt;|&lt;/span&gt; &lt;span class="nv"&gt;dt&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;1.761e-08 &lt;span class="p"&gt;|&lt;/span&gt; &lt;span class="nv"&gt;Tree&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;5.467 ms &lt;span class="o"&gt;(&lt;/span&gt;B: 0.536, S: 4.931, G: 0.000&lt;span class="o"&gt;)&lt;/span&gt; &lt;span class="p"&gt;|&lt;/span&gt; &lt;span class="nv"&gt;Step&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;15.816 ms &lt;span class="p"&gt;|&lt;/span&gt; &lt;span class="nv"&gt;Outputs&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="m"&gt;7&lt;/span&gt; &lt;span class="p"&gt;|&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="o"&gt;[&lt;/span&gt;computeRHS&lt;span class="o"&gt;]&lt;/span&gt; Total: 2.263 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; ├─ Corr: 0.956 ms &lt;span class="o"&gt;(&lt;/span&gt;42.3%&lt;span class="o"&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; ├─ Sub1: 1.256 ms &lt;span class="o"&gt;(&lt;/span&gt;55.5%&lt;span class="o"&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; └─ Sub2: 0.050 ms &lt;span class="o"&gt;(&lt;/span&gt; 2.2%&lt;span class="o"&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="o"&gt;[&lt;/span&gt;computeRHS&lt;span class="o"&gt;]&lt;/span&gt; Total: 2.227 ms
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;blockquote class="border-l-4 border-neutral-300 dark:border-neutral-600 pl-4 italic text-neutral-600 dark:text-neutral-400 my-6"&gt;
+&lt;p&gt;The execution time of solving EOS using the bisection method is unacceptable, as it is already comparable to the time for computing the right-hand side (single precision). We need an algorithm with faster convergence.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;hr&gt;
+&lt;h2 id="4-newton-raphson-method"&gt;4. Newton-Raphson Method&lt;/h2&gt;
+&lt;p&gt;The Newton-Raphson method is an efficient iterative algorithm for finding roots of nonlinear equations. For a general equation $f(x) = 0$, assuming we know its approximate root $x_n$ and the derivative $f'(x_n) \neq 0$, this method draws a tangent to the curve at $(x_n, f(x_n))$ and uses the intersection of the tangent with the x-axis as the next approximate root. The standard iteration formula is:&lt;/p&gt;
+$$x_{n+1} = x_n - \frac{f(x_n)}{f'(x_n)}$$&lt;p&gt;Newton&amp;rsquo;s method has the excellent property of &lt;strong&gt;second-order convergence&lt;/strong&gt; near the root, meaning the number of significant digits approximately doubles with each iteration, and the convergence speed is much faster than the bisection method.&lt;/p&gt;
+&lt;p&gt;Returning to our porosity model, the objective equation to solve is $F(\alpha) = 0$, so the corresponding Newton iteration formula is:&lt;/p&gt;
+$$\alpha_{k+1} = \alpha_k - \frac{F(\alpha_k)}{F'(\alpha_k)}$$&lt;p&gt;To implement this iteration process, the core lies in calculating the nonlinear derivative of the objective function with respect to porosity $F'(\alpha) = \frac{dF}{d\alpha}$. Using the chain rule to expand it:&lt;/p&gt;
+$$\frac{dF}{d\alpha} = 1 - \frac{d\alpha_{\text{curve}}}{dP} \cdot \frac{dP}{d\alpha}$$&lt;hr&gt;
+&lt;h3 id="41-derivative-of-compaction-curve"&gt;4.1 Derivative of Compaction Curve $\displaystyle \frac{d\alpha_{\text{curve}}}{dP}$&lt;/h3&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th style="text-align: left"&gt;Stage&lt;/th&gt;
+&lt;th style="text-align: left"&gt;Derivative&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;Elastic or full compaction stage, or in &lt;strong&gt;unloading state&lt;/strong&gt; ($\alpha_{\text{curve}} &gt; \alpha_{\text{old}}$)&lt;/td&gt;
+&lt;td style="text-align: left"&gt;$\displaystyle \frac{d\alpha_{\text{curve}}}{dP} = 0$&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;In plastic crushing stage and in &lt;strong&gt;loading state&lt;/strong&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;$\displaystyle \frac{d\alpha_{\text{curve}}}{dP} = -2 \frac{(\alpha_0 - 1.0)(P_s - P)}{(P_s - P_e)^2}$&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;hr&gt;
+&lt;h3 id="42-derivative-of-pressure-with-respect-to-porosity"&gt;4.2 Derivative of Pressure with Respect to Porosity $\displaystyle \frac{dP}{d\alpha}$&lt;/h3&gt;
+&lt;p&gt;Given $P = \frac{P_{\text{eos}}(\alpha \rho, e)}{\alpha}$, taking the derivative with respect to $\alpha$:&lt;/p&gt;
+$$\frac{dP}{d\alpha} = \frac{\alpha \cdot \frac{d P_{\text{eos}}}{d\alpha} - P_{\text{eos}}}{\alpha^2}$$&lt;p&gt;According to the chain rule, $\frac{d P_{\text{eos}}}{d\alpha} = \frac{\partial P_{\text{eos}}}{\partial \rho_s} \cdot \frac{d \rho_s}{d\alpha} = \frac{\partial P_{\text{eos}}}{\partial \rho_s} \cdot \rho$.&lt;/p&gt;
+&lt;p&gt;Define $\frac{\partial P_{\text{eos}}}{\partial \rho_s}$ as &lt;code&gt;dpdrho&lt;/code&gt; (provided directly by the Tillotson EOS), then:&lt;/p&gt;
+$$\frac{dP}{d\alpha} = \frac{\text{dpdrho} \cdot \rho}{\alpha} - \frac{P}{\alpha}$$&lt;hr&gt;
+&lt;h2 id="5-challenges-encountered-oscillation"&gt;5. Challenges Encountered: Oscillation&lt;/h2&gt;
+&lt;p&gt;&lt;strong&gt;At the moment of impact, particles may be near physical boundaries (such as the elastic limit $P_e$).&lt;/strong&gt;&lt;/p&gt;
+&lt;h3 id="51-problem-description"&gt;5.1 Problem Description&lt;/h3&gt;
+&lt;ol&gt;
+&lt;li&gt;&lt;strong&gt;Loading step&lt;/strong&gt;: High pressure $\to$ large derivative $\to$ Newton step too large $\to$ crosses the boundary into the unloading region.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Unloading step&lt;/strong&gt;: Enters unloading region $\to$ derivative suddenly becomes 0 $\to$ correction step bounces back to loading region.&lt;/li&gt;
+&lt;/ol&gt;
+&lt;blockquote class="border-l-4 border-neutral-300 dark:border-neutral-600 pl-4 italic text-neutral-600 dark:text-neutral-400 my-6"&gt;
+&lt;p&gt;This change caused by discontinuous derivatives results in Newton&amp;rsquo;s method &lt;strong&gt;cycling infinitely&lt;/strong&gt; between two points and failing to converge.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;
+&lt;figure &gt;
+&lt;div class="flex justify-center "&gt;
+&lt;div class="w-full" &gt;
+&lt;img alt="Newton Iteration Oscillation"
+srcset="https://yekq.top/blog/gasphia/p-alpha-porosity-model/ns_pingpong_hu_d336734e9c18ac7e.webp 320w, https://yekq.top/blog/gasphia/p-alpha-porosity-model/ns_pingpong_hu_e141db132604a520.webp 480w, https://yekq.top/blog/gasphia/p-alpha-porosity-model/ns_pingpong_hu_48b2088024c30dae.webp 760w"
+sizes="(max-width: 480px) 100vw, (max-width: 768px) 90vw, (max-width: 1024px) 80vw, 760px"
+src="https://yekq.top/blog/gasphia/p-alpha-porosity-model/ns_pingpong_hu_d336734e9c18ac7e.webp"
+width="760"
+height="501"
+loading="lazy" data-zoomable /&gt;&lt;/div&gt;
+&lt;/div&gt;&lt;/figure&gt;
+&lt;/p&gt;
+&lt;p&gt;The figure shows the situation where, in the early stage of simulation, some particles, after receiving a slight amount of pressure, the Newton iteration oscillates and cannot converge.&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id="6-solution-safe-newton-method"&gt;6. Solution: Safe Newton Method&lt;/h2&gt;
+&lt;p&gt;To balance the speed of Newton&amp;rsquo;s method with the stability of the bisection method, a hybrid algorithm with &lt;strong&gt;dynamic interval shrinking&lt;/strong&gt; is introduced.&lt;/p&gt;
+&lt;h3 id="61-algorithm-logic"&gt;6.1 Algorithm Logic&lt;/h3&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th style="text-align: left"&gt;Step&lt;/th&gt;
+&lt;th style="text-align: left"&gt;Operation&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;1&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;strong&gt;Maintain interval&lt;/strong&gt;: Initialize the safe interval $[a, b] = [1.0, \alpha_{\text{old}}]$&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;2&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;strong&gt;Interval tightening&lt;/strong&gt;: If $F(\alpha_k) &gt; 0$, set $b = \alpha_k$; if $F(\alpha_k) &lt; 0$, set $a = \alpha_k$&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;3&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;strong&gt;Decision interception&lt;/strong&gt;: Calculate the Newton step $\alpha_{\text{new}} = \alpha_k - \frac{F(\alpha_k)}{F'(\alpha_k)}$. If $\alpha_{\text{new}}$ falls outside the open interval $(a, b)$, it indicates Newton&amp;rsquo;s method has failed&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;4&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;strong&gt;Degradation handling&lt;/strong&gt;: In this case, force the bisection method $\alpha_{\text{new}} = \frac{a + b}{2}$&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;5&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;strong&gt;Fallback strategy&lt;/strong&gt;: If Newton&amp;rsquo;s method fails to find a solution within the specified iteration steps, the solver will call the bisection method to solve&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;
+&lt;figure &gt;
+&lt;div class="flex justify-center "&gt;
+&lt;div class="w-full" &gt;
+&lt;img alt="Safe Newton Iteration"
+srcset="https://yekq.top/blog/gasphia/p-alpha-porosity-model/ns_final_hu_82374601e440dc69.webp 320w, https://yekq.top/blog/gasphia/p-alpha-porosity-model/ns_final_hu_b23008225d92126c.webp 480w, https://yekq.top/blog/gasphia/p-alpha-porosity-model/ns_final_hu_d564baf78e11669f.webp 760w"
+sizes="(max-width: 480px) 100vw, (max-width: 768px) 90vw, (max-width: 1024px) 80vw, 760px"
+src="https://yekq.top/blog/gasphia/p-alpha-porosity-model/ns_final_hu_82374601e440dc69.webp"
+width="760"
+height="500"
+loading="lazy" data-zoomable /&gt;&lt;/div&gt;
+&lt;/div&gt;&lt;/figure&gt;
+&lt;/p&gt;
+&lt;blockquote class="border-l-4 border-neutral-300 dark:border-neutral-600 pl-4 italic text-neutral-600 dark:text-neutral-400 my-6"&gt;
+&lt;p&gt;Under the same initial conditions, compared to the oscillation situation, the solver can now accurately jump out of the oscillation interval and find the solution.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;h3 id="62-performance-comparison"&gt;6.2 Performance Comparison&lt;/h3&gt;
+&lt;p&gt;In terms of efficiency, it is &lt;strong&gt;ten times faster&lt;/strong&gt; than the bisection method at around 2.8ms. Compared to the execution time of the SPH right-hand side function at around 2.4ms, the EOS now only takes one-tenth of that time.&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;$ grep &lt;span class="s2"&gt;&amp;#34;calPressureSoundSpeed&amp;#34;&lt;/span&gt; run.log &lt;span class="p"&gt;|&lt;/span&gt; tail -n &lt;span class="m"&gt;20&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;calPressureSoundSpeed_newton execution time: 0.237 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;calPressureSoundSpeed_newton execution time: 0.237 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;calPressureSoundSpeed_newton execution time: 0.236 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;calPressureSoundSpeed_newton execution time: 0.236 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;calPressureSoundSpeed_newton execution time: 0.228 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;calPressureSoundSpeed_newton execution time: 0.237 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;calPressureSoundSpeed_newton execution time: 0.242 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;calPressureSoundSpeed_newton execution time: 0.234 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;calPressureSoundSpeed_newton execution time: 0.240 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;calPressureSoundSpeed_newton execution time: 0.231 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;calPressureSoundSpeed_newton execution time: 0.234 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;calPressureSoundSpeed_newton execution time: 0.234 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;calPressureSoundSpeed_newton execution time: 0.233 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;calPressureSoundSpeed_newton execution time: 0.238 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;calPressureSoundSpeed_newton execution time: 0.229 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;calPressureSoundSpeed_newton execution time: 0.236 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;calPressureSoundSpeed_newton execution time: 0.238 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;calPressureSoundSpeed_newton execution time: 0.236 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;calPressureSoundSpeed_newton execution time: 0.239 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;calPressureSoundSpeed_newton execution time: 0.231 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;...
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;$ tail -n &lt;span class="m"&gt;10&lt;/span&gt; run.log
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; └─ Sub2: 0.050 ms &lt;span class="o"&gt;(&lt;/span&gt; 2.3%&lt;span class="o"&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="o"&gt;[&lt;/span&gt;computeRHS&lt;span class="o"&gt;]&lt;/span&gt; Total: 2.420 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; ├─ Press: 0.000 ms &lt;span class="o"&gt;(&lt;/span&gt; 0.0%&lt;span class="o"&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; ├─ Corr: 1.026 ms &lt;span class="o"&gt;(&lt;/span&gt;42.4%&lt;span class="o"&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; ├─ Sub1: 1.352 ms &lt;span class="o"&gt;(&lt;/span&gt;55.9%&lt;span class="o"&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; └─ Sub2: 0.042 ms &lt;span class="o"&gt;(&lt;/span&gt; 1.7%&lt;span class="o"&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;calPressureSoundSpeed_newton execution time: 0.207 ms
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;hr&gt;
+&lt;h2 id="7-final-results-and-physical-verification"&gt;7. Final Results and Physical Verification&lt;/h2&gt;
+&lt;h3 id="71-compaction-curve-verification"&gt;7.1 Compaction Curve Verification&lt;/h3&gt;
+&lt;p&gt;
+&lt;figure &gt;
+&lt;div class="flex justify-center "&gt;
+&lt;div class="w-full" &gt;
+&lt;img alt="Simulation successfully reproduces the compaction curve"
+srcset="https://yekq.top/blog/gasphia/p-alpha-porosity-model/crushcurvepng_hu_3d44387f0df98034.webp 320w, https://yekq.top/blog/gasphia/p-alpha-porosity-model/crushcurvepng_hu_9657b2cb0b2d1f4.webp 480w, https://yekq.top/blog/gasphia/p-alpha-porosity-model/crushcurvepng_hu_6f829ae12f808250.webp 760w"
+sizes="(max-width: 480px) 100vw, (max-width: 768px) 90vw, (max-width: 1024px) 80vw, 760px"
+src="https://yekq.top/blog/gasphia/p-alpha-porosity-model/crushcurvepng_hu_3d44387f0df98034.webp"
+width="760"
+height="477"
+loading="lazy" data-zoomable /&gt;&lt;/div&gt;
+&lt;/div&gt;&lt;/figure&gt;
+&lt;/p&gt;
+&lt;p&gt;The red dashed line in the figure is the theoretical compaction curve, and the scattered points are the simulation output from GASPHiA. As time progresses, pressure causes proper pore compaction; after pressure is released, the porosity remains strictly unchanged, without any unphysical rebound phenomena. This fundamentally verifies that the irreversible logic implementation of the P-alpha model is completely accurate.&lt;/p&gt;
+&lt;hr&gt;
+&lt;h3 id="72-macroscopic-experiment-comparison"&gt;7.2 Macroscopic Experiment Comparison&lt;/h3&gt;
+&lt;p&gt;
+&lt;figure &gt;
+&lt;div class="flex justify-center "&gt;
+&lt;div class="w-full" &gt;
+&lt;img alt="Replication and comparison of impact results from the paper"
+srcset="https://yekq.top/blog/gasphia/p-alpha-porosity-model/compare_hu_a4445ed4a184fc0b.webp 320w, https://yekq.top/blog/gasphia/p-alpha-porosity-model/compare_hu_dd8f668435520cc3.webp 480w, https://yekq.top/blog/gasphia/p-alpha-porosity-model/compare_hu_2ec18410382a5b51.webp 760w"
+sizes="(max-width: 480px) 100vw, (max-width: 768px) 90vw, (max-width: 1024px) 80vw, 760px"
+src="https://yekq.top/blog/gasphia/p-alpha-porosity-model/compare_hu_a4445ed4a184fc0b.webp"
+width="760"
+height="259"
+loading="lazy" data-zoomable /&gt;&lt;/div&gt;
+&lt;/div&gt;&lt;/figure&gt;
+&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Figures a, b: Experimental results and benchmark simulation results from Jutzi et al. 2009.&lt;/li&gt;
+&lt;li&gt;Figure c: Simulation results from GASPHiA.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;blockquote class="border-l-4 border-neutral-300 dark:border-neutral-600 pl-4 italic text-neutral-600 dark:text-neutral-400 my-6"&gt;
+&lt;p&gt;It can be seen that the physical morphology output by GASPHiA highly matches the original experiments and benchmark papers.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;
+&lt;figure &gt;
+&lt;div class="flex justify-center "&gt;
+&lt;div class="w-full" &gt;
+&lt;img alt="Comparison of fragment mass cumulative distribution curves"
+srcset="https://yekq.top/blog/gasphia/p-alpha-porosity-model/porous_cm_hu_9b57da9843871f6f.webp 320w, https://yekq.top/blog/gasphia/p-alpha-porosity-model/porous_cm_hu_ff5fe8c5b9c1fad.webp 480w, https://yekq.top/blog/gasphia/p-alpha-porosity-model/porous_cm_hu_3a6c6ccf08cdc862.webp 760w"
+sizes="(max-width: 480px) 100vw, (max-width: 768px) 90vw, (max-width: 1024px) 80vw, 760px"
+src="https://yekq.top/blog/gasphia/p-alpha-porosity-model/porous_cm_hu_9b57da9843871f6f.webp"
+width="760"
+height="474"
+loading="lazy" data-zoomable /&gt;&lt;/div&gt;
+&lt;/div&gt;&lt;/figure&gt;
+&lt;/p&gt;
+&lt;p&gt;Post-process analysis of the impact results, extracting fragment cumulative mass distribution data:&lt;/p&gt;
+&lt;blockquote class="border-l-4 border-neutral-300 dark:border-neutral-600 pl-4 italic text-neutral-600 dark:text-neutral-400 my-6"&gt;
+&lt;p&gt;The maximum residual fragment mass ratio calculated by GASPHiA is 11.67%, which has small error compared with the real experimental data of 9.96% given by the laboratory, further verifying the reliability of the core computational logic of the porous material solver.&lt;/p&gt;
+&lt;/blockquote&gt;</description></item><item><title>Aluminum Mie-Gruneisen Hugoniot Validation - GASPHiA Test Case</title><link>https://yekq.top/en/blog/gasphia/aluminum-mie-gruneisen-hugoniot/</link><pubDate>Tue, 26 May 2026 12:30:00 +0800</pubDate><guid>https://yekq.top/en/blog/gasphia/aluminum-mie-gruneisen-hugoniot/</guid><description>&lt;h1 id="aluminum-mie-gruneisen-hugoniot-validation"&gt;Aluminum Mie-Gruneisen Hugoniot Validation&lt;/h1&gt;
+&lt;h2 id="overview"&gt;Overview&lt;/h2&gt;
+&lt;p&gt;This case validates the correctness of the &lt;strong&gt;Mie-Gruneisen equation of state&lt;/strong&gt; implementation for aluminum impact response in GASPHiA. The approach: apply a rigid piston at the right end of a 1D rod, sweep multiple piston velocities &lt;code&gt;U_p&lt;/code&gt;, and extract from simulation results:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Shock wave speed &lt;code&gt;U_s&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;Post-wave pressure plateau &lt;code&gt;P&lt;/code&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;These are compared against the theoretical Hugoniot relations:&lt;/p&gt;
+$$
+U_s = c_0 + sU_p, \qquad P = \rho_0 U_s U_p
+$$&lt;p&gt;The case swept five velocities — &lt;code&gt;500, 1000, 2000, 3000, 5000 m/s&lt;/code&gt; — with stable results overall:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;U_s&lt;/code&gt; relative error range: &lt;code&gt;0.07% - 1.60%&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;P&lt;/code&gt; relative error range: &lt;code&gt;0.30% - 1.15%&lt;/code&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;hr&gt;
+&lt;h2 id="validation-objective"&gt;Validation Objective&lt;/h2&gt;
+&lt;p&gt;Unlike the elastic uniaxial strain wave case, the focus here shifts from linear-elastic wave speed and deviatoric stress plateau to &lt;strong&gt;post-shock thermodynamic response&lt;/strong&gt;. For a given material model, the states before and after the shock must lie on the corresponding Hugoniot curve to ensure thermodynamic consistency.&lt;/p&gt;
+&lt;p&gt;This case uses a 1D aluminum target and a right-side moving rigid piston, generating shocks of varying strength through different piston velocities. For each velocity case, the post-processing steps are:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;Fit the shock front position from multiple output frames to obtain the numerical wave speed &lt;code&gt;U_s&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;Average pressure and particle velocity on the stable post-wave plateau to obtain numerical &lt;code&gt;P&lt;/code&gt; and &lt;code&gt;U_p&lt;/code&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;hr&gt;
+&lt;h2 id="theoretical-relations"&gt;Theoretical Relations&lt;/h2&gt;
+&lt;p&gt;The linear Mie-Gruneisen Hugoniot relation for aluminum used in this case is:&lt;/p&gt;
+$$
+U_s = c_0 + sU_p
+$$$$
+P = \rho_0 U_s U_p
+$$&lt;p&gt;Parameter values:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Initial density: &lt;code&gt;\rho_0 = 2700 kg/m^3&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;Bulk sound speed: &lt;code&gt;c_0 = 5328 m/s&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;Hugoniot linear slope: &lt;code&gt;s = 1.338&lt;/code&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Within this validation framework, the numerical results should answer two questions:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;Does the fitted &lt;code&gt;U_s&lt;/code&gt; align with the theoretical line &lt;code&gt;U_s = c_0 + sU_p&lt;/code&gt;?&lt;/li&gt;
+&lt;li&gt;Does the extracted post-wave pressure &lt;code&gt;P&lt;/code&gt; follow the theoretical curve &lt;code&gt;P = \rho_0 U_s U_p&lt;/code&gt;?&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;If both hold, the basic Hugoniot response of the EOS can be considered reliable.&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id="how-to-run"&gt;How to Run&lt;/h2&gt;
+&lt;p&gt;Test directory:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;GASPHiA-Tests/AluminumMieGruneisenHugoniot
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Run with:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;./run_all.sh --source-dir /path/to/GASPHiA --cuda &lt;span class="m"&gt;0&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;The script automatically performs the following steps:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;Compile the input generator &lt;code&gt;gen_input_hugoniot&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;Compile GASPHiA using the local &lt;code&gt;para.cuh&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;Run five piston velocity cases — &lt;code&gt;500, 1000, 2000, 3000, 5000 m/s&lt;/code&gt; — sequentially&lt;/li&gt;
+&lt;li&gt;Archive each set of outputs to &lt;code&gt;output_sweep/output_V*/&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;Extract &lt;code&gt;U_s&lt;/code&gt;, &lt;code&gt;U_p&lt;/code&gt;, and &lt;code&gt;P&lt;/code&gt; and generate Hugoniot comparison plots&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;Consistent with other validation cases, this case references its own compilation parameters via &lt;code&gt;PARA_CUH&lt;/code&gt; without modifying parameter files in the main source tree.&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id="result-interpretation"&gt;Result Interpretation&lt;/h2&gt;
+&lt;h3 id="u_s---u_p-relation"&gt;&lt;code&gt;U_s - U_p&lt;/code&gt; Relation&lt;/h3&gt;
+&lt;p&gt;
+&lt;figure &gt;
+&lt;div class="flex justify-center "&gt;
+&lt;div class="w-full" &gt;
+&lt;img alt="Hugoniot Us-Up Validation"
+srcset="https://yekq.top/blog/gasphia/aluminum-mie-gruneisen-hugoniot/Hugoniot_Us_Up_hu_78d70beadb0bcc29.webp 320w, https://yekq.top/blog/gasphia/aluminum-mie-gruneisen-hugoniot/Hugoniot_Us_Up_hu_4f5eed8d107b0430.webp 480w, https://yekq.top/blog/gasphia/aluminum-mie-gruneisen-hugoniot/Hugoniot_Us_Up_hu_11dfa6bc91be4bf9.webp 760w"
+sizes="(max-width: 480px) 100vw, (max-width: 768px) 90vw, (max-width: 1024px) 80vw, 760px"
+src="https://yekq.top/blog/gasphia/aluminum-mie-gruneisen-hugoniot/Hugoniot_Us_Up_hu_78d70beadb0bcc29.webp"
+width="760"
+height="608"
+loading="lazy" data-zoomable /&gt;&lt;/div&gt;
+&lt;/div&gt;&lt;/figure&gt;
+&lt;/p&gt;
+&lt;p&gt;The core message of this plot: simulation-extracted shock speed points lie essentially along the theoretical line with no systematic deviation. For shock wave problems, this is the fundamental checkpoint for verifying whether the EOS wave speed response is correct.&lt;/p&gt;
+&lt;h3 id="p---u_p-relation"&gt;&lt;code&gt;P - U_p&lt;/code&gt; Relation&lt;/h3&gt;
+&lt;p&gt;
+&lt;figure &gt;
+&lt;div class="flex justify-center "&gt;
+&lt;div class="w-full" &gt;
+&lt;img alt="Hugoniot P-Up Validation"
+srcset="https://yekq.top/blog/gasphia/aluminum-mie-gruneisen-hugoniot/Hugoniot_P_Up_hu_8f39a077e075ad45.webp 320w, https://yekq.top/blog/gasphia/aluminum-mie-gruneisen-hugoniot/Hugoniot_P_Up_hu_7bf58de599a9c9a8.webp 480w, https://yekq.top/blog/gasphia/aluminum-mie-gruneisen-hugoniot/Hugoniot_P_Up_hu_a54fd0b9a226a98.webp 760w"
+sizes="(max-width: 480px) 100vw, (max-width: 768px) 90vw, (max-width: 1024px) 80vw, 760px"
+src="https://yekq.top/blog/gasphia/aluminum-mie-gruneisen-hugoniot/Hugoniot_P_Up_hu_8f39a077e075ad45.webp"
+width="760"
+height="622"
+loading="lazy" data-zoomable /&gt;&lt;/div&gt;
+&lt;/div&gt;&lt;/figure&gt;
+&lt;/p&gt;
+&lt;p&gt;This plot shows the post-wave pressure plateau. Compared to wave front position, post-wave pressure is more sensitive to the EOS thermodynamic output. The simulation points show good agreement with the theoretical curve, indicating high consistency between post-wave pressure extraction and EOS response.&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id="actual-run-data"&gt;Actual Run Data&lt;/h2&gt;
+&lt;p&gt;The velocity sweep results are as follows:&lt;/p&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th style="text-align: left"&gt;Case Piston Velocity&lt;/th&gt;
+&lt;th style="text-align: left"&gt;Numerical &lt;code&gt;Up&lt;/code&gt;&lt;/th&gt;
+&lt;th style="text-align: left"&gt;Theoretical &lt;code&gt;Us&lt;/code&gt;&lt;/th&gt;
+&lt;th style="text-align: left"&gt;Numerical &lt;code&gt;Us&lt;/code&gt;&lt;/th&gt;
+&lt;th style="text-align: left"&gt;&lt;code&gt;Us&lt;/code&gt; Relative Error&lt;/th&gt;
+&lt;th style="text-align: left"&gt;Theoretical &lt;code&gt;P&lt;/code&gt;&lt;/th&gt;
+&lt;th style="text-align: left"&gt;Numerical &lt;code&gt;P&lt;/code&gt;&lt;/th&gt;
+&lt;th style="text-align: left"&gt;&lt;code&gt;P&lt;/code&gt; Relative Error&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;500 m/s&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;500.04 m/s&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;5997.00 m/s&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;6093.02 m/s&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;1.60%&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;8.096 GPa&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;8.032 GPa&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;-0.79%&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;1000 m/s&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;1000.02 m/s&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;6666.00 m/s&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;6659.35 m/s&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;-0.10%&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;17.998 GPa&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;18.052 GPa&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;0.30%&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;2000 m/s&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;1999.93 m/s&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;8004.00 m/s&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;7933.33 m/s&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;-0.88%&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;43.222 GPa&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;43.719 GPa&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;1.15%&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;3000 m/s&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;2999.66 m/s&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;9342.00 m/s&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;9319.76 m/s&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;-0.24%&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;75.670 GPa&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;75.895 GPa&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;0.30%&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;5000 m/s&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;4999.44 m/s&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;12018.00 m/s&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;12009.28 m/s&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;-0.07%&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;162.243 GPa&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;162.792 GPa&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;0.34%&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;Two conclusions can be drawn from the table:&lt;/p&gt;
+&lt;p&gt;First, the piston velocity plateau extraction is stable, with numerical &lt;code&gt;Up&lt;/code&gt; values very close to the set values, indicating that the post-wave plateau identification region is reasonably chosen. Second, neither of the two core quantities — &lt;code&gt;Us&lt;/code&gt; and &lt;code&gt;P&lt;/code&gt; — diverges as shock strength increases, demonstrating that this implementation maintains good consistency across the entire velocity range, not just for a single low-velocity case.&lt;/p&gt;</description></item><item><title>Strain-Based Porosity Model (ε-α Model)</title><link>https://yekq.top/en/blog/gasphia/eplison-alpha-porosity-model/</link><pubDate>Fri, 17 Apr 2026 10:00:00 +0800</pubDate><guid>https://yekq.top/en/blog/gasphia/eplison-alpha-porosity-model/</guid><description>&lt;h2 id="1-what-problem-does-the-model-solve"&gt;1. What Problem Does the Model Solve?&lt;/h2&gt;
+&lt;p&gt;Under impact (e.g., meteorite impact) or explosive loading, porous materials (sand, rubble pile, etc.) behave completely differently from dense materials. Most of the pressure is used for pore compaction, and the pore compaction releases large amounts of heat, causing expansion. In summary, when impacting porous materials, the following characteristics are observed:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Absorbs large amounts of energy&lt;/li&gt;
+&lt;li&gt;Generates localized high temperatures&lt;/li&gt;
+&lt;li&gt;Significantly weakens shock wave strength&lt;/li&gt;
+&lt;li&gt;Ultimately affects crater size and morphology&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;The traditional P-α model uses pressure P directly to drive compaction, requiring iterative solving of α and P (though I have implemented an iterative-free P-α model based on the literature).&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Core feature of the ε-α model&lt;/strong&gt;: Uses volumetric strain \(\epsilon_V\) to directly drive compaction, decoupling α from P — first update α, then calculate P.&lt;/p&gt;
+&lt;h2 id="2-basic-physical-quantities"&gt;2. Basic Physical Quantities&lt;/h2&gt;
+&lt;p&gt;Since astronomical impacts involve high pressures and large volumetric strains, the elastic compaction phase is generally ignored, and plastic compaction (irreversible) is entered directly. For more details on the elastic compaction phase, refer to papers [1][2].&lt;/p&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th&gt;Symbol&lt;/th&gt;
+&lt;th&gt;Meaning&lt;/th&gt;
+&lt;th&gt;Formula&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td&gt;\(\phi\)&lt;/td&gt;
+&lt;td&gt;Porosity&lt;/td&gt;
+&lt;td&gt;\(\phi = V_{\mathrm{V}} / V\)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;\(\alpha\)&lt;/td&gt;
+&lt;td&gt;Distension&lt;/td&gt;
+&lt;td&gt;\(\alpha = 1/(1-\phi) = \rho_{\mathrm{S}} / \rho\)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;\(\rho\)&lt;/td&gt;
+&lt;td&gt;Bulk density&lt;/td&gt;
+&lt;td&gt;\(\rho = \rho_{\mathrm{S}} / \alpha\)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;\(\epsilon_V\)&lt;/td&gt;
+&lt;td&gt;Volumetric strain&lt;/td&gt;
+&lt;td&gt;\(\epsilon_V = \ln(V/V_0)\)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;Notes:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;No porosity: \(\alpha = 1\)&lt;/li&gt;
+&lt;li&gt;50% porosity: \(\alpha = 2\)&lt;/li&gt;
+&lt;li&gt;Under compression, V decreases → \(\epsilon_V &lt; 0\)&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2 id="3-basic-assumptions-of-the-model"&gt;3. Basic Assumptions of the Model&lt;/h2&gt;
+&lt;ol&gt;
+&lt;li&gt;&lt;strong&gt;Compaction is irreversible&lt;/strong&gt;: α remains unchanged during unloading (no rebound)&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Compaction rate controlled by strain&lt;/strong&gt;: \(\mathrm{d}\alpha/\mathrm{d}\epsilon_V\) does not directly depend on pressure&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Compaction first, then solid compression&lt;/strong&gt;: Solid compression phase only begins after pores are fully closed&lt;/li&gt;
+&lt;/ol&gt;
+&lt;h2 id="4-core-formulas"&gt;4. Core Formulas&lt;/h2&gt;
+&lt;p&gt;Since pore compaction is driven by volumetric strain, we first need to understand how to calculate volumetric strain. In SPH calculations, the volumetric strain rate \(\dot{\epsilon}_V\) can be computed from velocity divergence:&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Cartesian coordinate system&lt;/strong&gt;:&lt;/p&gt;
+$$
+\dot{\epsilon}_V = \frac{\partial u}{\partial x} + \frac{\partial v}{\partial y} + \frac{\partial w}{\partial z}
+$$&lt;p&gt;where \(u, v, w\) are velocity components in the \(x, y, z\) directions respectively.&lt;/p&gt;
+&lt;p&gt;Paper [1] gives the axisymmetric cylindrical coordinate form:&lt;/p&gt;
+$$
+\dot{\epsilon}_V = \frac{\partial u}{\partial r} + \frac{u}{r} + \frac{\partial v}{\partial z}
+$$&lt;p&gt;where \(u\) is radial velocity and \(v\) is axial velocity.&lt;/p&gt;
+&lt;p&gt;Integrating \(\dot{\epsilon}_V\) over time gives the volumetric strain \(\epsilon_V\).&lt;/p&gt;
+&lt;p&gt;Additionally, during intense compaction, pores do work that transforms into large amounts of internal energy (heat). The temperature rise causes thermal expansion of the matrix material. Paper [2] improved the \(\epsilon\)-\(\alpha\) model by considering this &amp;ldquo;rebound&amp;rdquo; effect of internal energy increase on volumetric strain (i.e., thermal expansion partially offsets mechanical compaction). To obtain the effective volumetric strain rate that truly drives pore compaction, the thermal expansion term must be subtracted from the total strain rate:&lt;/p&gt;
+$$
+\frac{d\epsilon_V}{dt} = \left( \frac{d\epsilon_V}{dt} \right)_{\mathrm{total}} - \frac{\Gamma_{s0}}{c_{s0}^2} \frac{dE}{dt}
+$$&lt;p&gt;where \(\left( \frac{d\epsilon_V}{dt} \right)_{\mathrm{total}}\) is the total strain rate calculated from velocity divergence, \(\Gamma_{s0}\) is the initial Grüneisen parameter of the matrix material, \(c_{s0}\) is the initial bulk sound speed of the matrix material, and \(E\) is the specific internal energy.&lt;/p&gt;
+&lt;p&gt;At each time step, the current phase is determined based on \(\epsilon_V\), and the corresponding \(\alpha\) value is calculated.&lt;/p&gt;
+&lt;h3 id="41-exponential-compaction-main-compaction"&gt;4.1 Exponential Compaction (Main Compaction)&lt;/h3&gt;
+&lt;p&gt;When \(\epsilon_V &lt; \epsilon_X\):&lt;/p&gt;
+$$
+\alpha = \alpha_0 \cdot e^{\kappa \epsilon_V}
+$$&lt;p&gt;where \(\kappa\) is the compaction rate, \(0 &lt; \kappa \leqslant 1\). Smaller \(\kappa\) means slower compaction (requires larger strain to close pores).&lt;/p&gt;
+&lt;h3 id="42-power-law-compaction-late-stage-hard-compaction"&gt;4.2 Power-Law Compaction (Late-Stage Hard Compaction)&lt;/h3&gt;
+&lt;p&gt;When \(\epsilon_X &lt; \epsilon_V &lt; \epsilon_C\):&lt;/p&gt;
+$$
+\alpha = 1 + (\alpha_X - 1) \left( \frac{-\epsilon_V}{-\epsilon_X} \right)^2
+$$&lt;p&gt;where:&lt;/p&gt;
+$$
+\alpha_X = \alpha_0 e^{\kappa \epsilon_X}
+$$&lt;h3 id="43-complete-compaction"&gt;4.3 Complete Compaction&lt;/h3&gt;
+&lt;p&gt;When \(\epsilon_V \leq \epsilon_C\):&lt;/p&gt;
+$$
+\alpha = 1
+$$&lt;h3 id="44-determination-of--ensuring-continuity-of-derivative"&gt;4.4 Determination of \(\epsilon_C\) (Ensuring Continuity of Derivative)&lt;/h3&gt;
+$$
+\epsilon_C = 2 \cdot \frac{1 - \alpha_X}{\kappa \alpha_X} + \epsilon_X
+$$&lt;p&gt;In practice, \(\epsilon_C\) depends only on material parameters — once \(\alpha_X\), \(\kappa\), and \(\epsilon_X\) are determined, \(\epsilon_C\) can be calculated.&lt;/p&gt;
+&lt;h3 id="45-summary-of-parameters"&gt;4.5 Summary of Parameters&lt;/h3&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th&gt;Parameter&lt;/th&gt;
+&lt;th&gt;Physical Meaning&lt;/th&gt;
+&lt;th&gt;Typical Range&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td&gt;\(\alpha_0\)&lt;/td&gt;
+&lt;td&gt;Initial distension&lt;/td&gt;
+&lt;td&gt;1.0 ~ 2.5&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;\(\kappa\)&lt;/td&gt;
+&lt;td&gt;Compaction rate&lt;/td&gt;
+&lt;td&gt;0.7 ~ 0.98&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;\(\epsilon_X\)&lt;/td&gt;
+&lt;td&gt;Transition strain (exponential → power-law)&lt;/td&gt;
+&lt;td&gt;-0.4 ~ -0.2&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;h2 id="how-to-run"&gt;How to Run&lt;/h2&gt;
+&lt;p&gt;Test directory:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;GASPHiA-Tests/Collins2011_EpsilonAlphaPorousIronHugoniot
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Run with:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;./run_all.sh --source-dir /path/to/GASPHiA --cuda &lt;span class="m"&gt;0&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;hr&gt;
+&lt;h2 id="5-model-validation"&gt;5. Model Validation&lt;/h2&gt;
+&lt;p&gt;After implementing the core computation logic described above, particularly the thermal expansion correction due to internal energy increase (subtracting the thermal strain from the total strain rate: \(d\epsilon/dt = (d\epsilon/dt)_{\text{total}} - (\Gamma_{s0}/c_{s0}^2)(dE/dt)\)), we need a standard benchmark test to verify the correctness of the implementation. For this, we choose the representative case from literature [2]: the shock Hugoniot curve calculation for porous iron with 75% initial porosity.&lt;/p&gt;
+&lt;h3 id="1-physical-background-and-why-this-case"&gt;1. Physical Background and Why This Case?&lt;/h3&gt;
+&lt;p&gt;For materials with very high porosity (&amp;gt;50%), intense shock compression transforms the pore space collapse into extremely high internal energy (heat). This extreme heating causes significant thermal expansion of the matrix (solid) material.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Limitations of the original \(\epsilon\)-\(\alpha\) model&lt;/strong&gt;: The original model assumes the matrix density is always greater than the initial density (i.e., it ignores thermal expansion). As seen in the figure, in the high-pressure region, the original model (dashed line) predicts continuously increasing density, completely failing.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Improved model&lt;/strong&gt;: After introducing the thermal volumetric strain correction, the model can reflect that at extremely high pressures, the thermal expansion effect can even exceed the mechanical compression effect, causing the macroscopic density to decrease instead of increase.&lt;/p&gt;
+&lt;h3 id="2-computational-results-and-analysis"&gt;2. Computational Results and Analysis&lt;/h3&gt;
+&lt;p&gt;In this validation calculation, we use parameters consistent with the literature (Tillotson EOS for the equation of state, porosity parameters: \(\kappa = 0.98, \epsilon_e = 0, \alpha_0 = 4\)), and compare our SPH program results with the literature data.&lt;/p&gt;
+&lt;p&gt;
+&lt;figure &gt;
+&lt;div class="flex justify-center "&gt;
+&lt;div class="w-full" &gt;
+&lt;img alt="Hugoniot curve comparison"
+srcset="https://yekq.top/blog/gasphia/eplison-alpha-porosity-model/Hugoniot_Academic_Comparison_hu_24a505a446024d89.webp 320w, https://yekq.top/blog/gasphia/eplison-alpha-porosity-model/Hugoniot_Academic_Comparison_hu_1915b81f11ac4f9d.webp 480w, https://yekq.top/blog/gasphia/eplison-alpha-porosity-model/Hugoniot_Academic_Comparison_hu_15ac725fe43f2360.webp 760w"
+sizes="(max-width: 480px) 100vw, (max-width: 768px) 90vw, (max-width: 1024px) 80vw, 760px"
+src="https://yekq.top/blog/gasphia/eplison-alpha-porosity-model/Hugoniot_Academic_Comparison_hu_24a505a446024d89.webp"
+width="760"
+height="608"
+loading="lazy" data-zoomable /&gt;&lt;/div&gt;
+&lt;/div&gt;&lt;/figure&gt;
+&lt;/p&gt;
+&lt;p&gt;Figure: Hugoniot curve for porous iron with 75% initial porosity. Horizontal axis: density (g/cc), vertical axis: pressure (GPa).&lt;/p&gt;
+&lt;p&gt;Based on the figure above, we can draw the following clear conclusions:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Captured the Hugoniot curve &amp;ldquo;inversion&amp;rdquo; phenomenon&lt;/strong&gt;: After pressure reaches about 10 GPa, our numerical results perfectly show the curve turning left. In the 10-100 GPa range, as pressure increases, material density decreases, which is caused by extreme heating-induced thermal expansion of the matrix material.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Consistent with theoretical analysis and reference hydrocode&lt;/strong&gt;: We overlaid the state points from our program with the theoretical analytical solution (solid line) of the improved \(\epsilon\)-\(\alpha\) model from the literature. As can be seen, they are in good agreement. Since paper [2] does not provide detailed EOS information, I can only speculate that some errors at low pressures may be because the paper did not use the Tillotson EOS.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;h2 id="references"&gt;References&lt;/h2&gt;
+&lt;p&gt;[1] Wünnemann K, Collins GS, Melosh HJ. A strain-based porosity model for use in hydrocode simulations of impacts and implications for transient crater growth in porous targets. Icarus. 2006 Feb 1;180(2):514-27.&lt;/p&gt;
+&lt;p&gt;[2] Collins GS, Melosh HJ, Wünnemann K. Improvements to the ɛ-α porous compaction model for simulating impacts into high-porosity solar system objects. International Journal of Impact Engineering. 2011 Jun 1;38(6):434-9.&lt;/p&gt;</description></item><item><title>Jutzi 2008 1D P-alpha Compaction Wave Validation - GASPHiA Test Case</title><link>https://yekq.top/en/blog/gasphia/jutzi2008-p-alpha-compaction-wave/</link><pubDate>Tue, 26 May 2026 14:00:00 +0800</pubDate><guid>https://yekq.top/en/blog/gasphia/jutzi2008-p-alpha-compaction-wave/</guid><description>&lt;h1 id="jutzi-2008-1d-p-alpha-compaction-wave-validation"&gt;Jutzi 2008 1D P-alpha Compaction Wave Validation&lt;/h1&gt;
+&lt;h2 id="overview"&gt;Overview&lt;/h2&gt;
+&lt;p&gt;This case reproduces the 1D porous aluminum compaction wave test from Jutzi et al. (2008) Section 5.1, comparing the following physical quantities at a fixed time against the paper&amp;rsquo;s SPH curves and the analytical solution:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Pressure distribution&lt;/li&gt;
+&lt;li&gt;Distension &lt;code&gt;alpha&lt;/code&gt; distribution&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;This type of test is used to examine the performance of the p-alpha model in terms of &lt;strong&gt;wave front structure, compaction zone thickness, and post-wave compaction degree&lt;/strong&gt;.&lt;/p&gt;
+&lt;p&gt;This run used &lt;code&gt;shock_00350.h5&lt;/code&gt; as the reference frame. Extracted results:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Material 0 particle count: &lt;code&gt;400&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;Pressure range: ~&lt;code&gt;1.07e-01 Pa&lt;/code&gt; to &lt;code&gt;5.07e+09 Pa&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;Distension range: &lt;code&gt;1.0&lt;/code&gt; to &lt;code&gt;1.275&lt;/code&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;The compaction wave has driven the material from the initial porous state to a nearly fully compacted region.&lt;/p&gt;
+&lt;p&gt;
+&lt;figure &gt;
+&lt;div class="flex justify-center "&gt;
+&lt;div class="w-full" &gt;
+&lt;img alt="Jutzi 2008 Compaction Wave Validation"
+srcset="https://yekq.top/blog/gasphia/jutzi2008-p-alpha-compaction-wave/jutzi2008_compaction_wave_hu_3946a063d3c294af.webp 320w, https://yekq.top/blog/gasphia/jutzi2008-p-alpha-compaction-wave/jutzi2008_compaction_wave_hu_4ad7758bf8bfad1e.webp 480w, https://yekq.top/blog/gasphia/jutzi2008-p-alpha-compaction-wave/jutzi2008_compaction_wave_hu_fda9409607a5349b.webp 760w"
+sizes="(max-width: 480px) 100vw, (max-width: 768px) 90vw, (max-width: 1024px) 80vw, 760px"
+src="https://yekq.top/blog/gasphia/jutzi2008-p-alpha-compaction-wave/jutzi2008_compaction_wave_hu_3946a063d3c294af.webp"
+width="760"
+height="732"
+loading="lazy" data-zoomable /&gt;&lt;/div&gt;
+&lt;/div&gt;&lt;/figure&gt;
+&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id="validation-objective"&gt;Validation Objective&lt;/h2&gt;
+&lt;p&gt;The physical picture of this case: a right-side moving piston drives a compaction wave through an initially porous aluminum rod. As the wave propagates forward, the material transitions from an initial distension of&lt;/p&gt;
+$$
+\alpha_0 = 1.275
+$$&lt;p&gt;toward a denser state.&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id="how-to-run"&gt;How to Run&lt;/h2&gt;
+&lt;p&gt;Test directory:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;GASPHiA-Tests/Jutzi2008_Section5_1_PAlphaCompactionWave
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Run with:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;./run_all.sh --source-dir /path/to/GASPHiA --cuda &lt;span class="m"&gt;0&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;The default workflow executes sequentially:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;Compile and run &lt;code&gt;input/gen_input_1d.cpp&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;Compile GASPHiA using the local &lt;code&gt;para.cuh&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;Run &lt;code&gt;compaction_wave.ini&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;Read &lt;code&gt;output/shock_00350.h5&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;Output pressure / distension comparison plots&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;Note: this case&amp;rsquo;s &lt;code&gt;para.cuh&lt;/code&gt; reserves a macro specifically for reproducing the experimental path:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-cpp" data-lang="cpp"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="cp"&gt;#define JUTZI2008_5_1_reproduce_need 1
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;hr&gt;
+&lt;h2 id="result-interpretation"&gt;Result Interpretation&lt;/h2&gt;
+&lt;p&gt;The figure is divided into two panels:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Top: Pressure profile&lt;/li&gt;
+&lt;li&gt;Bottom: Distension &lt;code&gt;alpha&lt;/code&gt; profile&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Each panel simultaneously plots three curves:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;GASPHiA computed results&lt;/li&gt;
+&lt;li&gt;Paper SPH curve&lt;/li&gt;
+&lt;li&gt;Analytical reference curve&lt;/li&gt;
+&lt;/ul&gt;
+&lt;hr&gt;
+&lt;h2 id="actual-run-data"&gt;Actual Run Data&lt;/h2&gt;
+&lt;p&gt;Key metrics extracted from post-processing:&lt;/p&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th style="text-align: left"&gt;Metric&lt;/th&gt;
+&lt;th style="text-align: left"&gt;Value&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;Reference frame&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;shock_00350.h5&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;Material 0 particle count&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;400&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;Minimum pressure&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;1.07e-01 Pa&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;Maximum pressure&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;5.07e+09 Pa&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;Minimum distension&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;1.0000&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;Maximum distension&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;1.2750&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;These values validate the simulation from two perspectives:&lt;/p&gt;
+&lt;p&gt;On the one hand, the output &lt;code&gt;alpha&lt;/code&gt; covers the entire range from the initial porous state to the fully compacted state. On the other hand, the peak pressure has entered the &lt;code&gt;GPa&lt;/code&gt; range, indicating that the compaction wave is sufficiently strong and has formed a genuine compaction structure.&lt;/p&gt;</description></item><item><title>Nakamura 1991 Basalt Sphere Impact Fragmentation Validation - GASPHiA Test Case</title><link>https://yekq.top/en/blog/gasphia/nakamura1991-basalt-sphere-impact/</link><pubDate>Tue, 26 May 2026 15:20:00 +0800</pubDate><guid>https://yekq.top/en/blog/gasphia/nakamura1991-basalt-sphere-impact/</guid><description>&lt;h1 id="nakamura-1991-basalt-sphere-impact-fragmentation-validation"&gt;Nakamura 1991 Basalt Sphere Impact Fragmentation Validation&lt;/h1&gt;
+&lt;h2 id="overview"&gt;Overview&lt;/h2&gt;
+&lt;p&gt;This case reproduces the basalt sphere impact fragmentation experiment of Nakamura &amp;amp; Fujiwara (1991). The core comparison quantity is the &lt;strong&gt;cumulative fragment mass distribution&lt;/strong&gt;:&lt;/p&gt;
+&lt;blockquote class="border-l-4 border-neutral-300 dark:border-neutral-600 pl-4 italic text-neutral-600 dark:text-neutral-400 my-6"&gt;
+&lt;p&gt;Given a fragment mass threshold &lt;code&gt;M_f&lt;/code&gt;, how many fragments have mass greater than it?&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;This type of statistic is sensitive to brittle damage, fracture propagation, fragment identification, and post-processing algorithms, making it suitable as a validation standard for whether the fragmentation chain is usable.&lt;/p&gt;
+&lt;p&gt;Key data from this run:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Initial total particle count: &lt;code&gt;524065&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;Particles retained after damage threshold filtering (pre-FoF): &lt;code&gt;157751&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;Total connected fragments identified: &lt;code&gt;1594&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;Effective fragments (particle count &amp;gt; 1): &lt;code&gt;509&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;Maximum fragment mass: ~&lt;code&gt;0.262&lt;/code&gt; of the target sphere mass&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;
+&lt;figure &gt;
+&lt;div class="flex justify-center "&gt;
+&lt;div class="w-full" &gt;
+&lt;img alt="Nakamura 1991 Fragment Mass Cumulative Distribution"
+srcset="https://yekq.top/blog/gasphia/nakamura1991-basalt-sphere-impact/fragment_mass_distribution_hu_ed3e014a8a5e0989.webp 320w, https://yekq.top/blog/gasphia/nakamura1991-basalt-sphere-impact/fragment_mass_distribution_hu_bdabed5d0939f3f0.webp 480w, https://yekq.top/blog/gasphia/nakamura1991-basalt-sphere-impact/fragment_mass_distribution_hu_8a41a3dd9bc1584b.webp 760w"
+sizes="(max-width: 480px) 100vw, (max-width: 768px) 90vw, (max-width: 1024px) 80vw, 760px"
+src="https://yekq.top/blog/gasphia/nakamura1991-basalt-sphere-impact/fragment_mass_distribution_hu_ed3e014a8a5e0989.webp"
+width="760"
+height="477"
+loading="lazy" data-zoomable /&gt;&lt;/div&gt;
+&lt;/div&gt;&lt;/figure&gt;
+&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id="validation-objective"&gt;Validation Objective&lt;/h2&gt;
+&lt;ul&gt;
+&lt;li&gt;Damage model&lt;/li&gt;
+&lt;li&gt;Particles form reasonable fragment clusters after fracture&lt;/li&gt;
+&lt;li&gt;Post-processing algorithm accurately identifies fragments&lt;/li&gt;
+&lt;li&gt;Final fragment mass distribution matches experimental or literature trends&lt;/li&gt;
+&lt;/ul&gt;
+&lt;hr&gt;
+&lt;h2 id="physical-setup-and-references"&gt;Physical Setup and References&lt;/h2&gt;
+&lt;p&gt;This case is based on:&lt;/p&gt;
+&lt;blockquote class="border-l-4 border-neutral-300 dark:border-neutral-600 pl-4 italic text-neutral-600 dark:text-neutral-400 my-6"&gt;
+&lt;p&gt;Nakamura &amp;amp; Fujiwara (1991) basalt sphere impact fragmentation experiment&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;Model setup:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Target: Basalt sphere&lt;/li&gt;
+&lt;li&gt;Projectile: Lucite&lt;/li&gt;
+&lt;li&gt;Primary validation quantity: Cumulative fragment mass distribution&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Key geometric and physical quantities set in the input script:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Basalt target sphere radius: &lt;code&gt;3 cm&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;Target density: &lt;code&gt;2700 kg/m^3&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;Projectile density: &lt;code&gt;1180 kg/m^3&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;Projectile initial velocity: &lt;code&gt;3200 m/s&lt;/code&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2 id="how-to-run"&gt;How to Run&lt;/h2&gt;
+&lt;p&gt;Test directory:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;GASPHiA-Tests/Nakamura1991_BasaltSphereImpact
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;The full workflow consists of four steps:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;python input/input.py
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;./compile.sh
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="nv"&gt;CUDA_VISIBLE_DEVICES&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="m"&gt;0&lt;/span&gt; ./GASPHIA -i impact.ini
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;python post/fast_fof.py -input output_no_bals/nakamura1991_00020.h5 -outputF post/fragments.txt
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;h2 id="actual-run-data"&gt;Actual Run Data&lt;/h2&gt;
+&lt;p&gt;Key metrics extracted from this run and post-processing:&lt;/p&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th style="text-align: left"&gt;Metric&lt;/th&gt;
+&lt;th style="text-align: left"&gt;Value&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;Initial total particle count&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;524065&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;Particles participating in FoF after damage filtering&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;157751&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;Total FoF-identified fragments&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;1594&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;Effective fragments (particle count &amp;gt; 1)&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;509&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;Maximum fragment normalized mass&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;2.6208e-01&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;Minimum fragment normalized mass&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;1.6694e-06&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;Target sphere total mass&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;3.0536e-01 kg&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;Currently this case uses the von Mises yield model. Interested readers may re-run it with the Lundborg yield model; the difference between the two is approximately 1%.&lt;/p&gt;</description></item></channel></rss>

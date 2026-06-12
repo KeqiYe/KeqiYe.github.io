@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 720" role="img" aria-labelledby="title desc">
+  <title id="title">LeetGPU cover</title>
+  <desc id="desc">Abstract cover art for the LeetGPU CUDA problem solving section.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#10151c"/>
+      <stop offset="55%" stop-color="#1f2c2a"/>
+      <stop offset="100%" stop-color="#31403f"/>
+    </linearGradient>
+    <linearGradient id="bar" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#8cf06b"/>
+      <stop offset="100%" stop-color="#1ec8a5"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="720" fill="url(#bg)"/>
+  <g opacity="0.24" stroke="#8ef3d2">
+    <path d="M0 132H1200"/>
+    <path d="M0 252H1200"/>
+    <path d="M0 372H1200"/>
+    <path d="M0 492H1200"/>
+    <path d="M0 612H1200"/>
+    <path d="M120 0V720"/>
+    <path d="M300 0V720"/>
+    <path d="M480 0V720"/>
+    <path d="M660 0V720"/>
+    <path d="M840 0V720"/>
+    <path d="M1020 0V720"/>
+  </g>
+  <g>
+    <rect x="710" y="150" width="104" height="320" rx="24" fill="url(#bar)"/>
+    <rect x="842" y="220" width="104" height="250" rx="24" fill="url(#bar)"/>
+    <rect x="974" y="290" width="104" height="180" rx="24" fill="url(#bar)"/>
+    <rect x="578" y="290" width="104" height="180" rx="24" fill="url(#bar)" opacity="0.82"/>
+  </g>
+  <g fill="#d4fff3">
+    <circle cx="120" cy="508" r="14"/>
+    <circle cx="184" cy="508" r="14"/>
+    <circle cx="248" cy="508" r="14"/>
+    <circle cx="312" cy="508" r="14"/>
+    <circle cx="376" cy="508" r="14"/>
+    <circle cx="440" cy="508" r="14"/>
+    <circle cx="504" cy="508" r="14"/>
+  </g>
+  <g fill="#071411" fill-opacity="0.34">
+    <rect x="86" y="90" width="450" height="200" rx="24"/>
+  </g>
+  <text x="120" y="170" fill="#f6fff9" font-family="Helvetica, Arial, sans-serif" font-size="66" font-weight="700" letter-spacing="1">LeetGPU</text>
+  <text x="120" y="222" fill="#c8efe2" font-family="Helvetica, Arial, sans-serif" font-size="30">CUDA problem solving series</text>
+  <text x="120" y="262" fill="#c8efe2" font-family="Helvetica, Arial, sans-serif" font-size="30">kernels  memory  optimization</text>
+</svg>

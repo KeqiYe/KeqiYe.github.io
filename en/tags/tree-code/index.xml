@@ -1,0 +1,449 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Tree Code | Keqi's Blog</title><link>https://yekq.top/en/tags/tree-code/</link><atom:link href="https://yekq.top/en/tags/tree-code/index.xml" rel="self" type="application/rss+xml"/><description>Tree Code</description><generator>HugoBlox Kit (https://hugoblox.com)</generator><language>en-us</language><lastBuildDate>Tue, 07 Apr 2026 14:00:00 +0800</lastBuildDate><image><url>https://yekq.top/media/icon_hu_bf3b12c4891d2eeb.png</url><title>Tree Code</title><link>https://yekq.top/en/tags/tree-code/</link></image><item><title>Self-Gravity Tree Code Efficiency and Optimization Analysis in GASPHiA</title><link>https://yekq.top/en/blog/gasphia/treecode/</link><pubDate>Tue, 07 Apr 2026 14:00:00 +0800</pubDate><guid>https://yekq.top/en/blog/gasphia/treecode/</guid><description>&lt;iframe src="//player.bilibili.com/player.html?isOutside=true&amp;aid=116482834958240&amp;bvid=BV1u69yBGEwJ&amp;cid=37919327464&amp;p=1" scrolling="no" border="0" frameborder="no" framespacing="0" allowfullscreen="true"
+style="width: 100%; aspect-ratio: 16/9; border-radius: 8px; margin-bottom: 20px;"&gt;
+&lt;/iframe&gt;
+&lt;p align="center" style="font-size: 0.9em; color: gray; margin-top: -10px; margin-bottom: 20px;"&gt;
+&lt;em&gt; 500-Million Particle Pure Gravitational N-Body Simulation: Tidal Tail Structures from a Galaxy Collision
+This simulation is implemented using the pure N-body module of GASPHiA. The initial model was constructed with the open-source tool DICE, incorporating both a complete dark matter halo and a stellar disk component. The focus is on showcasing the process by which particles in the galactic disk evolve into characteristic tidal tails under gravitational perturbations during the interaction.&lt;/em&gt;
+&lt;/p&gt;
+&lt;h2 id="why-consider-gravity"&gt;Why Consider Gravity?&lt;/h2&gt;
+&lt;p&gt;In astrophysical SPH simulations, besides the impact process itself, the self-gravity of celestial bodies plays a crucial role in the final results. This also explains why we often do not introduce material strength models when simulating solid planet impacts, instead treating them as pure fluids. For some giant impact simulations, gravity not only requires real-time computation during the simulation but also demands solving the Poisson equation in the pre-processing stage to construct an initial celestial body in gravitational equilibrium before the impact calculation.&lt;/p&gt;
+&lt;p&gt;The gravity discussed here, namely self-gravity, refers to the mutual attractive force between SPH particles due to their mass distribution. This is entirely different from the gravity model used in hydrodynamic simulations (such as dam breaks) — the latter only needs to apply a uniform constant acceleration pointing toward the ground for each particle.&lt;/p&gt;
+&lt;h2 id="how-to-compute-self-gravity-and-why-do-we-need-a-tree-code"&gt;How to Compute Self-Gravity, and Why Do We Need a Tree Code?&lt;/h2&gt;
+&lt;p&gt;In SPH simulations, computing self-gravity essentially means solving the gravitational force on each particle. According to Newton&amp;rsquo;s law of universal gravitation, any two particles exert a gravitational force on each other. For a system with $N$ particles, computing all pairwise interactions directly requires $O(N^2)$ operations. When the number of particles in astrophysical simulations reaches millions or even tens of millions, this direct summation approach becomes completely unacceptable in terms of computational cost.&lt;/p&gt;
+&lt;p&gt;This is the core motivation for introducing the &lt;strong&gt;Tree Code&lt;/strong&gt;. The fundamental idea stems from a simple physical intuition: when a distant cluster of particles is far enough away, we don&amp;rsquo;t need to compute the contribution of each particle individually. Instead, we can approximate the entire cluster as a single equivalent mass point located at its center of mass. Through this approximation, the computational complexity can be dramatically reduced from $O(N^2)$ to $O(N\log N)$.&lt;/p&gt;
+&lt;p&gt;
+&lt;figure &gt;
+&lt;div class="flex justify-center "&gt;
+&lt;div class="w-full" &gt;
+&lt;img alt="Conceptual diagram of tree-based gravity computation, from reference [2]"
+srcset="https://yekq.top/blog/gasphia/treecode/concept_hu_304f8c4caece7885.webp 297w"
+sizes="(max-width: 480px) 100vw, (max-width: 768px) 90vw, (max-width: 1024px) 80vw, 760px"
+src="https://yekq.top/blog/gasphia/treecode/concept_hu_304f8c4caece7885.webp"
+width="297"
+height="320"
+loading="lazy" data-zoomable /&gt;&lt;/div&gt;
+&lt;/div&gt;&lt;/figure&gt;
+&lt;/p&gt;
+&lt;p&gt;The Tree Code was first proposed by Barnes and Hut[1], so the tree structure based on their work is typically called the &lt;strong&gt;Barnes-Hut Tree&lt;/strong&gt;. When implementing this data structure for CUDA architecture, GASPHiA draws from the parallel implementation approach in reference [2].&lt;/p&gt;
+&lt;p&gt;However, the method in reference [2] was designed for pure N-body simulations, where the data structure only needs to satisfy the requirements of self-gravity computation. In contrast, the SPH method not only needs to compute self-gravity but also relies on the tree structure for efficient neighbor particle searching. This fundamental difference in requirements leads to significant differences between GASPHiA&amp;rsquo;s final tree code structure and that in reference [2]. The specific differences are mainly reflected in two aspects: first, the management strategy for the number of child nodes in tree nodes; second, the warp voting mechanism during parallel tree traversal — reference [2] only needs to determine the condition for gravitational interaction, while GASPHiA, as an SPH code, must additionally integrate the logic for neighbor searching.&lt;/p&gt;
+&lt;p&gt;Despite these differences in implementation details, both approaches maintain a high degree of consistency in their core concept of spatial recursive partitioning. Therefore, readers can still use reference [2] as an important reference for understanding the underlying spatial partitioning logic.&lt;/p&gt;
+&lt;h2 id="efficiency-comparison-and-optimization"&gt;Efficiency Comparison and Optimization&lt;/h2&gt;
+&lt;h3 id="background"&gt;Background&lt;/h3&gt;
+&lt;p&gt;Currently, GASPHiA has implemented self-gravity computation based on the Barnes-Hut Tree. However, compared to reference [2], during tree traversal, the lack of spatial sorting for particles means the efficiency is certainly not as high as with spatial sorting. To intuitively demonstrate the power of the Barnes-Hut Tree, we implemented brute-force pairwise self-gravity computation as a reference, and used the efficiency without spatial sorting as a baseline to explore the efficiency improvement after including the sorting process.&lt;/p&gt;
+&lt;h3 id="computation-kernels"&gt;Computation Kernels&lt;/h3&gt;
+&lt;p&gt;The tree-based self-gravity computation consists of the following kernels:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Reset Tree Structure&lt;/strong&gt;&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-cpp" data-lang="cpp"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="kt"&gt;void&lt;/span&gt; &lt;span class="n"&gt;SPHOctree&lt;/span&gt;&lt;span class="o"&gt;::&lt;/span&gt;&lt;span class="n"&gt;resetOctree&lt;/span&gt;&lt;span class="p"&gt;()&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="p"&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="n"&gt;resetOctreeKernel&lt;/span&gt;&lt;span class="o"&gt;&amp;lt;&amp;lt;&amp;lt;&lt;/span&gt;&lt;span class="n"&gt;numBlocks&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;ThreadsPerBlock&lt;/span&gt;&lt;span class="o"&gt;&amp;gt;&amp;gt;&amp;gt;&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="k"&gt;this&lt;/span&gt;&lt;span class="o"&gt;-&amp;gt;&lt;/span&gt;&lt;span class="n"&gt;d_child&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="k"&gt;this&lt;/span&gt;&lt;span class="o"&gt;-&amp;gt;&lt;/span&gt;&lt;span class="n"&gt;d_count&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="k"&gt;this&lt;/span&gt;&lt;span class="o"&gt;-&amp;gt;&lt;/span&gt;&lt;span class="n"&gt;d_start&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="k"&gt;this&lt;/span&gt;&lt;span class="o"&gt;-&amp;gt;&lt;/span&gt;&lt;span class="n"&gt;d_sorted&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="k"&gt;this&lt;/span&gt;&lt;span class="o"&gt;-&amp;gt;&lt;/span&gt;&lt;span class="n"&gt;d_node_com_mass&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="k"&gt;this&lt;/span&gt;&lt;span class="o"&gt;-&amp;gt;&lt;/span&gt;&lt;span class="n"&gt;d_node_hmax&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="k"&gt;this&lt;/span&gt;&lt;span class="o"&gt;-&amp;gt;&lt;/span&gt;&lt;span class="n"&gt;d_mutex&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="k"&gt;this&lt;/span&gt;&lt;span class="o"&gt;-&amp;gt;&lt;/span&gt;&lt;span class="n"&gt;d_node_index&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="k"&gt;this&lt;/span&gt;&lt;span class="o"&gt;-&amp;gt;&lt;/span&gt;&lt;span class="n"&gt;num_particles&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="k"&gt;this&lt;/span&gt;&lt;span class="o"&gt;-&amp;gt;&lt;/span&gt;&lt;span class="n"&gt;max_nodes&lt;/span&gt;&lt;span class="p"&gt;);&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="n"&gt;CUDA_CHECK&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;cudaGetLastError&lt;/span&gt;&lt;span class="p"&gt;());&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="p"&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Compute Particle Bounding Box&lt;/strong&gt;&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-cpp" data-lang="cpp"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="kt"&gt;void&lt;/span&gt; &lt;span class="n"&gt;SPHOctree&lt;/span&gt;&lt;span class="o"&gt;::&lt;/span&gt;&lt;span class="n"&gt;computeBoundingBox&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;RealType4&lt;/span&gt; &lt;span class="o"&gt;*&lt;/span&gt;&lt;span class="n"&gt;d_particles&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="p"&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="n"&gt;computeMin&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;d_particles&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;d_reduceTmp&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;num_particles&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;d_bounding_box_min&lt;/span&gt;&lt;span class="p"&gt;);&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="n"&gt;computeMax&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;d_particles&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;d_reduceTmp&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;num_particles&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;d_bounding_box_max&lt;/span&gt;&lt;span class="p"&gt;);&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="n"&gt;CUDA_CHECK&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;cudaDeviceSynchronize&lt;/span&gt;&lt;span class="p"&gt;());&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="n"&gt;CUDA_CHECK&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;cudaGetLastError&lt;/span&gt;&lt;span class="p"&gt;());&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="p"&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Build Tree Top-Down&lt;/strong&gt;&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-cpp" data-lang="cpp"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="kt"&gt;void&lt;/span&gt; &lt;span class="n"&gt;SPHOctree&lt;/span&gt;&lt;span class="o"&gt;::&lt;/span&gt;&lt;span class="n"&gt;buildTree&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;RealType4&lt;/span&gt; &lt;span class="o"&gt;*&lt;/span&gt;&lt;span class="n"&gt;d_positions&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="p"&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="n"&gt;buildTreeKernel&lt;/span&gt;&lt;span class="o"&gt;&amp;lt;&amp;lt;&amp;lt;&lt;/span&gt;&lt;span class="n"&gt;numBlocks&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;ThreadsPerBlock&lt;/span&gt;&lt;span class="o"&gt;&amp;gt;&amp;gt;&amp;gt;&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="n"&gt;d_positions&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="k"&gt;this&lt;/span&gt;&lt;span class="o"&gt;-&amp;gt;&lt;/span&gt;&lt;span class="n"&gt;d_node_com_mass&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="k"&gt;this&lt;/span&gt;&lt;span class="o"&gt;-&amp;gt;&lt;/span&gt;&lt;span class="n"&gt;d_count&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="k"&gt;this&lt;/span&gt;&lt;span class="o"&gt;-&amp;gt;&lt;/span&gt;&lt;span class="n"&gt;d_start&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="k"&gt;this&lt;/span&gt;&lt;span class="o"&gt;-&amp;gt;&lt;/span&gt;&lt;span class="n"&gt;d_child&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="k"&gt;this&lt;/span&gt;&lt;span class="o"&gt;-&amp;gt;&lt;/span&gt;&lt;span class="n"&gt;d_node_index&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="k"&gt;this&lt;/span&gt;&lt;span class="o"&gt;-&amp;gt;&lt;/span&gt;&lt;span class="n"&gt;d_bounding_box_min&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="k"&gt;this&lt;/span&gt;&lt;span class="o"&gt;-&amp;gt;&lt;/span&gt;&lt;span class="n"&gt;d_bounding_box_max&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="k"&gt;this&lt;/span&gt;&lt;span class="o"&gt;-&amp;gt;&lt;/span&gt;&lt;span class="n"&gt;num_particles&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="k"&gt;this&lt;/span&gt;&lt;span class="o"&gt;-&amp;gt;&lt;/span&gt;&lt;span class="n"&gt;max_nodes&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="p"&gt;);&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="n"&gt;CUDA_CHECK&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;cudaGetLastError&lt;/span&gt;&lt;span class="p"&gt;());&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="n"&gt;CUDA_CHECK&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;cudaDeviceSynchronize&lt;/span&gt;&lt;span class="p"&gt;());&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="p"&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Compute Center of Mass&lt;/strong&gt;&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-cpp" data-lang="cpp"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="kt"&gt;void&lt;/span&gt; &lt;span class="n"&gt;SPHOctree&lt;/span&gt;&lt;span class="o"&gt;::&lt;/span&gt;&lt;span class="n"&gt;computeCenterOfMass&lt;/span&gt;&lt;span class="p"&gt;()&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="p"&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="n"&gt;computeCenterOfMassKernel&lt;/span&gt;&lt;span class="o"&gt;&amp;lt;&amp;lt;&amp;lt;&lt;/span&gt;&lt;span class="n"&gt;numBlocks&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;ThreadsPerBlock&lt;/span&gt;&lt;span class="o"&gt;&amp;gt;&amp;gt;&amp;gt;&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="k"&gt;this&lt;/span&gt;&lt;span class="o"&gt;-&amp;gt;&lt;/span&gt;&lt;span class="n"&gt;d_node_com_mass&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="k"&gt;this&lt;/span&gt;&lt;span class="o"&gt;-&amp;gt;&lt;/span&gt;&lt;span class="n"&gt;d_node_index&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="k"&gt;this&lt;/span&gt;&lt;span class="o"&gt;-&amp;gt;&lt;/span&gt;&lt;span class="n"&gt;num_particles&lt;/span&gt;&lt;span class="p"&gt;);&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="n"&gt;CUDA_CHECK&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;cudaGetLastError&lt;/span&gt;&lt;span class="p"&gt;());&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="n"&gt;CUDA_CHECK&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;cudaDeviceSynchronize&lt;/span&gt;&lt;span class="p"&gt;());&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="p"&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Compute Self-Gravity&lt;/strong&gt;&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-cpp" data-lang="cpp"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="n"&gt;computeGravityKernel&lt;/span&gt;&lt;span class="o"&gt;&amp;lt;&amp;lt;&amp;lt;&lt;/span&gt;&lt;span class="n"&gt;numBlocks&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;ThreadsPerBlock&lt;/span&gt;&lt;span class="o"&gt;&amp;gt;&amp;gt;&amp;gt;&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="n"&gt;d_positions&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="k"&gt;this&lt;/span&gt;&lt;span class="o"&gt;-&amp;gt;&lt;/span&gt;&lt;span class="n"&gt;d_node_com_mass&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="k"&gt;this&lt;/span&gt;&lt;span class="o"&gt;-&amp;gt;&lt;/span&gt;&lt;span class="n"&gt;d_child&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="n"&gt;d_accelerations&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="k"&gt;this&lt;/span&gt;&lt;span class="o"&gt;-&amp;gt;&lt;/span&gt;&lt;span class="n"&gt;d_bounding_box_min&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="k"&gt;this&lt;/span&gt;&lt;span class="o"&gt;-&amp;gt;&lt;/span&gt;&lt;span class="n"&gt;d_bounding_box_max&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="k"&gt;this&lt;/span&gt;&lt;span class="o"&gt;-&amp;gt;&lt;/span&gt;&lt;span class="n"&gt;num_particles&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="k"&gt;this&lt;/span&gt;&lt;span class="o"&gt;-&amp;gt;&lt;/span&gt;&lt;span class="n"&gt;theta&lt;/span&gt; &lt;span class="o"&gt;*&lt;/span&gt; &lt;span class="k"&gt;this&lt;/span&gt;&lt;span class="o"&gt;-&amp;gt;&lt;/span&gt;&lt;span class="n"&gt;theta&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="k"&gt;this&lt;/span&gt;&lt;span class="o"&gt;-&amp;gt;&lt;/span&gt;&lt;span class="n"&gt;constG&lt;/span&gt;&lt;span class="p"&gt;);&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;h3 id="performance-bottleneck-analysis"&gt;Performance Bottleneck Analysis&lt;/h3&gt;
+&lt;p&gt;According to reference [2], the most time-consuming part of the entire tree code workflow is the final step — traversing the tree structure to compute self-gravity. The root cause lies in the mismatch between thread access patterns and data spatial distribution: if particle data is not explicitly sorted, particles within the same Warp may be far apart in physical space. This spatial distribution scatter directly leads to severe divergence among threads within a Warp when performing pruning decisions:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-cpp" data-lang="cpp"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="kt"&gt;bool&lt;/span&gt; &lt;span class="n"&gt;mac_satisfied&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;child&lt;/span&gt; &lt;span class="o"&gt;&amp;lt;&lt;/span&gt; &lt;span class="n"&gt;n&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt; &lt;span class="o"&gt;||&lt;/span&gt; &lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="o"&gt;!&lt;/span&gt;&lt;span class="n"&gt;is_active&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt; &lt;span class="o"&gt;||&lt;/span&gt; &lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;w_sq&lt;/span&gt; &lt;span class="o"&gt;/&lt;/span&gt; &lt;span class="n"&gt;theta_sq&lt;/span&gt; &lt;span class="o"&gt;&amp;lt;&lt;/span&gt; &lt;span class="n"&gt;r_sq&lt;/span&gt;&lt;span class="p"&gt;);&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="k"&gt;if&lt;/span&gt; &lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;__all_sync&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="mh"&gt;0xffffffff&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;mac_satisfied&lt;/span&gt;&lt;span class="p"&gt;))&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="p"&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="c1"&gt;// Prune
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="p"&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;When different particles in the same Warp face their respective target nodes, some threads may satisfy the pruning condition (&lt;code&gt;mac_satisfied&lt;/code&gt; is true), while others still need to continue traversing deeper (false). Since CUDA&amp;rsquo;s Warp execution follows the single-instruction multiple-thread (SIMT) model, all threads must execute the same instruction path. Therefore, as long as any thread in the Warp does not satisfy the pruning condition — even if the majority could have terminated early — the entire Warp must enter the subsequent node drilling process. This execution path divergence caused by differences in data dependencies between threads greatly weakens the effectiveness of the pruning mechanism, causing substantial computational resources to be wasted on unnecessary deep node visits.&lt;/p&gt;
+&lt;h3 id="performance-test-and-comparison"&gt;Performance Test and Comparison&lt;/h3&gt;
+&lt;p&gt;To verify the above analysis, I first conducted a test: discretizing a cube to obtain regularly arranged particles, using single-precision computation with 1 million particles. The test results show that traversing the tree to compute gravity is indeed the most time-consuming step:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="c1"&gt;# Shuffled (no sorting)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;Calculating Gravity on GPU &lt;span class="o"&gt;(&lt;/span&gt;Barnes-Hut, &lt;span class="nv"&gt;theta&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;0.5&lt;span class="o"&gt;)&lt;/span&gt;...
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;--- Gravity Computation Profiling ---
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; resetOctree: 11.6206 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; computeBoundingBox: 0.4268 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; buildTree: 45.4690 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; computeCoM: 0.1025 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; computeGravity: 2955.5117 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; -------------------------------------
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="c1"&gt;# Regular arrangement (equivalent to roughly sorted)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;--- Gravity Computation Profiling ---
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; resetOctree: 10.7203 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; computeBoundingBox: 0.4361 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; buildTree: 44.1606 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; computeCoM: 0.1303 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; computeGravity: 202.4100 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; -------------------------------------
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;&lt;strong&gt;Key finding&lt;/strong&gt;: The time difference reaches &lt;strong&gt;15x&lt;/strong&gt;, and the only difference is whether particles are shuffled. Without shuffling, it is equivalent to having performed sorting (since the initial particle arrangement is regular); with shuffling, time skyrockets.&lt;/p&gt;
+&lt;p&gt;Detailed Profile data is as follows:&lt;/p&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th style="text-align: left"&gt;Metric Name&lt;/th&gt;
+&lt;th style="text-align: left"&gt;Meaning&lt;/th&gt;
+&lt;th style="text-align: center"&gt;Regular&lt;/th&gt;
+&lt;th style="text-align: center"&gt;Shuffled&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;&lt;strong&gt;Elapsed Cycles&lt;/strong&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;Total GPU clock cycles consumed by Kernel&lt;/td&gt;
+&lt;td style="text-align: center"&gt;~0.29 Billion&lt;/td&gt;
+&lt;td style="text-align: center"&gt;~2.58 Billion&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;&lt;strong&gt;Duration&lt;/strong&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;Actual kernel runtime&lt;/td&gt;
+&lt;td style="text-align: center"&gt;~0.19 s&lt;/td&gt;
+&lt;td style="text-align: center"&gt;~3.10 s&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;&lt;strong&gt;SM Frequency&lt;/strong&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;Average streaming multiprocessor frequency&lt;/td&gt;
+&lt;td style="text-align: center"&gt;~1.55 GHz&lt;/td&gt;
+&lt;td style="text-align: center"&gt;~830 MHz&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;&lt;strong&gt;Compute (SM) Throughput&lt;/strong&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;Compute unit busyness&lt;/td&gt;
+&lt;td style="text-align: center"&gt;~80.4%&lt;/td&gt;
+&lt;td style="text-align: center"&gt;~79.2%&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;&lt;strong&gt;Memory Throughput&lt;/strong&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;Overall memory subsystem busyness&lt;/td&gt;
+&lt;td style="text-align: center"&gt;~61.5%&lt;/td&gt;
+&lt;td style="text-align: center"&gt;~59.0%&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;&lt;span style="color: red;"&gt;&lt;strong&gt;L2 Cache Throughput&lt;/strong&gt;&lt;/span&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;span style="color: red;"&gt;L2 cache access throughput&lt;/span&gt;&lt;/td&gt;
+&lt;td style="text-align: center"&gt;&lt;span style="color: red;"&gt;~23.9%&lt;/span&gt;&lt;/td&gt;
+&lt;td style="text-align: center"&gt;&lt;span style="color: red;"&gt;~14.1%&lt;/span&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;&lt;span style="color: red;"&gt;&lt;strong&gt;DRAM Throughput&lt;/strong&gt;&lt;/span&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;span style="color: red;"&gt;VRAM direct access throughput&lt;/span&gt;&lt;/td&gt;
+&lt;td style="text-align: center"&gt;&lt;span style="color: red;"&gt;~0.35%&lt;/span&gt;&lt;/td&gt;
+&lt;td style="text-align: center"&gt;&lt;span style="color: red;"&gt;~15.7%&lt;/span&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;&lt;strong&gt;Achieved Occupancy&lt;/strong&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;Actual active Warp ratio&lt;/td&gt;
+&lt;td style="text-align: center"&gt;~98.6%&lt;/td&gt;
+&lt;td style="text-align: center"&gt;~95.2%&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;From the table, it is clear that after shuffling, &lt;strong&gt;L2 Cache Throughput&lt;/strong&gt; drops from 23.9% to 14.1%, while &lt;strong&gt;DRAM Throughput&lt;/strong&gt; increases from 0.35% to 15.7%. This demonstrates that particle sorting is crucial for improving data locality, fully utilizing L2 cache, and reducing direct VRAM access — directly causing the 15x performance difference.&lt;/p&gt;
+&lt;h3 id="sorting-algorithm"&gt;Sorting Algorithm&lt;/h3&gt;
+&lt;p&gt;The previous section&amp;rsquo;s shuffle experiment revealed that &lt;strong&gt;spatial locality&lt;/strong&gt; plays a decisive role in implementing tree algorithms on CUDA. Better locality means that within a single Warp, the 32 threads are more likely to access the same tree nodes when traversing the octree, thereby greatly reducing Warp divergence and pushing L1/L2 cache hit rates to the limit, avoiding massive direct reads/writes to the slow DRAM.&lt;/p&gt;
+&lt;blockquote class="border-l-4 border-neutral-300 dark:border-neutral-600 pl-4 italic text-neutral-600 dark:text-neutral-400 my-6"&gt;
+&lt;p&gt;&lt;strong&gt;Note&lt;/strong&gt;: Although I used the expression &amp;ldquo;reduce Warp divergence (Warp Divergence)&amp;rdquo;, the threads are not actually diverging — they are simply opening too many nodes. In a sense, the inconsistency of &lt;code&gt;mac_satisfied&lt;/code&gt; in warp voting is relatively strong. So I still borrowed the term &amp;ldquo;Warp divergence.&amp;rdquo;&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;However, in actual SPH or N-body simulations, as time progresses, particles violently collide and mix in space, and their indices in the memory array become completely decoupled from their real geometric positions. Therefore, we need to perform efficient spatial sorting after each frame&amp;rsquo;s tree construction.&lt;/p&gt;
+&lt;h4 id="1-core-idea-utilizing-natural-tree-topology-sorting"&gt;1. Core Idea: Utilizing Natural Tree Topology Sorting&lt;/h4&gt;
+&lt;p&gt;Since the octree itself is a perfect mesh partitioning of three-dimensional space, reading leaf nodes in the order of tree traversal (e.g., depth-first DFS or breadth-first BFS) yields a particle sequence clustered in three-dimensional space.&lt;/p&gt;
+&lt;h4 id="2-gather-addressing-strategy-sort-indices-only-dont-move-data"&gt;2. Gather Addressing Strategy: Sort Indices Only, Don&amp;rsquo;t Move Data&lt;/h4&gt;
+&lt;p&gt;In a system with millions of particles, copying tens of megabytes of particle coordinates (float4 data) back and forth in global memory each time would not only be extremely time-consuming but also consume significant additional memory. We adopt the &lt;strong&gt;Gather addressing strategy&lt;/strong&gt;:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Do not move the actual particle positions in memory&lt;/li&gt;
+&lt;li&gt;Generate a one-dimensional mapping array &lt;code&gt;sort&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;sort[i]&lt;/code&gt; stores &amp;ldquo;the actual particle number that thread i should process&amp;rdquo;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;During subsequent gravity computation, adjacent threads within the same Warp read adjacent values from the &lt;code&gt;sort&lt;/code&gt; array. This way, particles processed by the same Warp are spatially close, and their tree traversal paths are also likely to be consistent.&lt;/p&gt;
+&lt;h4 id="3-top-down-sort"&gt;3. Top-Down Sort&lt;/h4&gt;
+&lt;p&gt;To complete sorting at extreme speed on the GPU, we utilize the &lt;code&gt;count&lt;/code&gt; (subtree particle count) already computed during the tree-building phase, adopting a top-down parallel allocation mechanism. The parent node divides exclusive &amp;ldquo;memory intervals&amp;rdquo; for each child node in the &lt;code&gt;sort&lt;/code&gt; array based on their &lt;code&gt;count&lt;/code&gt;.&lt;/p&gt;
+&lt;h4 id="4-profile-validation"&gt;4. Profile Validation&lt;/h4&gt;
+&lt;p&gt;Theoretically, after tree sorting and traversal, path divergence is further reduced because the parent nodes of particles in the same Warp are almost always together. To quantify this improvement, I reduced the particle count to 1 million and performed Profile analysis on the following three computation modes:&lt;/p&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th style="text-align: left"&gt;Computation Mode&lt;/th&gt;
+&lt;th style="text-align: left"&gt;Description&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;1. Fully Random&lt;/td&gt;
+&lt;td style="text-align: left"&gt;No tree sorting, particles randomly distributed in space&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;2. Initial Regular&lt;/td&gt;
+&lt;td style="text-align: left"&gt;No tree sorting, particles regularly arranged in space&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;3. Tree Sorting&lt;/td&gt;
+&lt;td style="text-align: left"&gt;Fully random but using tree sorting&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;Profile command:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;ncu --set full -f -o profile/no_shuffle_no_sort_profile -k computeGravityKernel -s &lt;span class="m"&gt;2&lt;/span&gt; -c &lt;span class="m"&gt;2&lt;/span&gt; ./sph_simulator
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Command parameter descriptions:&lt;/p&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th style="text-align: left"&gt;Parameter&lt;/th&gt;
+&lt;th style="text-align: left"&gt;Meaning&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;--set full&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;Collect all available performance metrics&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;-f&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;Force overwrite existing output files&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;-o profile/xxx&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;Specify output file path and name&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;-k computeGravityKernel&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;Specify the Kernel name to Profile&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;-s 2&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;Skip the first 2 iterations after program startup before starting Profile (avoid cold start effects)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;-c 2&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;Execute 2 repetitions and average (reduce measurement error)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;Comparison results:&lt;/p&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th style="text-align: left"&gt;Computation Mode&lt;/th&gt;
+&lt;th style="text-align: center"&gt;Kernel Time&lt;/th&gt;
+&lt;th style="text-align: center"&gt;Executed Instructions&lt;/th&gt;
+&lt;th style="text-align: center"&gt;L1/TEX Hit Rate&lt;/th&gt;
+&lt;th style="text-align: center"&gt;Memory Throughput&lt;/th&gt;
+&lt;th style="text-align: center"&gt;Executed IPC&lt;/th&gt;
+&lt;th style="text-align: center"&gt;Warp Avg Instruction Cycles (CPI)&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;1. Fully Random&lt;/td&gt;
+&lt;td style="text-align: center"&gt;33.13 ms&lt;/td&gt;
+&lt;td style="text-align: center"&gt;246.2 Billion&lt;/td&gt;
+&lt;td style="text-align: center"&gt;48.23%&lt;/td&gt;
+&lt;td style="text-align: center"&gt;2.37 GB/s&lt;/td&gt;
+&lt;td style="text-align: center"&gt;2.97&lt;/td&gt;
+&lt;td style="text-align: center"&gt;13.75 cycles&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;2. Initial Regular&lt;/td&gt;
+&lt;td style="text-align: center"&gt;5.13 ms&lt;/td&gt;
+&lt;td style="text-align: center"&gt;41.9 Billion&lt;/td&gt;
+&lt;td style="text-align: center"&gt;57.52%&lt;/td&gt;
+&lt;td style="text-align: center"&gt;8.14 GB/s&lt;/td&gt;
+&lt;td style="text-align: center"&gt;2.99&lt;/td&gt;
+&lt;td style="text-align: center"&gt;13.44 cycles&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;3. Tree Sorting&lt;/td&gt;
+&lt;td style="text-align: center"&gt;3.11 ms&lt;/td&gt;
+&lt;td style="text-align: center"&gt;22.1 Billion&lt;/td&gt;
+&lt;td style="text-align: center"&gt;58.66%&lt;/td&gt;
+&lt;td style="text-align: center"&gt;12.25 GB/s&lt;/td&gt;
+&lt;td style="text-align: center"&gt;2.74&lt;/td&gt;
+&lt;td style="text-align: center"&gt;13.28 cycles&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;From the results, &lt;strong&gt;tree sorting mode (3.11 ms) is approximately 10x faster than fully random mode (33.13 ms)&lt;/strong&gt;, and better than initial regular mode (5.13 ms). This proves that the spatial sorting strategy based on tree topology can significantly improve self-gravity computation efficiency.&lt;/p&gt;
+&lt;p&gt;Now, GASPHiA uses the code optimized with the tree sorting mode.&lt;/p&gt;
+&lt;h3 id="performance-curves"&gt;Performance Curves&lt;/h3&gt;
+&lt;p&gt;The following two figures show the performance comparison of different computation modes across varying particle counts (linear and logarithmic scales):&lt;/p&gt;
+&lt;p&gt;
+&lt;figure &gt;
+&lt;div class="flex justify-center "&gt;
+&lt;div class="w-full" &gt;
+&lt;img alt="Performance validation linear scale"
+srcset="https://yekq.top/blog/gasphia/treecode/performance_plot_linear_hu_436347fef38bab0.webp 320w, https://yekq.top/blog/gasphia/treecode/performance_plot_linear_hu_139d486729524e7e.webp 480w, https://yekq.top/blog/gasphia/treecode/performance_plot_linear_hu_8e03cf9c7201e221.webp 760w"
+sizes="(max-width: 480px) 100vw, (max-width: 768px) 90vw, (max-width: 1024px) 80vw, 760px"
+src="https://yekq.top/blog/gasphia/treecode/performance_plot_linear_hu_436347fef38bab0.webp"
+width="760"
+height="532"
+loading="lazy" data-zoomable /&gt;&lt;/div&gt;
+&lt;/div&gt;&lt;/figure&gt;
+&lt;/p&gt;
+&lt;p&gt;
+&lt;figure &gt;
+&lt;div class="flex justify-center "&gt;
+&lt;div class="w-full" &gt;
+&lt;img alt="Performance validation logarithmic scale"
+srcset="https://yekq.top/blog/gasphia/treecode/performance_plot_hu_c499050c7dec6a45.webp 320w, https://yekq.top/blog/gasphia/treecode/performance_plot_hu_1e5ea06260a027eb.webp 480w, https://yekq.top/blog/gasphia/treecode/performance_plot_hu_f6507774b439d1db.webp 760w"
+sizes="(max-width: 480px) 100vw, (max-width: 768px) 90vw, (max-width: 1024px) 80vw, 760px"
+src="https://yekq.top/blog/gasphia/treecode/performance_plot_hu_c499050c7dec6a45.webp"
+width="760"
+height="532"
+loading="lazy" data-zoomable /&gt;&lt;/div&gt;
+&lt;/div&gt;&lt;/figure&gt;
+&lt;/p&gt;
+&lt;blockquote class="border-l-4 border-neutral-300 dark:border-neutral-600 pl-4 italic text-neutral-600 dark:text-neutral-400 my-6"&gt;
+&lt;p&gt;&lt;strong&gt;Note&lt;/strong&gt;: In the figures above, &amp;ldquo;Build Tree&amp;rdquo; includes all processes such as bounding box computation and sorting. Compared to traversing trees for gravity or neighbor computation, the time for building the tree can be ignored.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;h3 id="accuracy-and-speedup-validation"&gt;Accuracy and Speedup Validation&lt;/h3&gt;
+&lt;p&gt;I also tested the speedup and error of the Barnes-Hut algorithm relative to brute-force computation with 1 million particles. Note that the errors here are relative errors.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Performance and accuracy comparison across different $\theta$ parameters&lt;/strong&gt;:&lt;/p&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th style="text-align: center"&gt;$\theta$&lt;/th&gt;
+&lt;th style="text-align: center"&gt;Computation Time (ms)&lt;/th&gt;
+&lt;th style="text-align: center"&gt;Max Relative Error&lt;/th&gt;
+&lt;th style="text-align: center"&gt;Avg Relative Error&lt;/th&gt;
+&lt;th style="text-align: center"&gt;Speedup&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td style="text-align: center"&gt;0.1&lt;/td&gt;
+&lt;td style="text-align: center"&gt;181.877&lt;/td&gt;
+&lt;td style="text-align: center"&gt;0.00219153&lt;/td&gt;
+&lt;td style="text-align: center"&gt;3.27768e-05&lt;/td&gt;
+&lt;td style="text-align: center"&gt;7.42231x&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: center"&gt;0.2&lt;/td&gt;
+&lt;td style="text-align: center"&gt;39.5222&lt;/td&gt;
+&lt;td style="text-align: center"&gt;0.00502609&lt;/td&gt;
+&lt;td style="text-align: center"&gt;6.86399e-05&lt;/td&gt;
+&lt;td style="text-align: center"&gt;34.1566x&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: center"&gt;0.3&lt;/td&gt;
+&lt;td style="text-align: center"&gt;14.9356&lt;/td&gt;
+&lt;td style="text-align: center"&gt;0.0214612&lt;/td&gt;
+&lt;td style="text-align: center"&gt;0.00015996&lt;/td&gt;
+&lt;td style="text-align: center"&gt;90.3847x&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: center"&gt;0.4&lt;/td&gt;
+&lt;td style="text-align: center"&gt;8.75622&lt;/td&gt;
+&lt;td style="text-align: center"&gt;0.0335255&lt;/td&gt;
+&lt;td style="text-align: center"&gt;0.00028779&lt;/td&gt;
+&lt;td style="text-align: center"&gt;154.17x&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: center"&gt;0.5&lt;/td&gt;
+&lt;td style="text-align: center"&gt;5.88032&lt;/td&gt;
+&lt;td style="text-align: center"&gt;0.0711218&lt;/td&gt;
+&lt;td style="text-align: center"&gt;0.00053247&lt;/td&gt;
+&lt;td style="text-align: center"&gt;229.57x&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: center"&gt;0.6&lt;/td&gt;
+&lt;td style="text-align: center"&gt;4.20147&lt;/td&gt;
+&lt;td style="text-align: center"&gt;0.0565245&lt;/td&gt;
+&lt;td style="text-align: center"&gt;0.000783245&lt;/td&gt;
+&lt;td style="text-align: center"&gt;321.303x&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: center"&gt;0.7&lt;/td&gt;
+&lt;td style="text-align: center"&gt;3.52717&lt;/td&gt;
+&lt;td style="text-align: center"&gt;0.106591&lt;/td&gt;
+&lt;td style="text-align: center"&gt;0.00153542&lt;/td&gt;
+&lt;td style="text-align: center"&gt;382.728x&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: center"&gt;0.8&lt;/td&gt;
+&lt;td style="text-align: center"&gt;3.21018&lt;/td&gt;
+&lt;td style="text-align: center"&gt;0.170889&lt;/td&gt;
+&lt;td style="text-align: center"&gt;0.002965&lt;/td&gt;
+&lt;td style="text-align: center"&gt;420.521x&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;Accuracy validation figure:&lt;/p&gt;
+&lt;p&gt;
+&lt;figure &gt;
+&lt;div class="flex justify-center "&gt;
+&lt;div class="w-full" &gt;
+&lt;img alt="Accuracy validation"
+srcset="https://yekq.top/blog/gasphia/treecode/Accuracy_hu_bb58122b1cf606db.webp 320w, https://yekq.top/blog/gasphia/treecode/Accuracy_hu_58cca8fb70eaee31.webp 480w, https://yekq.top/blog/gasphia/treecode/Accuracy_hu_c814807be1efb0b9.webp 760w"
+sizes="(max-width: 480px) 100vw, (max-width: 768px) 90vw, (max-width: 1024px) 80vw, 760px"
+src="https://yekq.top/blog/gasphia/treecode/Accuracy_hu_bb58122b1cf606db.webp"
+width="760"
+height="456"
+loading="lazy" data-zoomable /&gt;&lt;/div&gt;
+&lt;/div&gt;&lt;/figure&gt;
+&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Conclusion&lt;/strong&gt;: As $\theta$ increases, computational accuracy decreases (error increases), but computational speed significantly improves. At $\theta = 0.5$, we can achieve a 200x speedup while maintaining approximately 7% maximum relative error, making it a relatively ideal balance point.&lt;/p&gt;
+&lt;h2 id="references"&gt;References&lt;/h2&gt;
+&lt;p&gt;[1] Barnes J, Hut P. A hierarchical O (N log N) force-calculation algorithm. nature. 1986 Dec 4;324(6096):446-9.&lt;/p&gt;
+&lt;p&gt;[2] Burtscher M, Pingali K. An efficient CUDA implementation of the tree-based barnes hut n-body algorithm. In GPU computing Gems Emerald edition 2011 Jan 1 (pp. 75-92). Morgan Kaufmann.&lt;/p&gt;</description></item></channel></rss>

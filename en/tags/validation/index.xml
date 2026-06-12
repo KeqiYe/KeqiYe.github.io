@@ -1,0 +1,170 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Validation | Keqi's Blog</title><link>https://yekq.top/en/tags/validation/</link><atom:link href="https://yekq.top/en/tags/validation/index.xml" rel="self" type="application/rss+xml"/><description>Validation</description><generator>HugoBlox Kit (https://hugoblox.com)</generator><language>en-us</language><lastBuildDate>Tue, 26 May 2026 11:30:00 +0800</lastBuildDate><image><url>https://yekq.top/media/icon_hu_bf3b12c4891d2eeb.png</url><title>Validation</title><link>https://yekq.top/en/tags/validation/</link></image><item><title>1D Elastic Uniaxial Strain Wave Validation - GASPHiA Test Case</title><link>https://yekq.top/en/blog/gasphia/1d-elastic-uniaxial-strain-wave/</link><pubDate>Tue, 26 May 2026 11:30:00 +0800</pubDate><guid>https://yekq.top/en/blog/gasphia/1d-elastic-uniaxial-strain-wave/</guid><description>&lt;h1 id="1d-elastic-uniaxial-strain-wave-validation"&gt;1D Elastic Uniaxial Strain Wave Validation&lt;/h1&gt;
+&lt;h2 id="overview"&gt;Overview&lt;/h2&gt;
+&lt;p&gt;A rigid piston on the right pushes an aluminum linear-elastic rod at constant velocity, with the left end fixed. The system propagates a one-dimensional elastic uniaxial strain compression wave. This case does not involve flyer-plate impact, plastic yielding, or nonlinear Hugoniot relations, making it suitable for verifying GASPHiA&amp;rsquo;s accuracy in computing &lt;strong&gt;elastic longitudinal wave speed, pressure plateau, deviatoric stress plateau, and total axial stress plateau&lt;/strong&gt;.&lt;/p&gt;
+&lt;p&gt;Results from this run:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Longitudinal wave speed relative error: ~&lt;code&gt;1.80%&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;Pressure plateau relative error: ~&lt;code&gt;0.24% - 0.27%&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;Deviatoric stress plateau relative error: ~&lt;code&gt;1.01% - 1.04%&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;Total axial stress plateau relative error: ~&lt;code&gt;0.48% - 0.51%&lt;/code&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;When modifying the elastic EOS, strength model, stress update, or boundary treatment, this case serves as a quick regression test.&lt;/p&gt;
+&lt;p&gt;
+&lt;figure &gt;
+&lt;div class="flex justify-center "&gt;
+&lt;div class="w-full" &gt;
+&lt;img alt="1D Elastic Uniaxial Strain Wave Validation"
+srcset="https://yekq.top/blog/gasphia/1d-elastic-uniaxial-strain-wave/elastic_wave_validation_hu_e9d8d44720543445.webp 320w, https://yekq.top/blog/gasphia/1d-elastic-uniaxial-strain-wave/elastic_wave_validation_hu_78ed8013ae9ef41d.webp 480w, https://yekq.top/blog/gasphia/1d-elastic-uniaxial-strain-wave/elastic_wave_validation_hu_8c661a2579b50747.webp 650w"
+sizes="(max-width: 480px) 100vw, (max-width: 768px) 90vw, (max-width: 1024px) 80vw, 760px"
+src="https://yekq.top/blog/gasphia/1d-elastic-uniaxial-strain-wave/elastic_wave_validation_hu_e9d8d44720543445.webp"
+width="650"
+height="760"
+loading="lazy" data-zoomable /&gt;&lt;/div&gt;
+&lt;/div&gt;&lt;/figure&gt;
+&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id="theoretical-solution-and-validation-metrics"&gt;Theoretical Solution and Validation Metrics&lt;/h2&gt;
+&lt;p&gt;For a one-dimensional elastic uniaxial strain compression wave, the theoretical relations are:&lt;/p&gt;
+$$
+c_L = \sqrt{\frac{K + 4G/3}{\rho_0}}
+$$$$
+\varepsilon_{xx} = \frac{U_p}{c_L}
+$$$$
+P = K \varepsilon_{xx}
+$$$$
+|S_{xx}| = \frac{4G}{3}\varepsilon_{xx}
+$$$$
+|\sigma_{xx}| = P + |S_{xx}| = \rho_0 c_L U_p
+$$&lt;p&gt;Parameters used in this case:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Initial density: &lt;code&gt;\rho_0 = 2700 kg/m^3&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;Bulk modulus: &lt;code&gt;K = 75.2 GPa&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;Shear modulus: &lt;code&gt;G = 26.0 GPa&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;Piston velocity: &lt;code&gt;U_p = 100 m/s&lt;/code&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;The resulting theoretical values:&lt;/p&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th style="text-align: left"&gt;Quantity&lt;/th&gt;
+&lt;th style="text-align: left"&gt;Theoretical Value&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;Longitudinal wave speed &lt;code&gt;c_L&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;6378.98 m/s&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;Pressure plateau &lt;code&gt;P&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;1.1789 GPa&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;Deviatoric stress plateau `&lt;/td&gt;
+&lt;td style="text-align: left"&gt;Sxx&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;Total axial stress plateau `&lt;/td&gt;
+&lt;td style="text-align: left"&gt;\sigma_{xx}&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;The simulation results should be compared against the following metrics:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;Whether the wave front propagation speed is close to &lt;code&gt;c_L&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;Whether the post-wave pressure plateau is close to the theoretical value&lt;/li&gt;
+&lt;li&gt;Whether the post-wave deviatoric stress plateau is close to the theoretical value&lt;/li&gt;
+&lt;li&gt;Whether the total axial stress plateau is stable and of the correct order of magnitude&lt;/li&gt;
+&lt;/ol&gt;
+&lt;hr&gt;
+&lt;h2 id="how-to-run"&gt;How to Run&lt;/h2&gt;
+&lt;p&gt;Test directory:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;GASPHiA-Tests/1D_Elastic_Uniaxial_Strain_Wave
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Run with:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;./run_all.sh --source-dir /path/to/GASPHiA --cuda &lt;span class="m"&gt;0&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;The script performs the following steps in sequence:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;Compile the initial condition generator&lt;/li&gt;
+&lt;li&gt;Generate &lt;code&gt;input/input_1d_uniaxial_strain.h5&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;Compile GASPHiA using the local &lt;code&gt;para.cuh&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;Run &lt;code&gt;ust.ini&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;Post-process the output and generate validation plots&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;A noteworthy engineering detail: compilation uses &lt;code&gt;PARA_CUH&lt;/code&gt; to point to the &lt;code&gt;para.cuh&lt;/code&gt; in this case directory, rather than copying test parameters into the main source tree. This prevents polluting the main project configuration when switching between different tests.&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id="result-interpretation"&gt;Result Interpretation&lt;/h2&gt;
+&lt;p&gt;The validation plot above shows numerical results at three time instants — &lt;code&gt;20 us&lt;/code&gt;, &lt;code&gt;40 us&lt;/code&gt;, and &lt;code&gt;60 us&lt;/code&gt; — compared against theoretical plateaus. The three rows correspond to:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Pressure &lt;code&gt;P&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;Deviatoric stress magnitude &lt;code&gt;|Sxx|&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;Total axial stress magnitude &lt;code&gt;|\sigma_{xx}|&lt;/code&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Key features observable from the plot:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;The wave front propagates from right to left at a steady speed, with positions close to the reference positions given by the theoretical wave speed.&lt;/li&gt;
+&lt;li&gt;The post-wave plateaus are flat, with no apparent non-physical oscillations.&lt;/li&gt;
+&lt;li&gt;The pressure, deviatoric stress, and total stress values all fall near the theoretical values, indicating that the EOS and stress decomposition coupling is self-consistent.&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;Compared to more complex impact cases, this test involves no wave system interference, fragmentation, plasticity, or pore compaction processes. Its value lies in its structural simplicity, making it easy to pinpoint deviations to specific implementation modules.&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id="actual-run-data"&gt;Actual Run Data&lt;/h2&gt;
+&lt;p&gt;Key metrics extracted from this run:&lt;/p&gt;
+&lt;h3 id="wave-speed"&gt;Wave Speed&lt;/h3&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th style="text-align: left"&gt;Metric&lt;/th&gt;
+&lt;th style="text-align: left"&gt;Value&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;Theoretical wave speed &lt;code&gt;cL_ref&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;6378.98 m/s&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;Numerical wave speed &lt;code&gt;cL_num&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;6494.04 m/s&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;Relative error&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;1.80%&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;h3 id="plateau-metrics-at-three-sampling-times"&gt;Plateau Metrics at Three Sampling Times&lt;/h3&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th style="text-align: left"&gt;Time&lt;/th&gt;
+&lt;th style="text-align: left"&gt;Wave Front Position Error&lt;/th&gt;
+&lt;th style="text-align: left"&gt;Pressure Plateau Error&lt;/th&gt;
+&lt;th style="text-align: left"&gt;Deviatoric Stress Plateau Error&lt;/th&gt;
+&lt;th style="text-align: left"&gt;Total Stress Plateau Error&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;20 us&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;-2.06 mm&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;0.24%&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;1.01%&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;0.48%&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;40 us&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;-4.24 mm&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;0.26%&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;1.03%&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;0.50%&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;60 us&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;-6.67 mm&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;0.27%&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;1.04%&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;0.51%&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;From the plateau metrics, the results are stable overall, with pressure and total stress errors in particular well under control. The wave front position error accumulates slightly with propagation time, but remains within an acceptable range overall.&lt;/p&gt;</description></item></channel></rss>

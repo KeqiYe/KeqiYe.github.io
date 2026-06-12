@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Impact Fragmentation | Keqi's Blog</title><link>https://yekq.top/en/tags/impact-fragmentation/</link><atom:link href="https://yekq.top/en/tags/impact-fragmentation/index.xml" rel="self" type="application/rss+xml"/><description>Impact Fragmentation</description><generator>HugoBlox Kit (https://hugoblox.com)</generator><language>en-us</language><lastBuildDate>Tue, 26 May 2026 15:20:00 +0800</lastBuildDate><image><url>https://yekq.top/media/icon_hu_bf3b12c4891d2eeb.png</url><title>Impact Fragmentation</title><link>https://yekq.top/en/tags/impact-fragmentation/</link></image><item><title>Nakamura 1991 Basalt Sphere Impact Fragmentation Validation - GASPHiA Test Case</title><link>https://yekq.top/en/blog/gasphia/nakamura1991-basalt-sphere-impact/</link><pubDate>Tue, 26 May 2026 15:20:00 +0800</pubDate><guid>https://yekq.top/en/blog/gasphia/nakamura1991-basalt-sphere-impact/</guid><description>&lt;h1 id="nakamura-1991-basalt-sphere-impact-fragmentation-validation"&gt;Nakamura 1991 Basalt Sphere Impact Fragmentation Validation&lt;/h1&gt;
+&lt;h2 id="overview"&gt;Overview&lt;/h2&gt;
+&lt;p&gt;This case reproduces the basalt sphere impact fragmentation experiment of Nakamura &amp;amp; Fujiwara (1991). The core comparison quantity is the &lt;strong&gt;cumulative fragment mass distribution&lt;/strong&gt;:&lt;/p&gt;
+&lt;blockquote class="border-l-4 border-neutral-300 dark:border-neutral-600 pl-4 italic text-neutral-600 dark:text-neutral-400 my-6"&gt;
+&lt;p&gt;Given a fragment mass threshold &lt;code&gt;M_f&lt;/code&gt;, how many fragments have mass greater than it?&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;This type of statistic is sensitive to brittle damage, fracture propagation, fragment identification, and post-processing algorithms, making it suitable as a validation standard for whether the fragmentation chain is usable.&lt;/p&gt;
+&lt;p&gt;Key data from this run:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Initial total particle count: &lt;code&gt;524065&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;Particles retained after damage threshold filtering (pre-FoF): &lt;code&gt;157751&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;Total connected fragments identified: &lt;code&gt;1594&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;Effective fragments (particle count &amp;gt; 1): &lt;code&gt;509&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;Maximum fragment mass: ~&lt;code&gt;0.262&lt;/code&gt; of the target sphere mass&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;
+&lt;figure &gt;
+&lt;div class="flex justify-center "&gt;
+&lt;div class="w-full" &gt;
+&lt;img alt="Nakamura 1991 Fragment Mass Cumulative Distribution"
+srcset="https://yekq.top/blog/gasphia/nakamura1991-basalt-sphere-impact/fragment_mass_distribution_hu_ed3e014a8a5e0989.webp 320w, https://yekq.top/blog/gasphia/nakamura1991-basalt-sphere-impact/fragment_mass_distribution_hu_bdabed5d0939f3f0.webp 480w, https://yekq.top/blog/gasphia/nakamura1991-basalt-sphere-impact/fragment_mass_distribution_hu_8a41a3dd9bc1584b.webp 760w"
+sizes="(max-width: 480px) 100vw, (max-width: 768px) 90vw, (max-width: 1024px) 80vw, 760px"
+src="https://yekq.top/blog/gasphia/nakamura1991-basalt-sphere-impact/fragment_mass_distribution_hu_ed3e014a8a5e0989.webp"
+width="760"
+height="477"
+loading="lazy" data-zoomable /&gt;&lt;/div&gt;
+&lt;/div&gt;&lt;/figure&gt;
+&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id="validation-objective"&gt;Validation Objective&lt;/h2&gt;
+&lt;ul&gt;
+&lt;li&gt;Damage model&lt;/li&gt;
+&lt;li&gt;Particles form reasonable fragment clusters after fracture&lt;/li&gt;
+&lt;li&gt;Post-processing algorithm accurately identifies fragments&lt;/li&gt;
+&lt;li&gt;Final fragment mass distribution matches experimental or literature trends&lt;/li&gt;
+&lt;/ul&gt;
+&lt;hr&gt;
+&lt;h2 id="physical-setup-and-references"&gt;Physical Setup and References&lt;/h2&gt;
+&lt;p&gt;This case is based on:&lt;/p&gt;
+&lt;blockquote class="border-l-4 border-neutral-300 dark:border-neutral-600 pl-4 italic text-neutral-600 dark:text-neutral-400 my-6"&gt;
+&lt;p&gt;Nakamura &amp;amp; Fujiwara (1991) basalt sphere impact fragmentation experiment&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;Model setup:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Target: Basalt sphere&lt;/li&gt;
+&lt;li&gt;Projectile: Lucite&lt;/li&gt;
+&lt;li&gt;Primary validation quantity: Cumulative fragment mass distribution&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Key geometric and physical quantities set in the input script:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Basalt target sphere radius: &lt;code&gt;3 cm&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;Target density: &lt;code&gt;2700 kg/m^3&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;Projectile density: &lt;code&gt;1180 kg/m^3&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;Projectile initial velocity: &lt;code&gt;3200 m/s&lt;/code&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2 id="how-to-run"&gt;How to Run&lt;/h2&gt;
+&lt;p&gt;Test directory:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;GASPHiA-Tests/Nakamura1991_BasaltSphereImpact
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;The full workflow consists of four steps:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;python input/input.py
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;./compile.sh
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="nv"&gt;CUDA_VISIBLE_DEVICES&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="m"&gt;0&lt;/span&gt; ./GASPHIA -i impact.ini
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;python post/fast_fof.py -input output_no_bals/nakamura1991_00020.h5 -outputF post/fragments.txt
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;h2 id="actual-run-data"&gt;Actual Run Data&lt;/h2&gt;
+&lt;p&gt;Key metrics extracted from this run and post-processing:&lt;/p&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th style="text-align: left"&gt;Metric&lt;/th&gt;
+&lt;th style="text-align: left"&gt;Value&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;Initial total particle count&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;524065&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;Particles participating in FoF after damage filtering&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;157751&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;Total FoF-identified fragments&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;1594&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;Effective fragments (particle count &amp;gt; 1)&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;509&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;Maximum fragment normalized mass&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;2.6208e-01&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;Minimum fragment normalized mass&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;1.6694e-06&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;Target sphere total mass&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;3.0536e-01 kg&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;Currently this case uses the von Mises yield model. Interested readers may re-run it with the Lundborg yield model; the difference between the two is approximately 1%.&lt;/p&gt;</description></item></channel></rss>

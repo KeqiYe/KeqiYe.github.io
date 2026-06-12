@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 720" role="img" aria-labelledby="title desc">
+  <title id="title">GASPHiA cover</title>
+  <desc id="desc">Abstract cover art for the GASPHiA CUDA SPH section.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#08121d"/>
+      <stop offset="52%" stop-color="#13314b"/>
+      <stop offset="100%" stop-color="#2b5d73"/>
+    </linearGradient>
+    <linearGradient id="wave" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#ffd166"/>
+      <stop offset="50%" stop-color="#ff8c42"/>
+      <stop offset="100%" stop-color="#ff5d5d"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="50%" cy="50%" r="55%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.82"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1200" height="720" fill="url(#bg)"/>
+  <circle cx="915" cy="170" r="150" fill="url(#glow)" opacity="0.34"/>
+  <g opacity="0.22" stroke="#9cd3ff">
+    <path d="M0 160H1200"/>
+    <path d="M0 280H1200"/>
+    <path d="M0 400H1200"/>
+    <path d="M0 520H1200"/>
+    <path d="M0 640H1200"/>
+    <path d="M160 0V720"/>
+    <path d="M320 0V720"/>
+    <path d="M480 0V720"/>
+    <path d="M640 0V720"/>
+    <path d="M800 0V720"/>
+    <path d="M960 0V720"/>
+  </g>
+  <g fill="#d8f3ff" opacity="0.8">
+    <circle cx="170" cy="160" r="4"/>
+    <circle cx="240" cy="225" r="5"/>
+    <circle cx="305" cy="194" r="4"/>
+    <circle cx="395" cy="312" r="5"/>
+    <circle cx="520" cy="272" r="4"/>
+    <circle cx="642" cy="390" r="5"/>
+    <circle cx="745" cy="335" r="4"/>
+    <circle cx="840" cy="438" r="5"/>
+    <circle cx="968" cy="392" r="4"/>
+  </g>
+  <path d="M70 472C170 458 236 400 313 337C401 267 457 255 548 286C641 318 692 418 782 443C866 466 951 421 1130 269" fill="none" stroke="url(#wave)" stroke-linecap="round" stroke-width="18"/>
+  <path d="M82 522C191 551 274 537 360 501C432 470 487 420 563 413C657 405 736 472 807 507C894 550 1007 543 1136 474" fill="none" stroke="#7be0ff" stroke-linecap="round" stroke-width="10" opacity="0.84"/>
+  <g fill="#071019" fill-opacity="0.32">
+    <rect x="92" y="78" width="322" height="170" rx="24"/>
+  </g>
+  <text x="124" y="146" fill="#f8fbff" font-family="Helvetica, Arial, sans-serif" font-size="60" font-weight="700" letter-spacing="1">GASPHiA</text>
+  <text x="126" y="196" fill="#c3def1" font-family="Helvetica, Arial, sans-serif" font-size="28">CUDA SPH code examples</text>
+  <text x="126" y="232" fill="#c3def1" font-family="Helvetica, Arial, sans-serif" font-size="28">shock physics  gravity  porosity</text>
+</svg>

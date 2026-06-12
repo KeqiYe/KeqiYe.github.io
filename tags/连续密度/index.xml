@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>连续密度 | Keqi 的博客</title><link>https://yekq.top/tags/%E8%BF%9E%E7%BB%AD%E5%AF%86%E5%BA%A6/</link><atom:link href="https://yekq.top/tags/%E8%BF%9E%E7%BB%AD%E5%AF%86%E5%BA%A6/index.xml" rel="self" type="application/rss+xml"/><description>连续密度</description><generator>HugoBlox Kit (https://hugoblox.com)</generator><language>zh-Hans</language><lastBuildDate>Tue, 17 Mar 2026 10:00:00 +0800</lastBuildDate><image><url>https://yekq.top/media/icon_hu_bf3b12c4891d2eeb.png</url><title>连续密度</title><link>https://yekq.top/tags/%E8%BF%9E%E7%BB%AD%E5%AF%86%E5%BA%A6/</link></image><item><title>1D Sod 激波管实验 - CUDA SPH 基准测试</title><link>https://yekq.top/blog/gasphia/1d-shock-tube/</link><pubDate>Tue, 17 Mar 2026 10:00:00 +0800</pubDate><guid>https://yekq.top/blog/gasphia/1d-shock-tube/</guid><description>&lt;h1 id="1d-sod-激波管实验"&gt;1D Sod 激波管实验&lt;/h1&gt;
+&lt;h2 id="省流"&gt;省流&lt;/h2&gt;
+&lt;p&gt;本文使用从零自研的 CUDA SPH 物理引擎复现了经典的 1D Sod 激波管 (Shock Tube) 基准测试，主要验证引擎对强激波不连续面的捕捉能力。测试中解决了一个关键的数值陷阱：在处理初始阶跃密度场时，传统的连续性方程 (Continuity Density) 会导致严重的非物理震荡，而直接求和密度 (Summation Density) 展现出了更好的鲁棒性。事实上，连续密度更适合用在高速冲击问题中。&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id="1-模拟结果"&gt;1. 模拟结果&lt;/h2&gt;
+&lt;p&gt;以下是两种密度计算方法的效果对比：&lt;/p&gt;
+&lt;div style="display: flex; gap: 20px; flex-wrap: wrap;"&gt;
+&lt;div style="flex: 1; min-width: 300px;"&gt;
+&lt;h4 style="text-align: center;"&gt;求和密度法 (成功)&lt;/h4&gt;
+&lt;img src="1D_ShockTube_Evolution.gif" alt="求和密度法" style="width: 100%;"&gt;
+&lt;/div&gt;
+&lt;div style="flex: 1; min-width: 300px;"&gt;
+&lt;h4 style="text-align: center;"&gt;连续密度法 (失败)&lt;/h4&gt;
+&lt;img src="1D_ShockTube_Evolution_lianxv.gif" alt="连续密度法" style="width: 100%;"&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;左图 (成功)&lt;/strong&gt;：采用求和密度法，可以清晰看到激波波前、接触间断和稀疏波的光滑推进。&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;右图 (失败)&lt;/strong&gt;：采用连续密度法，在激波管的初始密度阶跃处产生了震荡。&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;
+&lt;figure &gt;
+&lt;div class="flex justify-center "&gt;
+&lt;div class="w-full" &gt;
+&lt;img alt="验证对比图"
+srcset="https://yekq.top/blog/gasphia/1d-shock-tube/ShockTube_Validation_Zoom_hu_eecbe48c32100b86.webp 320w, https://yekq.top/blog/gasphia/1d-shock-tube/ShockTube_Validation_Zoom_hu_91384d445a4e1303.webp 480w, https://yekq.top/blog/gasphia/1d-shock-tube/ShockTube_Validation_Zoom_hu_40ca4714bc4bf504.webp 760w"
+sizes="(max-width: 480px) 100vw, (max-width: 768px) 90vw, (max-width: 1024px) 80vw, 760px"
+src="https://yekq.top/blog/gasphia/1d-shock-tube/ShockTube_Validation_Zoom_hu_eecbe48c32100b86.webp"
+width="760"
+height="543"
+loading="lazy" data-zoomable /&gt;&lt;/div&gt;
+&lt;/div&gt;&lt;/figure&gt;
+&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;图 1&lt;/strong&gt;：Sod 激波管密度分布对比。展示了三种方法在 $t=0.2$ 时刻的密度沿 $x$ 方向分布与解析解的对比。红色实线为解析解，蓝色点为求和密度法的数值结果，橙色点为连续密度法的数值结果。&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id="2-问题背景"&gt;2. 问题背景&lt;/h2&gt;
+&lt;h3 id="21-什么是-sod-激波管"&gt;2.1 什么是 Sod 激波管？&lt;/h3&gt;
+&lt;p&gt;Sod 激波管是流体力学中经典的基准测试问题，用于验证数值方法对激波、接触间断和稀疏波的捕捉能力。该问题模拟了一维管道中由薄膜分隔的两种不同状态气体的瞬时释放过程。&lt;/p&gt;
+&lt;h3 id="22-物理模型"&gt;2.2 物理模型&lt;/h3&gt;
+&lt;p&gt;本模拟采用理想气体模型，方程组包括：&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;连续性方程&lt;/strong&gt;：
+&lt;/p&gt;
+$$\frac{\partial \rho}{\partial t} + \nabla \cdot (\rho \mathbf{v}) = 0$$&lt;p&gt;&lt;strong&gt;动量方程&lt;/strong&gt;：
+&lt;/p&gt;
+$$\frac{\partial (\rho \mathbf{v})}{\partial t} + \nabla \cdot (\rho \mathbf{v} \otimes \mathbf{v}) = -\nabla p$$&lt;p&gt;&lt;strong&gt;能量方程&lt;/strong&gt;：
+&lt;/p&gt;
+$$\frac{\partial (\rho e)}{\partial t} + \nabla \cdot (\rho e \mathbf{v}) = -p \nabla \cdot \mathbf{v}$$&lt;p&gt;&lt;strong&gt;状态方程&lt;/strong&gt;（理想气体）：
+&lt;/p&gt;
+$$p = (\gamma - 1) \rho e$$&lt;p&gt;其中 $\gamma = 5/3$ 为绝热指数。&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id="3-初始条件"&gt;3. 初始条件&lt;/h2&gt;
+&lt;p&gt;初始时刻，激波管被位于 $x=0$ 的薄膜分为左右两个区域：&lt;/p&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th style="text-align: center"&gt;参数&lt;/th&gt;
+&lt;th style="text-align: center"&gt;高密度区 (左)&lt;/th&gt;
+&lt;th style="text-align: center"&gt;低密度区 (右)&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td style="text-align: center"&gt;密度 $\rho$&lt;/td&gt;
+&lt;td style="text-align: center"&gt;1.0&lt;/td&gt;
+&lt;td style="text-align: center"&gt;0.25&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: center"&gt;速度 $v$&lt;/td&gt;
+&lt;td style="text-align: center"&gt;0.0&lt;/td&gt;
+&lt;td style="text-align: center"&gt;0.0&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: center"&gt;内能 $e$&lt;/td&gt;
+&lt;td style="text-align: center"&gt;2.5&lt;/td&gt;
+&lt;td style="text-align: center"&gt;1.795&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: center"&gt;粒子间距 $\Delta x$&lt;/td&gt;
+&lt;td style="text-align: center"&gt;0.001875&lt;/td&gt;
+&lt;td style="text-align: center"&gt;0.0075&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: center"&gt;软化长度 $h$&lt;/td&gt;
+&lt;td style="text-align: center"&gt;0.01&lt;/td&gt;
+&lt;td style="text-align: center"&gt;0.01&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: center"&gt;区域范围&lt;/td&gt;
+&lt;td style="text-align: center"&gt;$[-1.2, 0)$&lt;/td&gt;
+&lt;td style="text-align: center"&gt;$(0, 1.2]$&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: center"&gt;粒子数&lt;/td&gt;
+&lt;td style="text-align: center"&gt;640&lt;/td&gt;
+&lt;td style="text-align: center"&gt;160&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;&lt;strong&gt;总粒子数&lt;/strong&gt;：800 个&lt;/p&gt;
+&lt;p&gt;初始条件设置使得左侧为高压高密度区，右侧为低压低密度区。薄膜移除后，左侧的高压气体会向右加速，形成激波、接触间断和稀疏波三种波结构。&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id="4-数值方法"&gt;4. 数值方法&lt;/h2&gt;
+&lt;h3 id="41-sph-密度计算方式"&gt;4.1 SPH 密度计算方式&lt;/h3&gt;
+&lt;p&gt;本测试对比了两种 SPH 密度计算方法：&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;方法一：求和密度 (Summation Density)&lt;/strong&gt;&lt;/p&gt;
+$$\rho_i = \sum_j m_j W(r_{ij}, h)$$&lt;p&gt;其中 $W(r, h)$ 为核函数，$h$ 为软化长度。这种方法直接对邻域粒子的质量进行求和，物理意义明确。&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;方法二：连续密度 (Continuity Density)&lt;/strong&gt;&lt;/p&gt;
+$$\frac{d\rho_i}{dt} = \sum_j m_j (v_j - v_i) \cdot \nabla_i W(r_{ij}, h)$$&lt;p&gt;该方程通过对动量方程进行散度运算得到，理论上与连续性方程等价。&lt;/p&gt;
+&lt;h3 id="后续计划"&gt;后续计划&lt;/h3&gt;
+&lt;ul&gt;
+&lt;li&gt;2/3D 溃坝模拟&lt;/li&gt;
+&lt;li&gt;带物质强度的模拟&lt;/li&gt;
+&lt;/ul&gt;
+&lt;hr&gt;
+&lt;h2 id="参考资料"&gt;参考资料&lt;/h2&gt;
+&lt;ol&gt;
+&lt;li&gt;Sod, G. A. (1978). A survey of several finite difference methods for systems of nonlinear hyperbolic conservation laws. &lt;em&gt;Journal of Computational Physics&lt;/em&gt;, 27(1), 1-31.&lt;/li&gt;
+&lt;li&gt;Monaghan, J. J. (1992). Smoothed particle hydrodynamics. &lt;em&gt;Annual Review of Astronomy and Astrophysics&lt;/em&gt;, 30, 543-574.&lt;/li&gt;
+&lt;li&gt;Liu, G. R., &amp;amp; Liu, M. B. (2003). &lt;em&gt;Smoothed particle hydrodynamics: a meshfree particle method&lt;/em&gt;. World Scientific.&lt;/li&gt;
+&lt;/ol&gt;</description></item></channel></rss>

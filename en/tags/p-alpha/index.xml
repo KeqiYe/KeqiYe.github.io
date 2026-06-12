@@ -1,0 +1,401 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>P-Alpha | Keqi's Blog</title><link>https://yekq.top/en/tags/p-alpha/</link><atom:link href="https://yekq.top/en/tags/p-alpha/index.xml" rel="self" type="application/rss+xml"/><description>P-Alpha</description><generator>HugoBlox Kit (https://hugoblox.com)</generator><language>en-us</language><lastBuildDate>Tue, 26 May 2026 14:00:00 +0800</lastBuildDate><image><url>https://yekq.top/media/icon_hu_bf3b12c4891d2eeb.png</url><title>P-Alpha</title><link>https://yekq.top/en/tags/p-alpha/</link></image><item><title>Implementation and Pitfalls of the P-alpha Porosity Model</title><link>https://yekq.top/en/blog/gasphia/p-alpha-porosity-model/</link><pubDate>Tue, 07 Apr 2026 14:00:00 +0800</pubDate><guid>https://yekq.top/en/blog/gasphia/p-alpha-porosity-model/</guid><description>&lt;h1 id="implementation-and-pitfalls-of-the-p-alpha-porosity-model"&gt;Implementation and Pitfalls of the P-alpha Porosity Model&lt;/h1&gt;
+&lt;iframe src="//player.bilibili.com/player.html?isOutside=true&amp;bvid=BV1t7DeBiEEv&amp;p=1&amp;high_quality=1&amp;danmaku=0"
+scrolling="no" border="0" frameborder="no" framespacing="0" allowfullscreen="true"
+style="width: 100%; aspect-ratio: 16/9; border-radius: 8px; margin-bottom: 20px;"&gt;
+&lt;/iframe&gt;
+&lt;p align="center" style="font-size: 0.9em; color: gray; margin-top: -10px; margin-bottom: 20px;"&gt;
+&lt;em&gt; In the animation of high-porosity pumice impact simulation (2.58 km/s), completely damaged particles are removed, and only kernel correction is enabled. &lt;/em&gt;
+&lt;/p&gt;
+&lt;p&gt;The animation above shows simulation results from GASPHiA of a projectile impacting a high-porosity pumice target at 2.58 km/s. The impact results are consistent with those given in the paper, demonstrating the accuracy of the damage model and P-alpha porosity model implementation in GASPHiA.&lt;/p&gt;
+&lt;hr&gt;
+&lt;p&gt;GASPHiA implements the P-alpha model described in the following two papers:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Numerical simulations of impacts involving porous bodies I. Implementing sub-resolution porosity in a 3D SPH hydrocode&lt;/li&gt;
+&lt;li&gt;Numerical simulations of impacts involving porous bodies: II. Comparison with laboratory experiments&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Below is a note on the problems encountered during the implementation process.&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id="1-physical-problem-definition-p-alpha-model"&gt;1. Physical Problem Definition: P-alpha Model&lt;/h2&gt;
+&lt;p&gt;In shock dynamics of porous materials (such as rubble piles and pumice), the macroscopic pressure $P$ satisfies the following relationship with the solid phase pressure $P_{\text{eos}}$ and porosity $\alpha$ (also called &lt;strong&gt;inflation factor&lt;/strong&gt;):&lt;/p&gt;
+$$P = \frac{P_{\text{eos}}(\rho_s, e)}{\alpha}$$&lt;p&gt;where $\rho_s = \alpha \rho$ is the &lt;strong&gt;solid phase density&lt;/strong&gt;, $\rho$ is the &lt;strong&gt;macroscopic density&lt;/strong&gt;, and $e$ is the &lt;strong&gt;internal energy&lt;/strong&gt;.&lt;/p&gt;
+&lt;blockquote class="border-l-4 border-neutral-300 dark:border-neutral-600 pl-4 italic text-neutral-600 dark:text-neutral-400 my-6"&gt;
+&lt;p&gt;&lt;strong&gt;Note&lt;/strong&gt;: $\alpha$ must be greater than 1. A value of 1 represents that the space represented by this particle has no voids.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;hr&gt;
+&lt;h3 id="compaction-curve"&gt;Compaction Curve&lt;/h3&gt;
+&lt;p&gt;The compression process of materials follows the compaction curve $\alpha_{\text{curve}}(P)$, defined as follows:&lt;/p&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th style="text-align: left"&gt;Stage&lt;/th&gt;
+&lt;th style="text-align: center"&gt;Pressure Range&lt;/th&gt;
+&lt;th style="text-align: left"&gt;Formula&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;&lt;strong&gt;Elastic Stage&lt;/strong&gt;&lt;/td&gt;
+&lt;td style="text-align: center"&gt;$P \le P_e$&lt;/td&gt;
+&lt;td style="text-align: left"&gt;$\alpha = \alpha_0$&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;&lt;strong&gt;Plastic Crushing Stage&lt;/strong&gt;&lt;/td&gt;
+&lt;td style="text-align: center"&gt;$P_e &lt; P &lt; P_s$&lt;/td&gt;
+&lt;td style="text-align: left"&gt;$\displaystyle \alpha = 1.0 + (\alpha_0 - 1.0) \left( \frac{P_s - P}{P_s - P_e} \right)^2$&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;&lt;strong&gt;Full Compaction Stage&lt;/strong&gt;&lt;/td&gt;
+&lt;td style="text-align: center"&gt;$P \ge P_s$&lt;/td&gt;
+&lt;td style="text-align: left"&gt;$\alpha = 1.0$&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;blockquote class="border-l-4 border-neutral-300 dark:border-neutral-600 pl-4 italic text-neutral-600 dark:text-neutral-400 my-6"&gt;
+&lt;p&gt;Additionally, it should be noted that pore compaction is plastic and irreversible. If the theoretical $\alpha$ caused by the current pressure is greater than the historical minimum porosity $\alpha_{\text{old}}$, then take $\alpha = \alpha_{\text{old}}$.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;hr&gt;
+&lt;h2 id="2-nonlinear-equation"&gt;2. Nonlinear Equation&lt;/h2&gt;
+&lt;p&gt;We need to find an $\alpha$ that satisfies both the equation of state (EOS) generated pressure and lies on the compaction curve. Define the objective function:&lt;/p&gt;
+$$F(\alpha) = \alpha - \min\left( \alpha_{\text{curve}}\left( \frac{P_{\text{eos}}(\alpha \rho, e)}{\alpha} \right), \alpha_{\text{old}} \right) = 0$$
+&lt;blockquote class="border-l-4 border-neutral-300 dark:border-neutral-600 pl-4 italic text-neutral-600 dark:text-neutral-400 my-6"&gt;
+&lt;p&gt;In the equation, $\alpha_{\text{curve}}$ refers to the compaction curve.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;hr&gt;
+&lt;h2 id="3-bisection-method"&gt;3. Bisection Method&lt;/h2&gt;
+&lt;p&gt;The simplest and most intuitive approach is bisection, although it may take slightly longer execution time.&lt;/p&gt;
+&lt;h3 id="31-iteration-count-analysis"&gt;3.1 Iteration Count Analysis&lt;/h3&gt;
+&lt;p&gt;Assume for a high-porosity material, the initial porosity $\alpha = 4$, corresponding to a physical porosity of $\phi = 1 - 1/\alpha$, which is &lt;strong&gt;75%&lt;/strong&gt;. If the final convergence accuracy required for iteration is:&lt;/p&gt;
+$$\alpha_{n+1} - \alpha_n &lt; \text{tol} = 10^{-12}$$&lt;p&gt;Then in the worst case, iteration is needed:&lt;/p&gt;
+$$n \ge \log_2 \left( \frac{L_0}{\text{tol}} \right) = \log_2 \left( \frac{4-1}{10^{-12}} \right)=42$$&lt;h3 id="32-accuracy-requirements"&gt;3.2 Accuracy Requirements&lt;/h3&gt;
+&lt;p&gt;It is worth noting that EOS is extremely sensitive to density. In practice, it has been tested that &lt;strong&gt;tol must be less than 1e-7&lt;/strong&gt; to prevent artificial oscillations in the damage field. This is difficult to achieve for single-precision computation, so the porosity model in GASPHiA is forced to run in double precision, but when writing back, precision adjustment is performed to adapt to the overall computational workflow.&lt;/p&gt;
+&lt;h3 id="33-performance-test-results"&gt;3.3 Performance Test Results&lt;/h3&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;$ grep &lt;span class="s2"&gt;&amp;#34;calPressureSoundSpeed execution time:&amp;#34;&lt;/span&gt; run.log &lt;span class="p"&gt;|&lt;/span&gt; tail -n &lt;span class="m"&gt;20&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;calPressureSoundSpeed execution time: 2.882 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;calPressureSoundSpeed execution time: 2.807 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;calPressureSoundSpeed execution time: 2.775 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;calPressureSoundSpeed execution time: 2.766 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;calPressureSoundSpeed execution time: 2.822 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;calPressureSoundSpeed execution time: 2.873 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;calPressureSoundSpeed execution time: 2.766 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;calPressureSoundSpeed execution time: 2.765 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;calPressureSoundSpeed execution time: 2.753 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;calPressureSoundSpeed execution time: 2.774 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;calPressureSoundSpeed execution time: 2.776 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;calPressureSoundSpeed execution time: 2.756 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;calPressureSoundSpeed execution time: 3.197 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;calPressureSoundSpeed execution time: 2.786 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;calPressureSoundSpeed execution time: 2.854 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;calPressureSoundSpeed execution time: 2.885 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;calPressureSoundSpeed execution time: 2.816 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;calPressureSoundSpeed execution time: 2.799 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;calPressureSoundSpeed execution time: 2.787 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;calPressureSoundSpeed execution time: 2.891 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;...
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;$ tail -n &lt;span class="m"&gt;10&lt;/span&gt; run.log
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; └─ Sub2: 0.050 ms &lt;span class="o"&gt;(&lt;/span&gt; 2.3%&lt;span class="o"&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;calPressureSoundSpeed execution time: 2.891 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="o"&gt;[&lt;/span&gt;Step 2273&lt;span class="o"&gt;]&lt;/span&gt; &lt;span class="nv"&gt;t&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;3.200656e-05 &lt;span class="p"&gt;|&lt;/span&gt; &lt;span class="nv"&gt;dt&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;1.761e-08 &lt;span class="p"&gt;|&lt;/span&gt; &lt;span class="nv"&gt;Tree&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;5.467 ms &lt;span class="o"&gt;(&lt;/span&gt;B: 0.536, S: 4.931, G: 0.000&lt;span class="o"&gt;)&lt;/span&gt; &lt;span class="p"&gt;|&lt;/span&gt; &lt;span class="nv"&gt;Step&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;15.816 ms &lt;span class="p"&gt;|&lt;/span&gt; &lt;span class="nv"&gt;Outputs&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="m"&gt;7&lt;/span&gt; &lt;span class="p"&gt;|&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="o"&gt;[&lt;/span&gt;computeRHS&lt;span class="o"&gt;]&lt;/span&gt; Total: 2.263 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; ├─ Corr: 0.956 ms &lt;span class="o"&gt;(&lt;/span&gt;42.3%&lt;span class="o"&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; ├─ Sub1: 1.256 ms &lt;span class="o"&gt;(&lt;/span&gt;55.5%&lt;span class="o"&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; └─ Sub2: 0.050 ms &lt;span class="o"&gt;(&lt;/span&gt; 2.2%&lt;span class="o"&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="o"&gt;[&lt;/span&gt;computeRHS&lt;span class="o"&gt;]&lt;/span&gt; Total: 2.227 ms
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;blockquote class="border-l-4 border-neutral-300 dark:border-neutral-600 pl-4 italic text-neutral-600 dark:text-neutral-400 my-6"&gt;
+&lt;p&gt;The execution time of solving EOS using the bisection method is unacceptable, as it is already comparable to the time for computing the right-hand side (single precision). We need an algorithm with faster convergence.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;hr&gt;
+&lt;h2 id="4-newton-raphson-method"&gt;4. Newton-Raphson Method&lt;/h2&gt;
+&lt;p&gt;The Newton-Raphson method is an efficient iterative algorithm for finding roots of nonlinear equations. For a general equation $f(x) = 0$, assuming we know its approximate root $x_n$ and the derivative $f'(x_n) \neq 0$, this method draws a tangent to the curve at $(x_n, f(x_n))$ and uses the intersection of the tangent with the x-axis as the next approximate root. The standard iteration formula is:&lt;/p&gt;
+$$x_{n+1} = x_n - \frac{f(x_n)}{f'(x_n)}$$&lt;p&gt;Newton&amp;rsquo;s method has the excellent property of &lt;strong&gt;second-order convergence&lt;/strong&gt; near the root, meaning the number of significant digits approximately doubles with each iteration, and the convergence speed is much faster than the bisection method.&lt;/p&gt;
+&lt;p&gt;Returning to our porosity model, the objective equation to solve is $F(\alpha) = 0$, so the corresponding Newton iteration formula is:&lt;/p&gt;
+$$\alpha_{k+1} = \alpha_k - \frac{F(\alpha_k)}{F'(\alpha_k)}$$&lt;p&gt;To implement this iteration process, the core lies in calculating the nonlinear derivative of the objective function with respect to porosity $F'(\alpha) = \frac{dF}{d\alpha}$. Using the chain rule to expand it:&lt;/p&gt;
+$$\frac{dF}{d\alpha} = 1 - \frac{d\alpha_{\text{curve}}}{dP} \cdot \frac{dP}{d\alpha}$$&lt;hr&gt;
+&lt;h3 id="41-derivative-of-compaction-curve"&gt;4.1 Derivative of Compaction Curve $\displaystyle \frac{d\alpha_{\text{curve}}}{dP}$&lt;/h3&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th style="text-align: left"&gt;Stage&lt;/th&gt;
+&lt;th style="text-align: left"&gt;Derivative&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;Elastic or full compaction stage, or in &lt;strong&gt;unloading state&lt;/strong&gt; ($\alpha_{\text{curve}} &gt; \alpha_{\text{old}}$)&lt;/td&gt;
+&lt;td style="text-align: left"&gt;$\displaystyle \frac{d\alpha_{\text{curve}}}{dP} = 0$&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;In plastic crushing stage and in &lt;strong&gt;loading state&lt;/strong&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;$\displaystyle \frac{d\alpha_{\text{curve}}}{dP} = -2 \frac{(\alpha_0 - 1.0)(P_s - P)}{(P_s - P_e)^2}$&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;hr&gt;
+&lt;h3 id="42-derivative-of-pressure-with-respect-to-porosity"&gt;4.2 Derivative of Pressure with Respect to Porosity $\displaystyle \frac{dP}{d\alpha}$&lt;/h3&gt;
+&lt;p&gt;Given $P = \frac{P_{\text{eos}}(\alpha \rho, e)}{\alpha}$, taking the derivative with respect to $\alpha$:&lt;/p&gt;
+$$\frac{dP}{d\alpha} = \frac{\alpha \cdot \frac{d P_{\text{eos}}}{d\alpha} - P_{\text{eos}}}{\alpha^2}$$&lt;p&gt;According to the chain rule, $\frac{d P_{\text{eos}}}{d\alpha} = \frac{\partial P_{\text{eos}}}{\partial \rho_s} \cdot \frac{d \rho_s}{d\alpha} = \frac{\partial P_{\text{eos}}}{\partial \rho_s} \cdot \rho$.&lt;/p&gt;
+&lt;p&gt;Define $\frac{\partial P_{\text{eos}}}{\partial \rho_s}$ as &lt;code&gt;dpdrho&lt;/code&gt; (provided directly by the Tillotson EOS), then:&lt;/p&gt;
+$$\frac{dP}{d\alpha} = \frac{\text{dpdrho} \cdot \rho}{\alpha} - \frac{P}{\alpha}$$&lt;hr&gt;
+&lt;h2 id="5-challenges-encountered-oscillation"&gt;5. Challenges Encountered: Oscillation&lt;/h2&gt;
+&lt;p&gt;&lt;strong&gt;At the moment of impact, particles may be near physical boundaries (such as the elastic limit $P_e$).&lt;/strong&gt;&lt;/p&gt;
+&lt;h3 id="51-problem-description"&gt;5.1 Problem Description&lt;/h3&gt;
+&lt;ol&gt;
+&lt;li&gt;&lt;strong&gt;Loading step&lt;/strong&gt;: High pressure $\to$ large derivative $\to$ Newton step too large $\to$ crosses the boundary into the unloading region.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Unloading step&lt;/strong&gt;: Enters unloading region $\to$ derivative suddenly becomes 0 $\to$ correction step bounces back to loading region.&lt;/li&gt;
+&lt;/ol&gt;
+&lt;blockquote class="border-l-4 border-neutral-300 dark:border-neutral-600 pl-4 italic text-neutral-600 dark:text-neutral-400 my-6"&gt;
+&lt;p&gt;This change caused by discontinuous derivatives results in Newton&amp;rsquo;s method &lt;strong&gt;cycling infinitely&lt;/strong&gt; between two points and failing to converge.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;
+&lt;figure &gt;
+&lt;div class="flex justify-center "&gt;
+&lt;div class="w-full" &gt;
+&lt;img alt="Newton Iteration Oscillation"
+srcset="https://yekq.top/blog/gasphia/p-alpha-porosity-model/ns_pingpong_hu_d336734e9c18ac7e.webp 320w, https://yekq.top/blog/gasphia/p-alpha-porosity-model/ns_pingpong_hu_e141db132604a520.webp 480w, https://yekq.top/blog/gasphia/p-alpha-porosity-model/ns_pingpong_hu_48b2088024c30dae.webp 760w"
+sizes="(max-width: 480px) 100vw, (max-width: 768px) 90vw, (max-width: 1024px) 80vw, 760px"
+src="https://yekq.top/blog/gasphia/p-alpha-porosity-model/ns_pingpong_hu_d336734e9c18ac7e.webp"
+width="760"
+height="501"
+loading="lazy" data-zoomable /&gt;&lt;/div&gt;
+&lt;/div&gt;&lt;/figure&gt;
+&lt;/p&gt;
+&lt;p&gt;The figure shows the situation where, in the early stage of simulation, some particles, after receiving a slight amount of pressure, the Newton iteration oscillates and cannot converge.&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id="6-solution-safe-newton-method"&gt;6. Solution: Safe Newton Method&lt;/h2&gt;
+&lt;p&gt;To balance the speed of Newton&amp;rsquo;s method with the stability of the bisection method, a hybrid algorithm with &lt;strong&gt;dynamic interval shrinking&lt;/strong&gt; is introduced.&lt;/p&gt;
+&lt;h3 id="61-algorithm-logic"&gt;6.1 Algorithm Logic&lt;/h3&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th style="text-align: left"&gt;Step&lt;/th&gt;
+&lt;th style="text-align: left"&gt;Operation&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;1&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;strong&gt;Maintain interval&lt;/strong&gt;: Initialize the safe interval $[a, b] = [1.0, \alpha_{\text{old}}]$&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;2&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;strong&gt;Interval tightening&lt;/strong&gt;: If $F(\alpha_k) &gt; 0$, set $b = \alpha_k$; if $F(\alpha_k) &lt; 0$, set $a = \alpha_k$&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;3&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;strong&gt;Decision interception&lt;/strong&gt;: Calculate the Newton step $\alpha_{\text{new}} = \alpha_k - \frac{F(\alpha_k)}{F'(\alpha_k)}$. If $\alpha_{\text{new}}$ falls outside the open interval $(a, b)$, it indicates Newton&amp;rsquo;s method has failed&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;4&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;strong&gt;Degradation handling&lt;/strong&gt;: In this case, force the bisection method $\alpha_{\text{new}} = \frac{a + b}{2}$&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;5&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;strong&gt;Fallback strategy&lt;/strong&gt;: If Newton&amp;rsquo;s method fails to find a solution within the specified iteration steps, the solver will call the bisection method to solve&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;
+&lt;figure &gt;
+&lt;div class="flex justify-center "&gt;
+&lt;div class="w-full" &gt;
+&lt;img alt="Safe Newton Iteration"
+srcset="https://yekq.top/blog/gasphia/p-alpha-porosity-model/ns_final_hu_82374601e440dc69.webp 320w, https://yekq.top/blog/gasphia/p-alpha-porosity-model/ns_final_hu_b23008225d92126c.webp 480w, https://yekq.top/blog/gasphia/p-alpha-porosity-model/ns_final_hu_d564baf78e11669f.webp 760w"
+sizes="(max-width: 480px) 100vw, (max-width: 768px) 90vw, (max-width: 1024px) 80vw, 760px"
+src="https://yekq.top/blog/gasphia/p-alpha-porosity-model/ns_final_hu_82374601e440dc69.webp"
+width="760"
+height="500"
+loading="lazy" data-zoomable /&gt;&lt;/div&gt;
+&lt;/div&gt;&lt;/figure&gt;
+&lt;/p&gt;
+&lt;blockquote class="border-l-4 border-neutral-300 dark:border-neutral-600 pl-4 italic text-neutral-600 dark:text-neutral-400 my-6"&gt;
+&lt;p&gt;Under the same initial conditions, compared to the oscillation situation, the solver can now accurately jump out of the oscillation interval and find the solution.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;h3 id="62-performance-comparison"&gt;6.2 Performance Comparison&lt;/h3&gt;
+&lt;p&gt;In terms of efficiency, it is &lt;strong&gt;ten times faster&lt;/strong&gt; than the bisection method at around 2.8ms. Compared to the execution time of the SPH right-hand side function at around 2.4ms, the EOS now only takes one-tenth of that time.&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;$ grep &lt;span class="s2"&gt;&amp;#34;calPressureSoundSpeed&amp;#34;&lt;/span&gt; run.log &lt;span class="p"&gt;|&lt;/span&gt; tail -n &lt;span class="m"&gt;20&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;calPressureSoundSpeed_newton execution time: 0.237 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;calPressureSoundSpeed_newton execution time: 0.237 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;calPressureSoundSpeed_newton execution time: 0.236 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;calPressureSoundSpeed_newton execution time: 0.236 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;calPressureSoundSpeed_newton execution time: 0.228 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;calPressureSoundSpeed_newton execution time: 0.237 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;calPressureSoundSpeed_newton execution time: 0.242 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;calPressureSoundSpeed_newton execution time: 0.234 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;calPressureSoundSpeed_newton execution time: 0.240 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;calPressureSoundSpeed_newton execution time: 0.231 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;calPressureSoundSpeed_newton execution time: 0.234 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;calPressureSoundSpeed_newton execution time: 0.234 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;calPressureSoundSpeed_newton execution time: 0.233 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;calPressureSoundSpeed_newton execution time: 0.238 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;calPressureSoundSpeed_newton execution time: 0.229 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;calPressureSoundSpeed_newton execution time: 0.236 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;calPressureSoundSpeed_newton execution time: 0.238 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;calPressureSoundSpeed_newton execution time: 0.236 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;calPressureSoundSpeed_newton execution time: 0.239 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;calPressureSoundSpeed_newton execution time: 0.231 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;...
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;$ tail -n &lt;span class="m"&gt;10&lt;/span&gt; run.log
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; └─ Sub2: 0.050 ms &lt;span class="o"&gt;(&lt;/span&gt; 2.3%&lt;span class="o"&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="o"&gt;[&lt;/span&gt;computeRHS&lt;span class="o"&gt;]&lt;/span&gt; Total: 2.420 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; ├─ Press: 0.000 ms &lt;span class="o"&gt;(&lt;/span&gt; 0.0%&lt;span class="o"&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; ├─ Corr: 1.026 ms &lt;span class="o"&gt;(&lt;/span&gt;42.4%&lt;span class="o"&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; ├─ Sub1: 1.352 ms &lt;span class="o"&gt;(&lt;/span&gt;55.9%&lt;span class="o"&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; └─ Sub2: 0.042 ms &lt;span class="o"&gt;(&lt;/span&gt; 1.7%&lt;span class="o"&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;calPressureSoundSpeed_newton execution time: 0.207 ms
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;hr&gt;
+&lt;h2 id="7-final-results-and-physical-verification"&gt;7. Final Results and Physical Verification&lt;/h2&gt;
+&lt;h3 id="71-compaction-curve-verification"&gt;7.1 Compaction Curve Verification&lt;/h3&gt;
+&lt;p&gt;
+&lt;figure &gt;
+&lt;div class="flex justify-center "&gt;
+&lt;div class="w-full" &gt;
+&lt;img alt="Simulation successfully reproduces the compaction curve"
+srcset="https://yekq.top/blog/gasphia/p-alpha-porosity-model/crushcurvepng_hu_3d44387f0df98034.webp 320w, https://yekq.top/blog/gasphia/p-alpha-porosity-model/crushcurvepng_hu_9657b2cb0b2d1f4.webp 480w, https://yekq.top/blog/gasphia/p-alpha-porosity-model/crushcurvepng_hu_6f829ae12f808250.webp 760w"
+sizes="(max-width: 480px) 100vw, (max-width: 768px) 90vw, (max-width: 1024px) 80vw, 760px"
+src="https://yekq.top/blog/gasphia/p-alpha-porosity-model/crushcurvepng_hu_3d44387f0df98034.webp"
+width="760"
+height="477"
+loading="lazy" data-zoomable /&gt;&lt;/div&gt;
+&lt;/div&gt;&lt;/figure&gt;
+&lt;/p&gt;
+&lt;p&gt;The red dashed line in the figure is the theoretical compaction curve, and the scattered points are the simulation output from GASPHiA. As time progresses, pressure causes proper pore compaction; after pressure is released, the porosity remains strictly unchanged, without any unphysical rebound phenomena. This fundamentally verifies that the irreversible logic implementation of the P-alpha model is completely accurate.&lt;/p&gt;
+&lt;hr&gt;
+&lt;h3 id="72-macroscopic-experiment-comparison"&gt;7.2 Macroscopic Experiment Comparison&lt;/h3&gt;
+&lt;p&gt;
+&lt;figure &gt;
+&lt;div class="flex justify-center "&gt;
+&lt;div class="w-full" &gt;
+&lt;img alt="Replication and comparison of impact results from the paper"
+srcset="https://yekq.top/blog/gasphia/p-alpha-porosity-model/compare_hu_a4445ed4a184fc0b.webp 320w, https://yekq.top/blog/gasphia/p-alpha-porosity-model/compare_hu_dd8f668435520cc3.webp 480w, https://yekq.top/blog/gasphia/p-alpha-porosity-model/compare_hu_2ec18410382a5b51.webp 760w"
+sizes="(max-width: 480px) 100vw, (max-width: 768px) 90vw, (max-width: 1024px) 80vw, 760px"
+src="https://yekq.top/blog/gasphia/p-alpha-porosity-model/compare_hu_a4445ed4a184fc0b.webp"
+width="760"
+height="259"
+loading="lazy" data-zoomable /&gt;&lt;/div&gt;
+&lt;/div&gt;&lt;/figure&gt;
+&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Figures a, b: Experimental results and benchmark simulation results from Jutzi et al. 2009.&lt;/li&gt;
+&lt;li&gt;Figure c: Simulation results from GASPHiA.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;blockquote class="border-l-4 border-neutral-300 dark:border-neutral-600 pl-4 italic text-neutral-600 dark:text-neutral-400 my-6"&gt;
+&lt;p&gt;It can be seen that the physical morphology output by GASPHiA highly matches the original experiments and benchmark papers.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;
+&lt;figure &gt;
+&lt;div class="flex justify-center "&gt;
+&lt;div class="w-full" &gt;
+&lt;img alt="Comparison of fragment mass cumulative distribution curves"
+srcset="https://yekq.top/blog/gasphia/p-alpha-porosity-model/porous_cm_hu_9b57da9843871f6f.webp 320w, https://yekq.top/blog/gasphia/p-alpha-porosity-model/porous_cm_hu_ff5fe8c5b9c1fad.webp 480w, https://yekq.top/blog/gasphia/p-alpha-porosity-model/porous_cm_hu_3a6c6ccf08cdc862.webp 760w"
+sizes="(max-width: 480px) 100vw, (max-width: 768px) 90vw, (max-width: 1024px) 80vw, 760px"
+src="https://yekq.top/blog/gasphia/p-alpha-porosity-model/porous_cm_hu_9b57da9843871f6f.webp"
+width="760"
+height="474"
+loading="lazy" data-zoomable /&gt;&lt;/div&gt;
+&lt;/div&gt;&lt;/figure&gt;
+&lt;/p&gt;
+&lt;p&gt;Post-process analysis of the impact results, extracting fragment cumulative mass distribution data:&lt;/p&gt;
+&lt;blockquote class="border-l-4 border-neutral-300 dark:border-neutral-600 pl-4 italic text-neutral-600 dark:text-neutral-400 my-6"&gt;
+&lt;p&gt;The maximum residual fragment mass ratio calculated by GASPHiA is 11.67%, which has small error compared with the real experimental data of 9.96% given by the laboratory, further verifying the reliability of the core computational logic of the porous material solver.&lt;/p&gt;
+&lt;/blockquote&gt;</description></item><item><title>Jutzi 2008 1D P-alpha Compaction Wave Validation - GASPHiA Test Case</title><link>https://yekq.top/en/blog/gasphia/jutzi2008-p-alpha-compaction-wave/</link><pubDate>Tue, 26 May 2026 14:00:00 +0800</pubDate><guid>https://yekq.top/en/blog/gasphia/jutzi2008-p-alpha-compaction-wave/</guid><description>&lt;h1 id="jutzi-2008-1d-p-alpha-compaction-wave-validation"&gt;Jutzi 2008 1D P-alpha Compaction Wave Validation&lt;/h1&gt;
+&lt;h2 id="overview"&gt;Overview&lt;/h2&gt;
+&lt;p&gt;This case reproduces the 1D porous aluminum compaction wave test from Jutzi et al. (2008) Section 5.1, comparing the following physical quantities at a fixed time against the paper&amp;rsquo;s SPH curves and the analytical solution:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Pressure distribution&lt;/li&gt;
+&lt;li&gt;Distension &lt;code&gt;alpha&lt;/code&gt; distribution&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;This type of test is used to examine the performance of the p-alpha model in terms of &lt;strong&gt;wave front structure, compaction zone thickness, and post-wave compaction degree&lt;/strong&gt;.&lt;/p&gt;
+&lt;p&gt;This run used &lt;code&gt;shock_00350.h5&lt;/code&gt; as the reference frame. Extracted results:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Material 0 particle count: &lt;code&gt;400&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;Pressure range: ~&lt;code&gt;1.07e-01 Pa&lt;/code&gt; to &lt;code&gt;5.07e+09 Pa&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;Distension range: &lt;code&gt;1.0&lt;/code&gt; to &lt;code&gt;1.275&lt;/code&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;The compaction wave has driven the material from the initial porous state to a nearly fully compacted region.&lt;/p&gt;
+&lt;p&gt;
+&lt;figure &gt;
+&lt;div class="flex justify-center "&gt;
+&lt;div class="w-full" &gt;
+&lt;img alt="Jutzi 2008 Compaction Wave Validation"
+srcset="https://yekq.top/blog/gasphia/jutzi2008-p-alpha-compaction-wave/jutzi2008_compaction_wave_hu_3946a063d3c294af.webp 320w, https://yekq.top/blog/gasphia/jutzi2008-p-alpha-compaction-wave/jutzi2008_compaction_wave_hu_4ad7758bf8bfad1e.webp 480w, https://yekq.top/blog/gasphia/jutzi2008-p-alpha-compaction-wave/jutzi2008_compaction_wave_hu_fda9409607a5349b.webp 760w"
+sizes="(max-width: 480px) 100vw, (max-width: 768px) 90vw, (max-width: 1024px) 80vw, 760px"
+src="https://yekq.top/blog/gasphia/jutzi2008-p-alpha-compaction-wave/jutzi2008_compaction_wave_hu_3946a063d3c294af.webp"
+width="760"
+height="732"
+loading="lazy" data-zoomable /&gt;&lt;/div&gt;
+&lt;/div&gt;&lt;/figure&gt;
+&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id="validation-objective"&gt;Validation Objective&lt;/h2&gt;
+&lt;p&gt;The physical picture of this case: a right-side moving piston drives a compaction wave through an initially porous aluminum rod. As the wave propagates forward, the material transitions from an initial distension of&lt;/p&gt;
+$$
+\alpha_0 = 1.275
+$$&lt;p&gt;toward a denser state.&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id="how-to-run"&gt;How to Run&lt;/h2&gt;
+&lt;p&gt;Test directory:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;GASPHiA-Tests/Jutzi2008_Section5_1_PAlphaCompactionWave
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Run with:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;./run_all.sh --source-dir /path/to/GASPHiA --cuda &lt;span class="m"&gt;0&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;The default workflow executes sequentially:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;Compile and run &lt;code&gt;input/gen_input_1d.cpp&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;Compile GASPHiA using the local &lt;code&gt;para.cuh&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;Run &lt;code&gt;compaction_wave.ini&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;Read &lt;code&gt;output/shock_00350.h5&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;Output pressure / distension comparison plots&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;Note: this case&amp;rsquo;s &lt;code&gt;para.cuh&lt;/code&gt; reserves a macro specifically for reproducing the experimental path:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-cpp" data-lang="cpp"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="cp"&gt;#define JUTZI2008_5_1_reproduce_need 1
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;hr&gt;
+&lt;h2 id="result-interpretation"&gt;Result Interpretation&lt;/h2&gt;
+&lt;p&gt;The figure is divided into two panels:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Top: Pressure profile&lt;/li&gt;
+&lt;li&gt;Bottom: Distension &lt;code&gt;alpha&lt;/code&gt; profile&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Each panel simultaneously plots three curves:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;GASPHiA computed results&lt;/li&gt;
+&lt;li&gt;Paper SPH curve&lt;/li&gt;
+&lt;li&gt;Analytical reference curve&lt;/li&gt;
+&lt;/ul&gt;
+&lt;hr&gt;
+&lt;h2 id="actual-run-data"&gt;Actual Run Data&lt;/h2&gt;
+&lt;p&gt;Key metrics extracted from post-processing:&lt;/p&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th style="text-align: left"&gt;Metric&lt;/th&gt;
+&lt;th style="text-align: left"&gt;Value&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;Reference frame&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;shock_00350.h5&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;Material 0 particle count&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;400&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;Minimum pressure&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;1.07e-01 Pa&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;Maximum pressure&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;5.07e+09 Pa&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;Minimum distension&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;1.0000&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;Maximum distension&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;1.2750&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;These values validate the simulation from two perspectives:&lt;/p&gt;
+&lt;p&gt;On the one hand, the output &lt;code&gt;alpha&lt;/code&gt; covers the entire range from the initial porous state to the fully compacted state. On the other hand, the peak pressure has entered the &lt;code&gt;GPa&lt;/code&gt; range, indicating that the compaction wave is sufficiently strong and has formed a genuine compaction structure.&lt;/p&gt;</description></item></channel></rss>

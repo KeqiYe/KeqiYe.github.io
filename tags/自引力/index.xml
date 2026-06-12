@@ -1,0 +1,450 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>自引力 | Keqi 的博客</title><link>https://yekq.top/tags/%E8%87%AA%E5%BC%95%E5%8A%9B/</link><atom:link href="https://yekq.top/tags/%E8%87%AA%E5%BC%95%E5%8A%9B/index.xml" rel="self" type="application/rss+xml"/><description>自引力</description><generator>HugoBlox Kit (https://hugoblox.com)</generator><language>zh-Hans</language><lastBuildDate>Tue, 07 Apr 2026 14:00:00 +0800</lastBuildDate><image><url>https://yekq.top/media/icon_hu_bf3b12c4891d2eeb.png</url><title>自引力</title><link>https://yekq.top/tags/%E8%87%AA%E5%BC%95%E5%8A%9B/</link></image><item><title>GASPHiA中的自引力树代码效率与优化分析</title><link>https://yekq.top/blog/gasphia/treecode/</link><pubDate>Tue, 07 Apr 2026 14:00:00 +0800</pubDate><guid>https://yekq.top/blog/gasphia/treecode/</guid><description>&lt;iframe src="//player.bilibili.com/player.html?isOutside=true&amp;aid=116482834958240&amp;bvid=BV1u69yBGEwJ&amp;cid=37919327464&amp;p=1" scrolling="no" border="0" frameborder="no" framespacing="0" allowfullscreen="true"
+style="width: 100%; aspect-ratio: 16/9; border-radius: 8px; margin-bottom: 20px;"&gt;
+&lt;/iframe&gt;
+&lt;p align="center" style="font-size: 0.9em; color: gray; margin-top: -10px; margin-bottom: 20px;"&gt;
+&lt;em&gt; 500万粒子纯引力 N-Body 模拟：星系碰撞产生的潮汐尾结构
+本模拟采用 GASPHiA 的纯 N 体模块实现。初始模型通过开源工具 DICE 构建，包含了完整的暗物质晕（DM Halo）与恒星盘（Stellar Disk）组分。重点展示了在引力相互作用下，星系盘部粒子受扰动演化出典型潮汐尾（Tidal Tails）的过程。&lt;/em&gt;
+&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id="为什么需要考虑引力"&gt;为什么需要考虑引力？&lt;/h2&gt;
+&lt;p&gt;在天体物理的 SPH 模拟中，除了撞击过程本身，星体自身的引力对最终结果的影响同样至关重要。这也解释了为什么在模拟固态行星的撞击时，我们往往不引入物质强度模型，而是将其近似为纯粹的流体来处理。对于某些巨型撞击模拟而言，引力的作用不仅体现在模拟过程中需要实时计算引力，甚至在预处理阶段就必须求解泊松方程，以构建一个处于引力平衡状态的初始天体，再将其投入撞击计算。&lt;/p&gt;
+&lt;p&gt;这里所说的引力，即自引力，指的是 SPH 粒子之间由于质量分布而产生的相互吸引力。这与模拟水动力学现象（如溃坝）时所采用的引力模型截然不同——后者仅需为每个粒子统一施加一个指向地面的恒定加速度即可。&lt;/p&gt;
+&lt;h2 id="如何计算自引力为什么需要树代码"&gt;如何计算自引力，为什么需要树代码？&lt;/h2&gt;
+&lt;p&gt;在 SPH 模拟中，自引力的计算本质上是对每一个粒子求解其所受的引力合力。根据万有引力定律，任意两个粒子之间都存在引力作用，这意味着对于包含 $N$ 个粒子的系统，直接计算所有粒子对的相互作用需要 $O(N^2)$ 次运算。当天体物理模拟的粒子数量达到百万甚至千万级别时，这种直接求和的方式在计算量上将变得完全不可接受。&lt;/p&gt;
+&lt;p&gt;这正是引入 &lt;strong&gt;Tree Code（树代码）&lt;/strong&gt; 的核心动机。树代码的核心思想源于一个朴素的物理直觉：当一个远方的粒子团簇距离我们足够远时，我们无需逐一计算团簇内每个粒子的贡献，而是可以将整个团簇近似视为一个位于其质心的等效质点。通过这种近似，计算复杂度可以从 $O(N^2)$ 大幅降低至 $O(N\log N)$。&lt;/p&gt;
+&lt;p&gt;
+&lt;figure &gt;
+&lt;div class="flex justify-center "&gt;
+&lt;div class="w-full" &gt;
+&lt;img alt="基于树的引力计算概念图，来源于参考文献[2]"
+srcset="https://yekq.top/blog/gasphia/treecode/concept_hu_304f8c4caece7885.webp 297w"
+sizes="(max-width: 480px) 100vw, (max-width: 768px) 90vw, (max-width: 1024px) 80vw, 760px"
+src="https://yekq.top/blog/gasphia/treecode/concept_hu_304f8c4caece7885.webp"
+width="297"
+height="320"
+loading="lazy" data-zoomable /&gt;&lt;/div&gt;
+&lt;/div&gt;&lt;/figure&gt;
+&lt;/p&gt;
+&lt;p&gt;Tree Code（树代码）最初由 Barnes 和 Hut 提出[1]，因此基于该文献实现的树结构通常被称为 &lt;strong&gt;Barnes-Hut Tree&lt;/strong&gt;。GASPHiA 在面向 CUDA 架构实现这一数据结构时，借鉴了文献[2]中的并行实现方案。&lt;/p&gt;
+&lt;p&gt;然而，文献[2]的方法直接服务于纯粹的 N 体模拟，其数据结构仅需满足自引力计算的需求；而 SPH 方法除了计算自引力外，还需依赖树结构进行高效的邻近粒子搜索。这一根本性的需求差异，导致 GASPHiA 最终的树代码结构与文献[2]存在显著不同。具体差异主要体现在两个方面：一是树节点中子节点（Child）数量的管理策略；二是在并行遍历树结构时的线程束投票机制——文献[2]仅需判定引力相互作用的条件，而 GASPHiA 作为SPH代码，必须额外融合邻近搜索的判定逻辑。&lt;/p&gt;
+&lt;p&gt;尽管在实现细节上存在上述分歧，二者在核心的空间递归划分思路上仍保持高度一致。因此，读者仍可将文献[2]作为理解底层空间划分逻辑的重要参考。&lt;/p&gt;
+&lt;h2 id="效率对比与优化"&gt;效率对比与优化&lt;/h2&gt;
+&lt;h3 id="背景"&gt;背景&lt;/h3&gt;
+&lt;p&gt;目前 GASPHiA 虽然已经实现了基于 Barnes-Hut Tree 的自引力计算。但是与文献[2]相比，在遍历树的时候，由于没有对粒子进行空间排序，因此效率肯定没有经过空间排序的效率高。为了直观展示 Barnes-Hut Tree 的威力，我们实现了暴力双循环计算自引力作为一个参考，同时以不使用空间排序的效率作为基准，探讨最终包含排序过程后的自引力计算的效率提升。&lt;/p&gt;
+&lt;h3 id="计算核函数"&gt;计算核函数&lt;/h3&gt;
+&lt;p&gt;基于树的自引力计算核包含以下几个：&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;重置树结构&lt;/strong&gt;&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-cpp" data-lang="cpp"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="kt"&gt;void&lt;/span&gt; &lt;span class="n"&gt;SPHOctree&lt;/span&gt;&lt;span class="o"&gt;::&lt;/span&gt;&lt;span class="n"&gt;resetOctree&lt;/span&gt;&lt;span class="p"&gt;()&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="p"&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="n"&gt;resetOctreeKernel&lt;/span&gt;&lt;span class="o"&gt;&amp;lt;&amp;lt;&amp;lt;&lt;/span&gt;&lt;span class="n"&gt;numBlocks&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;ThreadsPerBlock&lt;/span&gt;&lt;span class="o"&gt;&amp;gt;&amp;gt;&amp;gt;&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="k"&gt;this&lt;/span&gt;&lt;span class="o"&gt;-&amp;gt;&lt;/span&gt;&lt;span class="n"&gt;d_child&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="k"&gt;this&lt;/span&gt;&lt;span class="o"&gt;-&amp;gt;&lt;/span&gt;&lt;span class="n"&gt;d_count&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="k"&gt;this&lt;/span&gt;&lt;span class="o"&gt;-&amp;gt;&lt;/span&gt;&lt;span class="n"&gt;d_start&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="k"&gt;this&lt;/span&gt;&lt;span class="o"&gt;-&amp;gt;&lt;/span&gt;&lt;span class="n"&gt;d_sorted&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="k"&gt;this&lt;/span&gt;&lt;span class="o"&gt;-&amp;gt;&lt;/span&gt;&lt;span class="n"&gt;d_node_com_mass&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="k"&gt;this&lt;/span&gt;&lt;span class="o"&gt;-&amp;gt;&lt;/span&gt;&lt;span class="n"&gt;d_node_hmax&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="k"&gt;this&lt;/span&gt;&lt;span class="o"&gt;-&amp;gt;&lt;/span&gt;&lt;span class="n"&gt;d_mutex&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="k"&gt;this&lt;/span&gt;&lt;span class="o"&gt;-&amp;gt;&lt;/span&gt;&lt;span class="n"&gt;d_node_index&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="k"&gt;this&lt;/span&gt;&lt;span class="o"&gt;-&amp;gt;&lt;/span&gt;&lt;span class="n"&gt;num_particles&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="k"&gt;this&lt;/span&gt;&lt;span class="o"&gt;-&amp;gt;&lt;/span&gt;&lt;span class="n"&gt;max_nodes&lt;/span&gt;&lt;span class="p"&gt;);&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="n"&gt;CUDA_CHECK&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;cudaGetLastError&lt;/span&gt;&lt;span class="p"&gt;());&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="p"&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;计算粒子边界&lt;/strong&gt;&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-cpp" data-lang="cpp"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="kt"&gt;void&lt;/span&gt; &lt;span class="n"&gt;SPHOctree&lt;/span&gt;&lt;span class="o"&gt;::&lt;/span&gt;&lt;span class="n"&gt;computeBoundingBox&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;RealType4&lt;/span&gt; &lt;span class="o"&gt;*&lt;/span&gt;&lt;span class="n"&gt;d_particles&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="p"&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="n"&gt;computeMin&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;d_particles&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;d_reduceTmp&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;num_particles&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;d_bounding_box_min&lt;/span&gt;&lt;span class="p"&gt;);&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="n"&gt;computeMax&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;d_particles&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;d_reduceTmp&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;num_particles&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;d_bounding_box_max&lt;/span&gt;&lt;span class="p"&gt;);&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="n"&gt;CUDA_CHECK&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;cudaDeviceSynchronize&lt;/span&gt;&lt;span class="p"&gt;());&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="n"&gt;CUDA_CHECK&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;cudaGetLastError&lt;/span&gt;&lt;span class="p"&gt;());&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="p"&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;自顶向下建立树&lt;/strong&gt;&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-cpp" data-lang="cpp"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="kt"&gt;void&lt;/span&gt; &lt;span class="n"&gt;SPHOctree&lt;/span&gt;&lt;span class="o"&gt;::&lt;/span&gt;&lt;span class="n"&gt;buildTree&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;RealType4&lt;/span&gt; &lt;span class="o"&gt;*&lt;/span&gt;&lt;span class="n"&gt;d_positions&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="p"&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="n"&gt;buildTreeKernel&lt;/span&gt;&lt;span class="o"&gt;&amp;lt;&amp;lt;&amp;lt;&lt;/span&gt;&lt;span class="n"&gt;numBlocks&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;ThreadsPerBlock&lt;/span&gt;&lt;span class="o"&gt;&amp;gt;&amp;gt;&amp;gt;&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="n"&gt;d_positions&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="k"&gt;this&lt;/span&gt;&lt;span class="o"&gt;-&amp;gt;&lt;/span&gt;&lt;span class="n"&gt;d_node_com_mass&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="k"&gt;this&lt;/span&gt;&lt;span class="o"&gt;-&amp;gt;&lt;/span&gt;&lt;span class="n"&gt;d_count&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="k"&gt;this&lt;/span&gt;&lt;span class="o"&gt;-&amp;gt;&lt;/span&gt;&lt;span class="n"&gt;d_start&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="k"&gt;this&lt;/span&gt;&lt;span class="o"&gt;-&amp;gt;&lt;/span&gt;&lt;span class="n"&gt;d_child&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="k"&gt;this&lt;/span&gt;&lt;span class="o"&gt;-&amp;gt;&lt;/span&gt;&lt;span class="n"&gt;d_node_index&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="k"&gt;this&lt;/span&gt;&lt;span class="o"&gt;-&amp;gt;&lt;/span&gt;&lt;span class="n"&gt;d_bounding_box_min&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="k"&gt;this&lt;/span&gt;&lt;span class="o"&gt;-&amp;gt;&lt;/span&gt;&lt;span class="n"&gt;d_bounding_box_max&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="k"&gt;this&lt;/span&gt;&lt;span class="o"&gt;-&amp;gt;&lt;/span&gt;&lt;span class="n"&gt;num_particles&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="k"&gt;this&lt;/span&gt;&lt;span class="o"&gt;-&amp;gt;&lt;/span&gt;&lt;span class="n"&gt;max_nodes&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="p"&gt;);&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="n"&gt;CUDA_CHECK&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;cudaGetLastError&lt;/span&gt;&lt;span class="p"&gt;());&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="n"&gt;CUDA_CHECK&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;cudaDeviceSynchronize&lt;/span&gt;&lt;span class="p"&gt;());&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="p"&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;计算节点质心&lt;/strong&gt;&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-cpp" data-lang="cpp"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="kt"&gt;void&lt;/span&gt; &lt;span class="n"&gt;SPHOctree&lt;/span&gt;&lt;span class="o"&gt;::&lt;/span&gt;&lt;span class="n"&gt;computeCenterOfMass&lt;/span&gt;&lt;span class="p"&gt;()&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="p"&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="n"&gt;computeCenterOfMassKernel&lt;/span&gt;&lt;span class="o"&gt;&amp;lt;&amp;lt;&amp;lt;&lt;/span&gt;&lt;span class="n"&gt;numBlocks&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;ThreadsPerBlock&lt;/span&gt;&lt;span class="o"&gt;&amp;gt;&amp;gt;&amp;gt;&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="k"&gt;this&lt;/span&gt;&lt;span class="o"&gt;-&amp;gt;&lt;/span&gt;&lt;span class="n"&gt;d_node_com_mass&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="k"&gt;this&lt;/span&gt;&lt;span class="o"&gt;-&amp;gt;&lt;/span&gt;&lt;span class="n"&gt;d_node_index&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="k"&gt;this&lt;/span&gt;&lt;span class="o"&gt;-&amp;gt;&lt;/span&gt;&lt;span class="n"&gt;num_particles&lt;/span&gt;&lt;span class="p"&gt;);&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="n"&gt;CUDA_CHECK&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;cudaGetLastError&lt;/span&gt;&lt;span class="p"&gt;());&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="n"&gt;CUDA_CHECK&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;cudaDeviceSynchronize&lt;/span&gt;&lt;span class="p"&gt;());&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="p"&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;计算自引力&lt;/strong&gt;&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-cpp" data-lang="cpp"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="n"&gt;computeGravityKernel&lt;/span&gt;&lt;span class="o"&gt;&amp;lt;&amp;lt;&amp;lt;&lt;/span&gt;&lt;span class="n"&gt;numBlocks&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;ThreadsPerBlock&lt;/span&gt;&lt;span class="o"&gt;&amp;gt;&amp;gt;&amp;gt;&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="n"&gt;d_positions&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="k"&gt;this&lt;/span&gt;&lt;span class="o"&gt;-&amp;gt;&lt;/span&gt;&lt;span class="n"&gt;d_node_com_mass&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="k"&gt;this&lt;/span&gt;&lt;span class="o"&gt;-&amp;gt;&lt;/span&gt;&lt;span class="n"&gt;d_child&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="n"&gt;d_accelerations&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="k"&gt;this&lt;/span&gt;&lt;span class="o"&gt;-&amp;gt;&lt;/span&gt;&lt;span class="n"&gt;d_bounding_box_min&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="k"&gt;this&lt;/span&gt;&lt;span class="o"&gt;-&amp;gt;&lt;/span&gt;&lt;span class="n"&gt;d_bounding_box_max&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="k"&gt;this&lt;/span&gt;&lt;span class="o"&gt;-&amp;gt;&lt;/span&gt;&lt;span class="n"&gt;num_particles&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="k"&gt;this&lt;/span&gt;&lt;span class="o"&gt;-&amp;gt;&lt;/span&gt;&lt;span class="n"&gt;theta&lt;/span&gt; &lt;span class="o"&gt;*&lt;/span&gt; &lt;span class="k"&gt;this&lt;/span&gt;&lt;span class="o"&gt;-&amp;gt;&lt;/span&gt;&lt;span class="n"&gt;theta&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="k"&gt;this&lt;/span&gt;&lt;span class="o"&gt;-&amp;gt;&lt;/span&gt;&lt;span class="n"&gt;constG&lt;/span&gt;&lt;span class="p"&gt;);&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;h3 id="性能瓶颈分析"&gt;性能瓶颈分析&lt;/h3&gt;
+&lt;p&gt;根据文献[2]的实现，整个树代码流程中最耗时的部分在于最后一步——遍历树结构以计算自引力。其根本原因在于线程访问模式与数据空间分布的错配：若未对粒子数据进行显式排序，处于同一 Warp 中的粒子在物理空间上可能相距甚远。这种空间分布的离散性会直接导致 Warp 内部的线程在执行剪枝判定时产生严重分歧：&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-cpp" data-lang="cpp"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="kt"&gt;bool&lt;/span&gt; &lt;span class="n"&gt;mac_satisfied&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;child&lt;/span&gt; &lt;span class="o"&gt;&amp;lt;&lt;/span&gt; &lt;span class="n"&gt;n&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt; &lt;span class="o"&gt;||&lt;/span&gt; &lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="o"&gt;!&lt;/span&gt;&lt;span class="n"&gt;is_active&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt; &lt;span class="o"&gt;||&lt;/span&gt; &lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;w_sq&lt;/span&gt; &lt;span class="o"&gt;/&lt;/span&gt; &lt;span class="n"&gt;theta_sq&lt;/span&gt; &lt;span class="o"&gt;&amp;lt;&lt;/span&gt; &lt;span class="n"&gt;r_sq&lt;/span&gt;&lt;span class="p"&gt;);&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="k"&gt;if&lt;/span&gt; &lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;__all_sync&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="mh"&gt;0xffffffff&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;mac_satisfied&lt;/span&gt;&lt;span class="p"&gt;))&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="p"&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; &lt;span class="c1"&gt;// 剪枝
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="p"&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;当同一 Warp 内的不同粒子面对各自不同的目标节点时，部分线程可能满足剪枝条件（&lt;code&gt;mac_satisfied&lt;/code&gt; 为 true），而其余线程则仍需继续深入遍历（false）。由于 CUDA 的 Warp 执行遵循单指令多线程模型，所有线程必须同步执行同一指令路径。因此，只要 Warp 中存在任意一个线程不满足剪枝条件——即便多数线程本可以提前终止——整个 Warp 都必须进入后续的节点下钻流程。这种由线程间数据依赖差异导致的执行路径分叉，大幅削弱了剪枝机制的有效性，使得大量计算资源被耗费在不必要的深层节点访问上。&lt;/p&gt;
+&lt;h3 id="性能测试与对比"&gt;性能测试与对比&lt;/h3&gt;
+&lt;p&gt;为验证上述分析，我先做了一个测试：通过离散一个正方体获得规则排列的粒子，采用单精度计算，离散得到 100 万个粒子进行测试。测试结果显示，遍历树计算引力确实是最耗时的步骤：&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="c1"&gt;# 打乱后（无排序）&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;Calculating Gravity on GPU &lt;span class="o"&gt;(&lt;/span&gt;Barnes-Hut, &lt;span class="nv"&gt;theta&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;0.5&lt;span class="o"&gt;)&lt;/span&gt;...
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;--- Gravity Computation Profiling ---
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; resetOctree: 11.6206 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; computeBoundingBox: 0.4268 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; buildTree: 45.4690 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; computeCoM: 0.1025 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; computeGravity: 2955.5117 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;-------------------------------------
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="c1"&gt;# 规则排列（相当于粗略排序）&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;--- Gravity Computation Profiling ---
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; resetOctree: 10.7203 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; computeBoundingBox: 0.4361 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; buildTree: 44.1606 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; computeCoM: 0.1303 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt; computeGravity: 202.4100 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;-------------------------------------
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;关键发现：&lt;strong&gt;时间差距达到 15 倍&lt;/strong&gt;，区别仅仅在于是否把粒子打乱。如果不打乱，就相当于我们做了排序（因为初始的粒子排布就是规则的）；如果打乱，时间激增。&lt;/p&gt;
+&lt;p&gt;详细的 Profile 数据如下：&lt;/p&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th style="text-align: left"&gt;指标名称&lt;/th&gt;
+&lt;th style="text-align: left"&gt;指标含义&lt;/th&gt;
+&lt;th style="text-align: center"&gt;规则排布&lt;/th&gt;
+&lt;th style="text-align: center"&gt;打乱排布&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;&lt;strong&gt;Elapsed Cycles&lt;/strong&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;Kernel 执行消耗的总 GPU 时钟周期数&lt;/td&gt;
+&lt;td style="text-align: center"&gt;~0.29 Billion&lt;/td&gt;
+&lt;td style="text-align: center"&gt;~2.58 Billion&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;&lt;strong&gt;Duration&lt;/strong&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;Kernel 实际运行时间&lt;/td&gt;
+&lt;td style="text-align: center"&gt;~0.19 秒&lt;/td&gt;
+&lt;td style="text-align: center"&gt;~3.10 秒&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;&lt;strong&gt;SM Frequency&lt;/strong&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;流式多处理器平均运行频率&lt;/td&gt;
+&lt;td style="text-align: center"&gt;~1.55 GHz&lt;/td&gt;
+&lt;td style="text-align: center"&gt;~830 MHz&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;&lt;strong&gt;Compute (SM) Throughput&lt;/strong&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;计算单元繁忙程度&lt;/td&gt;
+&lt;td style="text-align: center"&gt;~80.4%&lt;/td&gt;
+&lt;td style="text-align: center"&gt;~79.2%&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;&lt;strong&gt;Memory Throughput&lt;/strong&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;内存子系统整体繁忙程度&lt;/td&gt;
+&lt;td style="text-align: center"&gt;~61.5%&lt;/td&gt;
+&lt;td style="text-align: center"&gt;~59.0%&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;&lt;span style="color: red;"&gt;&lt;strong&gt;L2 Cache Throughput&lt;/strong&gt;&lt;/span&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;span style="color: red;"&gt;L2 缓存访问吞吐率&lt;/span&gt;&lt;/td&gt;
+&lt;td style="text-align: center"&gt;&lt;span style="color: red;"&gt;~23.9%&lt;/span&gt;&lt;/td&gt;
+&lt;td style="text-align: center"&gt;&lt;span style="color: red;"&gt;~14.1%&lt;/span&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;&lt;span style="color: red;"&gt;&lt;strong&gt;DRAM Throughput&lt;/strong&gt;&lt;/span&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;span style="color: red;"&gt;显存直接访问吞吐率&lt;/span&gt;&lt;/td&gt;
+&lt;td style="text-align: center"&gt;&lt;span style="color: red;"&gt;~0.35%&lt;/span&gt;&lt;/td&gt;
+&lt;td style="text-align: center"&gt;&lt;span style="color: red;"&gt;~15.7%&lt;/span&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;&lt;strong&gt;Achieved Occupancy&lt;/strong&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;实际活跃 Warp 占比&lt;/td&gt;
+&lt;td style="text-align: center"&gt;~98.6%&lt;/td&gt;
+&lt;td style="text-align: center"&gt;~95.2%&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;从表中可以清晰看出，打乱后 &lt;strong&gt;L2 Cache Throughput&lt;/strong&gt; 从 23.9% 降至 14.1%，而 &lt;strong&gt;DRAM Throughput&lt;/strong&gt; 从 0.35% 增至 15.7%。这表明粒子排序对于提升数据局部性、充分利用 L2 缓存、减少显存直接访问至关重要，直接导致了 15 倍的性能差距。&lt;/p&gt;
+&lt;h3 id="排序算法"&gt;排序算法&lt;/h3&gt;
+&lt;p&gt;上一小节通过对输入粒子进行 shuffle 发现：在 CUDA 上实现树算法时，粒子的**空间局部性（Spatial Locality）**起着决定性作用。局部性越好，同一个 Warp 内的 32 个线程在遍历八叉树时，就越容易访问相同的树节点，从而大幅减少 Warp 发散（Warp Divergence），并将 L1/L2 缓存的命中率推向极限，避免对极慢的 DRAM 产生大量直接读写。&lt;/p&gt;
+&lt;blockquote class="border-l-4 border-neutral-300 dark:border-neutral-600 pl-4 italic text-neutral-600 dark:text-neutral-400 my-6"&gt;
+&lt;p&gt;&lt;strong&gt;注意&lt;/strong&gt;：这里我虽然用了“减少 Warp 发散（Warp Divergence）”的表达，但其实线程并没有发散，只是打开了过多的节点，某种意义上，相当于warp投票&lt;code&gt;mac_satisfied&lt;/code&gt;的不一致性较强，所以我还是借用了 Warp 发散的说法。&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;然而，在实际的 SPH 或 N-body 模拟中，随着时间的推移，粒子在空间中剧烈碰撞、混合，其在显存数组中的物理索引会与它们真实的几何位置彻底脱节。因此，我们需要在每一帧建树完成后，进行一次高效的空间排序（Spatial Sorting）。&lt;/p&gt;
+&lt;h4 id="1-核心思想利用树拓扑天然排序"&gt;1. 核心思想：利用树拓扑天然排序&lt;/h4&gt;
+&lt;p&gt;既然八叉树本身就是对三维空间的完美网格化划分，那么按照遍历树的顺序（例如深度优先 DFS 或广度优先 BFS）依次读取叶子节点，得到的就是在三维空间中聚拢的粒子序列。&lt;/p&gt;
+&lt;h4 id="2-gather-寻址策略只排索引不搬数据"&gt;2. Gather 寻址策略：只排索引，不搬数据&lt;/h4&gt;
+&lt;p&gt;在拥有数百万粒子的系统中，如果每次都在全局显存中来回拷贝几十 MB 的粒子坐标（float4 数据），不仅极其耗时，还会额外占用大量显存。采用 Gather 寻址策略:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;不移动粒子数据在显存中的排布位置&lt;/li&gt;
+&lt;li&gt;生成一个一维的映射数组 &lt;code&gt;sort&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;sort[i]&lt;/code&gt; 存放的是&amp;quot;第 i 个线程应该去处理的真实粒子编号&amp;quot;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;在后续的引力计算中，同一个 Warp 内的相邻线程将读取 &lt;code&gt;sort&lt;/code&gt; 数组中相邻的值，这样同一个warp处理的粒子在空间上都相近了，他们遍历树的路径也大概率会一致。&lt;/p&gt;
+&lt;h4 id="3-自顶向下排序"&gt;3. 自顶向下排序&lt;/h4&gt;
+&lt;p&gt;为了在 GPU 上极速完成排序，我们利用建树阶段已经统计好的 &lt;code&gt;count&lt;/code&gt;（子树粒子数），采用自顶向下的并行分配机制。父节点会根据各个子节点的 &lt;code&gt;count&lt;/code&gt;，为它们在 &lt;code&gt;sort&lt;/code&gt; 数组中划分好专属的&amp;quot;内存区间&amp;quot;。&lt;/p&gt;
+&lt;h4 id="4-profile-验证"&gt;4. Profile 验证&lt;/h4&gt;
+&lt;p&gt;理论上，经过树排序后遍历，路径分化会进一步降低，因为同一个 Warp 的粒子的父节点几乎都在一起。为了量化这种提升，我将粒子数降到 100 万，对以下三种计算模式进行 Profile 分析：&lt;/p&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th style="text-align: left"&gt;计算模式&lt;/th&gt;
+&lt;th style="text-align: left"&gt;描述&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;1. 完全随机&lt;/td&gt;
+&lt;td style="text-align: left"&gt;不使用树排序，粒子顺序在空间上随机分布&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;2. 初始规则&lt;/td&gt;
+&lt;td style="text-align: left"&gt;不使用树排序，粒子顺序在空间上规则排列&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;3. 树排序&lt;/td&gt;
+&lt;td style="text-align: left"&gt;树排序，粒子顺序在空间上随机分布&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;Profile 命令：&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;ncu --set full -f -o profile/no_shuffle_no_sort_profile -k computeGravityKernel -s &lt;span class="m"&gt;2&lt;/span&gt; -c &lt;span class="m"&gt;2&lt;/span&gt; ./sph_simulator
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;命令参数说明：&lt;/p&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th style="text-align: left"&gt;参数&lt;/th&gt;
+&lt;th style="text-align: left"&gt;含义&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;--set full&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;收集所有可用的性能指标&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;-f&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;强制覆盖已存在的输出文件&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;-o profile/xxx&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;指定输出文件的路径和名称&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;-k computeGravityKernel&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;指定要 Profile 的 Kernel 名称&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;-s 2&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;在程序启动后跳过前 2 次迭代再开始 Profile（避免冷启动影响）&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;-c 2&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;重复执行 2 次取平均（减少测量误差）&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;结果对比如下：&lt;/p&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th style="text-align: left"&gt;计算模式&lt;/th&gt;
+&lt;th style="text-align: center"&gt;核心耗时&lt;/th&gt;
+&lt;th style="text-align: center"&gt;执行指令数&lt;/th&gt;
+&lt;th style="text-align: center"&gt;L1/TEX 命中率&lt;/th&gt;
+&lt;th style="text-align: center"&gt;内存吞吐量&lt;/th&gt;
+&lt;th style="text-align: center"&gt;Executed IPC&lt;/th&gt;
+&lt;th style="text-align: center"&gt;Warp 均指令周期 (CPI)&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;1. 完全随机&lt;/td&gt;
+&lt;td style="text-align: center"&gt;33.13 ms&lt;/td&gt;
+&lt;td style="text-align: center"&gt;246.2 亿&lt;/td&gt;
+&lt;td style="text-align: center"&gt;48.23%&lt;/td&gt;
+&lt;td style="text-align: center"&gt;2.37 GB/s&lt;/td&gt;
+&lt;td style="text-align: center"&gt;2.97&lt;/td&gt;
+&lt;td style="text-align: center"&gt;13.75 周期&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;2. 初始规则&lt;/td&gt;
+&lt;td style="text-align: center"&gt;5.13 ms&lt;/td&gt;
+&lt;td style="text-align: center"&gt;41.9 亿&lt;/td&gt;
+&lt;td style="text-align: center"&gt;57.52%&lt;/td&gt;
+&lt;td style="text-align: center"&gt;8.14 GB/s&lt;/td&gt;
+&lt;td style="text-align: center"&gt;2.99&lt;/td&gt;
+&lt;td style="text-align: center"&gt;13.44 周期&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;3. 树排序&lt;/td&gt;
+&lt;td style="text-align: center"&gt;3.11 ms&lt;/td&gt;
+&lt;td style="text-align: center"&gt;22.1 亿&lt;/td&gt;
+&lt;td style="text-align: center"&gt;58.66%&lt;/td&gt;
+&lt;td style="text-align: center"&gt;12.25 GB/s&lt;/td&gt;
+&lt;td style="text-align: center"&gt;2.74&lt;/td&gt;
+&lt;td style="text-align: center"&gt;13.28 周期&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;从结果可以看出，&lt;strong&gt;树排序模式（3.11 ms）比完全随机模式（33.13 ms）快了约 10 倍&lt;/strong&gt;，且优于初始规则模式（5.13 ms）。这证明了基于树拓扑的空间排序策略能够显著提升自引力计算的效率。&lt;/p&gt;
+&lt;p&gt;现在，GASPHiA使用了基于树排序模式优化后的代码。&lt;/p&gt;
+&lt;h3 id="性能曲线"&gt;性能曲线&lt;/h3&gt;
+&lt;p&gt;下面两图展示了在不同粒子数量下，各计算模式的性能对比（线性坐标与对数坐标）：&lt;/p&gt;
+&lt;p&gt;
+&lt;figure &gt;
+&lt;div class="flex justify-center "&gt;
+&lt;div class="w-full" &gt;
+&lt;img alt="效率验证线性坐标系"
+srcset="https://yekq.top/blog/gasphia/treecode/performance_plot_linear_hu_436347fef38bab0.webp 320w, https://yekq.top/blog/gasphia/treecode/performance_plot_linear_hu_139d486729524e7e.webp 480w, https://yekq.top/blog/gasphia/treecode/performance_plot_linear_hu_8e03cf9c7201e221.webp 760w"
+sizes="(max-width: 480px) 100vw, (max-width: 768px) 90vw, (max-width: 1024px) 80vw, 760px"
+src="https://yekq.top/blog/gasphia/treecode/performance_plot_linear_hu_436347fef38bab0.webp"
+width="760"
+height="532"
+loading="lazy" data-zoomable /&gt;&lt;/div&gt;
+&lt;/div&gt;&lt;/figure&gt;
+&lt;/p&gt;
+&lt;p&gt;
+&lt;figure &gt;
+&lt;div class="flex justify-center "&gt;
+&lt;div class="w-full" &gt;
+&lt;img alt="效率验证对数坐标系"
+srcset="https://yekq.top/blog/gasphia/treecode/performance_plot_hu_c499050c7dec6a45.webp 320w, https://yekq.top/blog/gasphia/treecode/performance_plot_hu_1e5ea06260a027eb.webp 480w, https://yekq.top/blog/gasphia/treecode/performance_plot_hu_f6507774b439d1db.webp 760w"
+sizes="(max-width: 480px) 100vw, (max-width: 768px) 90vw, (max-width: 1024px) 80vw, 760px"
+src="https://yekq.top/blog/gasphia/treecode/performance_plot_hu_c499050c7dec6a45.webp"
+width="760"
+height="532"
+loading="lazy" data-zoomable /&gt;&lt;/div&gt;
+&lt;/div&gt;&lt;/figure&gt;
+&lt;/p&gt;
+&lt;blockquote class="border-l-4 border-neutral-300 dark:border-neutral-600 pl-4 italic text-neutral-600 dark:text-neutral-400 my-6"&gt;
+&lt;p&gt;&lt;strong&gt;注意&lt;/strong&gt;：上图中，&amp;ldquo;构建树&amp;quot;包含了计算包围盒、排序等所有流程，相较于计算引力或者邻居搜索，建立树的耗时可以忽略。&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;h3 id="精度与加速比验证"&gt;精度与加速比验证&lt;/h3&gt;
+&lt;p&gt;我还测试了 100 万粒子情况下，Barnes-Hut 算法相对于暴力计算的加速比与误差。注意这里的误差都是相对误差。&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;不同 $\theta$ 参数下的性能与精度对比&lt;/strong&gt;：&lt;/p&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th style="text-align: center"&gt;$\theta$&lt;/th&gt;
+&lt;th style="text-align: center"&gt;计算时间 (ms)&lt;/th&gt;
+&lt;th style="text-align: center"&gt;最大相对误差&lt;/th&gt;
+&lt;th style="text-align: center"&gt;平均相对误差&lt;/th&gt;
+&lt;th style="text-align: center"&gt;加速比&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td style="text-align: center"&gt;0.1&lt;/td&gt;
+&lt;td style="text-align: center"&gt;181.877&lt;/td&gt;
+&lt;td style="text-align: center"&gt;0.00219153&lt;/td&gt;
+&lt;td style="text-align: center"&gt;3.27768e-05&lt;/td&gt;
+&lt;td style="text-align: center"&gt;7.42231x&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: center"&gt;0.2&lt;/td&gt;
+&lt;td style="text-align: center"&gt;39.5222&lt;/td&gt;
+&lt;td style="text-align: center"&gt;0.00502609&lt;/td&gt;
+&lt;td style="text-align: center"&gt;6.86399e-05&lt;/td&gt;
+&lt;td style="text-align: center"&gt;34.1566x&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: center"&gt;0.3&lt;/td&gt;
+&lt;td style="text-align: center"&gt;14.9356&lt;/td&gt;
+&lt;td style="text-align: center"&gt;0.0214612&lt;/td&gt;
+&lt;td style="text-align: center"&gt;0.00015996&lt;/td&gt;
+&lt;td style="text-align: center"&gt;90.3847x&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: center"&gt;0.4&lt;/td&gt;
+&lt;td style="text-align: center"&gt;8.75622&lt;/td&gt;
+&lt;td style="text-align: center"&gt;0.0335255&lt;/td&gt;
+&lt;td style="text-align: center"&gt;0.00028779&lt;/td&gt;
+&lt;td style="text-align: center"&gt;154.17x&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: center"&gt;0.5&lt;/td&gt;
+&lt;td style="text-align: center"&gt;5.88032&lt;/td&gt;
+&lt;td style="text-align: center"&gt;0.0711218&lt;/td&gt;
+&lt;td style="text-align: center"&gt;0.00053247&lt;/td&gt;
+&lt;td style="text-align: center"&gt;229.57x&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: center"&gt;0.6&lt;/td&gt;
+&lt;td style="text-align: center"&gt;4.20147&lt;/td&gt;
+&lt;td style="text-align: center"&gt;0.0565245&lt;/td&gt;
+&lt;td style="text-align: center"&gt;0.000783245&lt;/td&gt;
+&lt;td style="text-align: center"&gt;321.303x&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: center"&gt;0.7&lt;/td&gt;
+&lt;td style="text-align: center"&gt;3.52717&lt;/td&gt;
+&lt;td style="text-align: center"&gt;0.106591&lt;/td&gt;
+&lt;td style="text-align: center"&gt;0.00153542&lt;/td&gt;
+&lt;td style="text-align: center"&gt;382.728x&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: center"&gt;0.8&lt;/td&gt;
+&lt;td style="text-align: center"&gt;3.21018&lt;/td&gt;
+&lt;td style="text-align: center"&gt;0.170889&lt;/td&gt;
+&lt;td style="text-align: center"&gt;0.002965&lt;/td&gt;
+&lt;td style="text-align: center"&gt;420.521x&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;精度验证图：&lt;/p&gt;
+&lt;p&gt;
+&lt;figure &gt;
+&lt;div class="flex justify-center "&gt;
+&lt;div class="w-full" &gt;
+&lt;img alt="精度验证"
+srcset="https://yekq.top/blog/gasphia/treecode/Accuracy_hu_bb58122b1cf606db.webp 320w, https://yekq.top/blog/gasphia/treecode/Accuracy_hu_58cca8fb70eaee31.webp 480w, https://yekq.top/blog/gasphia/treecode/Accuracy_hu_c814807be1efb0b9.webp 760w"
+sizes="(max-width: 480px) 100vw, (max-width: 768px) 90vw, (max-width: 1024px) 80vw, 760px"
+src="https://yekq.top/blog/gasphia/treecode/Accuracy_hu_bb58122b1cf606db.webp"
+width="760"
+height="456"
+loading="lazy" data-zoomable /&gt;&lt;/div&gt;
+&lt;/div&gt;&lt;/figure&gt;
+&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;结论&lt;/strong&gt;：随着 $\theta$ 增大，计算精度下降（误差增大），但计算速度显著提升。在 $\theta = 0.5$ 时，可以在 200x 加速的同时保持约 7% 的最大相对误差，是较为理想的平衡点。&lt;/p&gt;
+&lt;h2 id="参考资料"&gt;参考资料&lt;/h2&gt;
+&lt;p&gt;[1] Barnes J, Hut P. A hierarchical O (N log N) force-calculation algorithm. nature. 1986 Dec 4;324(6096):446-9.&lt;/p&gt;
+&lt;p&gt;[2] Burtscher M, Pingali K. An efficient CUDA implementation of the tree-based barnes hut n-body algorithm. In GPU computing Gems Emerald edition 2011 Jan 1 (pp. 75-92). Morgan Kaufmann.&lt;/p&gt;</description></item></channel></rss>

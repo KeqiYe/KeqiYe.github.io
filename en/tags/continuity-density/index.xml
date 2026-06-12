@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Continuity Density | Keqi's Blog</title><link>https://yekq.top/en/tags/continuity-density/</link><atom:link href="https://yekq.top/en/tags/continuity-density/index.xml" rel="self" type="application/rss+xml"/><description>Continuity Density</description><generator>HugoBlox Kit (https://hugoblox.com)</generator><language>en-us</language><lastBuildDate>Tue, 17 Mar 2026 10:00:00 +0800</lastBuildDate><image><url>https://yekq.top/media/icon_hu_bf3b12c4891d2eeb.png</url><title>Continuity Density</title><link>https://yekq.top/en/tags/continuity-density/</link></image><item><title>1D Sod Shock Tube Experiment - CUDA SPH Benchmark</title><link>https://yekq.top/en/blog/gasphia/1d-shock-tube/</link><pubDate>Tue, 17 Mar 2026 10:00:00 +0800</pubDate><guid>https://yekq.top/en/blog/gasphia/1d-shock-tube/</guid><description>&lt;h1 id="1d-sod-shock-tube-experiment"&gt;1D Sod Shock Tube Experiment&lt;/h1&gt;
+&lt;h2 id="tldr"&gt;TL;DR&lt;/h2&gt;
+&lt;p&gt;This article presents a reproduction of the classic 1D Sod Shock Tube benchmark test using a custom-built CUDA SPH (Smoothed Particle Hydrodynamics) physics engine from scratch. The primary objective is to verify the engine&amp;rsquo;s capability to capture strong shock discontinuities. A critical numerical pitfall was identified and resolved: when handling initial step density fields, the traditional Continuity Density method causes severe non-physical oscillations, while the direct Summation Density demonstrates better robustness. In fact, continuity density is more suitable for high-speed impact problems.&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id="1-simulation-results"&gt;1. Simulation Results&lt;/h2&gt;
+&lt;p&gt;Comparison of two density calculation methods:&lt;/p&gt;
+&lt;div style="display: flex; gap: 20px; flex-wrap: wrap;"&gt;
+&lt;div style="flex: 1; min-width: 300px;"&gt;
+&lt;h4 style="text-align: center;"&gt;Summation Density (Success)&lt;/h4&gt;
+&lt;img src="1D_ShockTube_Evolution.gif" alt="Summation Density" style="width: 100%;"&gt;
+&lt;/div&gt;
+&lt;div style="flex: 1; min-width: 300px;"&gt;
+&lt;h4 style="text-align: center;"&gt;Continuity Density (Failure)&lt;/h4&gt;
+&lt;img src="1D_ShockTube_Evolution_lianxv.gif" alt="Continuity Density" style="width: 100%;"&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Left (Success)&lt;/strong&gt;: Using summation density, the shock front, contact discontinuity, and rarefaction wave can be clearly observed propagating smoothly.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Right (Failure)&lt;/strong&gt;: Using continuity density, oscillations appear at the initial density jump in the shock tube.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;
+&lt;figure &gt;
+&lt;div class="flex justify-center "&gt;
+&lt;div class="w-full" &gt;
+&lt;img alt="Validation Comparison"
+srcset="https://yekq.top/blog/gasphia/1d-shock-tube/ShockTube_Validation_Zoom_hu_eecbe48c32100b86.webp 320w, https://yekq.top/blog/gasphia/1d-shock-tube/ShockTube_Validation_Zoom_hu_91384d445a4e1303.webp 480w, https://yekq.top/blog/gasphia/1d-shock-tube/ShockTube_Validation_Zoom_hu_40ca4714bc4bf504.webp 760w"
+sizes="(max-width: 480px) 100vw, (max-width: 768px) 90vw, (max-width: 1024px) 80vw, 760px"
+src="https://yekq.top/blog/gasphia/1d-shock-tube/ShockTube_Validation_Zoom_hu_eecbe48c32100b86.webp"
+width="760"
+height="543"
+loading="lazy" data-zoomable /&gt;&lt;/div&gt;
+&lt;/div&gt;&lt;/figure&gt;
+&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Figure 1&lt;/strong&gt;: Density distribution comparison for the Sod shock tube. Shows the density along the x-direction at $t=0.2$ for three methods compared with the analytical solution. The red solid line is the analytical solution, blue dots are numerical results from the summation density method, and orange dots are numerical results from the continuity density method.&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id="2-problem-background"&gt;2. Problem Background&lt;/h2&gt;
+&lt;h3 id="21-what-is-the-sod-shock-tube"&gt;2.1 What is the Sod Shock Tube?&lt;/h3&gt;
+&lt;p&gt;The Sod shock tube is a classic benchmark problem in fluid dynamics, used to verify numerical methods&amp;rsquo; capability to capture shocks, contact discontinuities, and rarefaction waves. This problem simulates the instantaneous release of two gases at different states separated by a membrane in a one-dimensional tube.&lt;/p&gt;
+&lt;h3 id="22-physical-model"&gt;2.2 Physical Model&lt;/h3&gt;
+&lt;p&gt;This simulation uses the ideal gas model with the following governing equations:&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Continuity Equation&lt;/strong&gt;:
+&lt;/p&gt;
+$$\frac{\partial \rho}{\partial t} + \nabla \cdot (\rho \mathbf{v}) = 0$$&lt;p&gt;&lt;strong&gt;Momentum Equation&lt;/strong&gt;:
+&lt;/p&gt;
+$$\frac{\partial (\rho \mathbf{v})}{\partial t} + \nabla \cdot (\rho \mathbf{v} \otimes \mathbf{v}) = -\nabla p$$&lt;p&gt;&lt;strong&gt;Energy Equation&lt;/strong&gt;:
+&lt;/p&gt;
+$$\frac{\partial (\rho e)}{\partial t} + \nabla \cdot (\rho e \mathbf{v}) = -p \nabla \cdot \mathbf{v}$$&lt;p&gt;&lt;strong&gt;Equation of State&lt;/strong&gt; (Ideal Gas):
+&lt;/p&gt;
+$$p = (\gamma - 1) \rho e$$&lt;p&gt;where $\gamma = 5/3$ is the adiabatic index.&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id="3-initial-conditions"&gt;3. Initial Conditions&lt;/h2&gt;
+&lt;p&gt;At the initial time, the shock tube is divided into two regions by a membrane at $x=0$:&lt;/p&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th style="text-align: center"&gt;Parameter&lt;/th&gt;
+&lt;th style="text-align: center"&gt;High Density Region (Left)&lt;/th&gt;
+&lt;th style="text-align: center"&gt;Low Density Region (Right)&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td style="text-align: center"&gt;Density $\rho$&lt;/td&gt;
+&lt;td style="text-align: center"&gt;1.0&lt;/td&gt;
+&lt;td style="text-align: center"&gt;0.25&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: center"&gt;Velocity $v$&lt;/td&gt;
+&lt;td style="text-align: center"&gt;0.0&lt;/td&gt;
+&lt;td style="text-align: center"&gt;0.0&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: center"&gt;Internal Energy $e$&lt;/td&gt;
+&lt;td style="text-align: center"&gt;2.5&lt;/td&gt;
+&lt;td style="text-align: center"&gt;1.795&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: center"&gt;Particle Spacing $\Delta x$&lt;/td&gt;
+&lt;td style="text-align: center"&gt;0.001875&lt;/td&gt;
+&lt;td style="text-align: center"&gt;0.0075&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: center"&gt;Smoothing Length $h$&lt;/td&gt;
+&lt;td style="text-align: center"&gt;0.01&lt;/td&gt;
+&lt;td style="text-align: center"&gt;0.01&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: center"&gt;Region Range&lt;/td&gt;
+&lt;td style="text-align: center"&gt;$[-1.2, 0)$&lt;/td&gt;
+&lt;td style="text-align: center"&gt;$(0, 1.2]$&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: center"&gt;Number of Particles&lt;/td&gt;
+&lt;td style="text-align: center"&gt;640&lt;/td&gt;
+&lt;td style="text-align: center"&gt;160&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;&lt;strong&gt;Total Particles&lt;/strong&gt;: 800&lt;/p&gt;
+&lt;p&gt;The initial conditions set the left side as a high-pressure, high-density region and the right side as a low-pressure, low-density region. After the membrane is removed, the high-pressure gas on the left accelerates to the right, forming three wave structures: shock, contact discontinuity, and rarefaction wave.&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id="4-numerical-methods"&gt;4. Numerical Methods&lt;/h2&gt;
+&lt;h3 id="41-sph-density-calculation-approaches"&gt;4.1 SPH Density Calculation Approaches&lt;/h3&gt;
+&lt;p&gt;This benchmark compares two SPH density computation methods:&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Method 1: Summation Density&lt;/strong&gt;&lt;/p&gt;
+$$\rho_i = \sum_j m_j W(r_{ij}, h)$$&lt;p&gt;where $W(r, h)$ is the kernel function and $h$ is the smoothing length. This method directly sums the masses of neighboring particles with clear physical meaning.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Method 2: Continuity Density&lt;/strong&gt;&lt;/p&gt;
+$$\frac{d\rho_i}{dt} = \sum_j m_j (v_j - v_i) \cdot \nabla_i W(r_{ij}, h)$$&lt;p&gt;This equation is derived from the divergence of the momentum equation and is theoretically equivalent to the continuity equation.&lt;/p&gt;
+&lt;h3 id="future-work"&gt;Future Work&lt;/h3&gt;
+&lt;ul&gt;
+&lt;li&gt;2D/3D Dam Break Simulation&lt;/li&gt;
+&lt;li&gt;Simulations with Material Strength&lt;/li&gt;
+&lt;/ul&gt;
+&lt;hr&gt;
+&lt;h2 id="references"&gt;References&lt;/h2&gt;
+&lt;ol&gt;
+&lt;li&gt;Sod, G. A. (1978). A survey of several finite difference methods for systems of nonlinear hyperbolic conservation laws. &lt;em&gt;Journal of Computational Physics&lt;/em&gt;, 27(1), 1-31.&lt;/li&gt;
+&lt;li&gt;Monaghan, J. J. (1992). Smoothed particle hydrodynamics. &lt;em&gt;Annual Review of Astronomy and Astrophysics&lt;/em&gt;, 30, 543-574.&lt;/li&gt;
+&lt;li&gt;Liu, G. R., &amp;amp; Liu, M. B. (2003). &lt;em&gt;Smoothed particle hydrodynamics: a meshfree particle method&lt;/em&gt;. World Scientific.&lt;/li&gt;
+&lt;/ol&gt;</description></item></channel></rss>

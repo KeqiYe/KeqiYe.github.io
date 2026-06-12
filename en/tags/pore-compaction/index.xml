@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Pore Compaction | Keqi's Blog</title><link>https://yekq.top/en/tags/pore-compaction/</link><atom:link href="https://yekq.top/en/tags/pore-compaction/index.xml" rel="self" type="application/rss+xml"/><description>Pore Compaction</description><generator>HugoBlox Kit (https://hugoblox.com)</generator><language>en-us</language><lastBuildDate>Tue, 26 May 2026 14:00:00 +0800</lastBuildDate><image><url>https://yekq.top/media/icon_hu_bf3b12c4891d2eeb.png</url><title>Pore Compaction</title><link>https://yekq.top/en/tags/pore-compaction/</link></image><item><title>Jutzi 2008 1D P-alpha Compaction Wave Validation - GASPHiA Test Case</title><link>https://yekq.top/en/blog/gasphia/jutzi2008-p-alpha-compaction-wave/</link><pubDate>Tue, 26 May 2026 14:00:00 +0800</pubDate><guid>https://yekq.top/en/blog/gasphia/jutzi2008-p-alpha-compaction-wave/</guid><description>&lt;h1 id="jutzi-2008-1d-p-alpha-compaction-wave-validation"&gt;Jutzi 2008 1D P-alpha Compaction Wave Validation&lt;/h1&gt;
+&lt;h2 id="overview"&gt;Overview&lt;/h2&gt;
+&lt;p&gt;This case reproduces the 1D porous aluminum compaction wave test from Jutzi et al. (2008) Section 5.1, comparing the following physical quantities at a fixed time against the paper&amp;rsquo;s SPH curves and the analytical solution:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Pressure distribution&lt;/li&gt;
+&lt;li&gt;Distension &lt;code&gt;alpha&lt;/code&gt; distribution&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;This type of test is used to examine the performance of the p-alpha model in terms of &lt;strong&gt;wave front structure, compaction zone thickness, and post-wave compaction degree&lt;/strong&gt;.&lt;/p&gt;
+&lt;p&gt;This run used &lt;code&gt;shock_00350.h5&lt;/code&gt; as the reference frame. Extracted results:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Material 0 particle count: &lt;code&gt;400&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;Pressure range: ~&lt;code&gt;1.07e-01 Pa&lt;/code&gt; to &lt;code&gt;5.07e+09 Pa&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;Distension range: &lt;code&gt;1.0&lt;/code&gt; to &lt;code&gt;1.275&lt;/code&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;The compaction wave has driven the material from the initial porous state to a nearly fully compacted region.&lt;/p&gt;
+&lt;p&gt;
+&lt;figure &gt;
+&lt;div class="flex justify-center "&gt;
+&lt;div class="w-full" &gt;
+&lt;img alt="Jutzi 2008 Compaction Wave Validation"
+srcset="https://yekq.top/blog/gasphia/jutzi2008-p-alpha-compaction-wave/jutzi2008_compaction_wave_hu_3946a063d3c294af.webp 320w, https://yekq.top/blog/gasphia/jutzi2008-p-alpha-compaction-wave/jutzi2008_compaction_wave_hu_4ad7758bf8bfad1e.webp 480w, https://yekq.top/blog/gasphia/jutzi2008-p-alpha-compaction-wave/jutzi2008_compaction_wave_hu_fda9409607a5349b.webp 760w"
+sizes="(max-width: 480px) 100vw, (max-width: 768px) 90vw, (max-width: 1024px) 80vw, 760px"
+src="https://yekq.top/blog/gasphia/jutzi2008-p-alpha-compaction-wave/jutzi2008_compaction_wave_hu_3946a063d3c294af.webp"
+width="760"
+height="732"
+loading="lazy" data-zoomable /&gt;&lt;/div&gt;
+&lt;/div&gt;&lt;/figure&gt;
+&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id="validation-objective"&gt;Validation Objective&lt;/h2&gt;
+&lt;p&gt;The physical picture of this case: a right-side moving piston drives a compaction wave through an initially porous aluminum rod. As the wave propagates forward, the material transitions from an initial distension of&lt;/p&gt;
+$$
+\alpha_0 = 1.275
+$$&lt;p&gt;toward a denser state.&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id="how-to-run"&gt;How to Run&lt;/h2&gt;
+&lt;p&gt;Test directory:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;GASPHiA-Tests/Jutzi2008_Section5_1_PAlphaCompactionWave
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Run with:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;./run_all.sh --source-dir /path/to/GASPHiA --cuda &lt;span class="m"&gt;0&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;The default workflow executes sequentially:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;Compile and run &lt;code&gt;input/gen_input_1d.cpp&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;Compile GASPHiA using the local &lt;code&gt;para.cuh&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;Run &lt;code&gt;compaction_wave.ini&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;Read &lt;code&gt;output/shock_00350.h5&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;Output pressure / distension comparison plots&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;Note: this case&amp;rsquo;s &lt;code&gt;para.cuh&lt;/code&gt; reserves a macro specifically for reproducing the experimental path:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-cpp" data-lang="cpp"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="cp"&gt;#define JUTZI2008_5_1_reproduce_need 1
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;hr&gt;
+&lt;h2 id="result-interpretation"&gt;Result Interpretation&lt;/h2&gt;
+&lt;p&gt;The figure is divided into two panels:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Top: Pressure profile&lt;/li&gt;
+&lt;li&gt;Bottom: Distension &lt;code&gt;alpha&lt;/code&gt; profile&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Each panel simultaneously plots three curves:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;GASPHiA computed results&lt;/li&gt;
+&lt;li&gt;Paper SPH curve&lt;/li&gt;
+&lt;li&gt;Analytical reference curve&lt;/li&gt;
+&lt;/ul&gt;
+&lt;hr&gt;
+&lt;h2 id="actual-run-data"&gt;Actual Run Data&lt;/h2&gt;
+&lt;p&gt;Key metrics extracted from post-processing:&lt;/p&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th style="text-align: left"&gt;Metric&lt;/th&gt;
+&lt;th style="text-align: left"&gt;Value&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;Reference frame&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;shock_00350.h5&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;Material 0 particle count&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;400&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;Minimum pressure&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;1.07e-01 Pa&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;Maximum pressure&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;5.07e+09 Pa&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;Minimum distension&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;1.0000&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;Maximum distension&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;1.2750&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;These values validate the simulation from two perspectives:&lt;/p&gt;
+&lt;p&gt;On the one hand, the output &lt;code&gt;alpha&lt;/code&gt; covers the entire range from the initial porous state to the fully compacted state. On the other hand, the peak pressure has entered the &lt;code&gt;GPa&lt;/code&gt; range, indicating that the compaction wave is sufficiently strong and has formed a genuine compaction structure.&lt;/p&gt;</description></item></channel></rss>

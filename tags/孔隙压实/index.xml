@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>孔隙压实 | Keqi 的博客</title><link>https://yekq.top/tags/%E5%AD%94%E9%9A%99%E5%8E%8B%E5%AE%9E/</link><atom:link href="https://yekq.top/tags/%E5%AD%94%E9%9A%99%E5%8E%8B%E5%AE%9E/index.xml" rel="self" type="application/rss+xml"/><description>孔隙压实</description><generator>HugoBlox Kit (https://hugoblox.com)</generator><language>zh-Hans</language><lastBuildDate>Tue, 26 May 2026 14:00:00 +0800</lastBuildDate><image><url>https://yekq.top/media/icon_hu_bf3b12c4891d2eeb.png</url><title>孔隙压实</title><link>https://yekq.top/tags/%E5%AD%94%E9%9A%99%E5%8E%8B%E5%AE%9E/</link></image><item><title>Jutzi 2008 一维 p-alpha 压实波验证 - GASPHiA 测试算例</title><link>https://yekq.top/blog/gasphia/jutzi2008-p-alpha-compaction-wave/</link><pubDate>Tue, 26 May 2026 14:00:00 +0800</pubDate><guid>https://yekq.top/blog/gasphia/jutzi2008-p-alpha-compaction-wave/</guid><description>&lt;h1 id="jutzi-2008-一维-p-alpha-压实波验证"&gt;Jutzi 2008 一维 p-alpha 压实波验证&lt;/h1&gt;
+&lt;h2 id="概述"&gt;概述&lt;/h2&gt;
+&lt;p&gt;本算例复现 Jutzi et al. (2008) 第 5.1 节的一维多孔铝压实波测试，在固定时刻对比以下物理量在 GASPHiA、论文 SPH 曲线与解析解之间的一致性：&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;压力分布&lt;/li&gt;
+&lt;li&gt;膨胀度 &lt;code&gt;alpha&lt;/code&gt; 分布&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;该类测试用于考察 p-alpha 模型在&lt;strong&gt;波前结构、压实区厚度、波后压实程度&lt;/strong&gt;方面的表现。&lt;/p&gt;
+&lt;p&gt;本次运行以 &lt;code&gt;shock_00350.h5&lt;/code&gt; 作为对照帧。提取结果：&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;材料 0 粒子数：&lt;code&gt;400&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;压力范围：约 &lt;code&gt;1.07e-01 Pa&lt;/code&gt; ~ &lt;code&gt;5.07e+09 Pa&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;膨胀度范围：&lt;code&gt;1.0&lt;/code&gt; ~ &lt;code&gt;1.275&lt;/code&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;压实波已将材料从初始多孔态推进至近乎完全压实的区域。&lt;/p&gt;
+&lt;p&gt;
+&lt;figure &gt;
+&lt;div class="flex justify-center "&gt;
+&lt;div class="w-full" &gt;
+&lt;img alt="Jutzi 2008 压实波验证图"
+srcset="https://yekq.top/blog/gasphia/jutzi2008-p-alpha-compaction-wave/jutzi2008_compaction_wave_hu_3946a063d3c294af.webp 320w, https://yekq.top/blog/gasphia/jutzi2008-p-alpha-compaction-wave/jutzi2008_compaction_wave_hu_4ad7758bf8bfad1e.webp 480w, https://yekq.top/blog/gasphia/jutzi2008-p-alpha-compaction-wave/jutzi2008_compaction_wave_hu_fda9409607a5349b.webp 760w"
+sizes="(max-width: 480px) 100vw, (max-width: 768px) 90vw, (max-width: 1024px) 80vw, 760px"
+src="https://yekq.top/blog/gasphia/jutzi2008-p-alpha-compaction-wave/jutzi2008_compaction_wave_hu_3946a063d3c294af.webp"
+width="760"
+height="732"
+loading="lazy" data-zoomable /&gt;&lt;/div&gt;
+&lt;/div&gt;&lt;/figure&gt;
+&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id="验证目标"&gt;验证目标&lt;/h2&gt;
+&lt;p&gt;本算例的物理图景如下：右侧移动活塞推动压实波穿过一根初始存在孔隙的多孔铝柱。随着波向前传播，材料从初始膨胀度&lt;/p&gt;
+$$
+\alpha_0 = 1.275
+$$&lt;p&gt;逐渐向更致密状态过渡。&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id="运行方式"&gt;运行方式&lt;/h2&gt;
+&lt;p&gt;测试目录：&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;GASPHiA-Tests/Jutzi2008_Section5_1_PAlphaCompactionWave
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;执行以下命令启动：&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;./run_all.sh --source-dir /path/to/GASPHiA --cuda &lt;span class="m"&gt;0&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;默认流程依次执行：&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;编译并运行 &lt;code&gt;input/gen_input_1d.cpp&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;使用当前目录下的 &lt;code&gt;para.cuh&lt;/code&gt; 编译 GASPHiA&lt;/li&gt;
+&lt;li&gt;运行 &lt;code&gt;compaction_wave.ini&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;读取 &lt;code&gt;output/shock_00350.h5&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;输出压力 / 膨胀度对比图&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;需额外注意：本算例的 &lt;code&gt;para.cuh&lt;/code&gt; 中预留了一个用于复现实验路径的宏&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-cpp" data-lang="cpp"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="cp"&gt;#define JUTZI2008_5_1_reproduce_need 1
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;hr&gt;
+&lt;h2 id="结果解读"&gt;结果解读&lt;/h2&gt;
+&lt;p&gt;图形分为上下两部分：&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;上图：压力剖面&lt;/li&gt;
+&lt;li&gt;下图：膨胀度 &lt;code&gt;alpha&lt;/code&gt; 剖面&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;每部分均同时绘制三条曲线：&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;GASPHiA 计算结果&lt;/li&gt;
+&lt;li&gt;论文 SPH 曲线&lt;/li&gt;
+&lt;li&gt;解析参考曲线&lt;/li&gt;
+&lt;/ul&gt;
+&lt;hr&gt;
+&lt;h2 id="实际运行数据"&gt;实际运行数据&lt;/h2&gt;
+&lt;p&gt;后处理提取的关键指标如下：&lt;/p&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th style="text-align: left"&gt;指标&lt;/th&gt;
+&lt;th style="text-align: left"&gt;数值&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;对照帧&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;shock_00350.h5&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;材料 0 粒子数&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;400&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;压力最小值&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;1.07e-01 Pa&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;压力最大值&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;5.07e+09 Pa&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;膨胀度最小值&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;1.0000&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;膨胀度最大值&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;1.2750&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;这些数值从两个角度印证了模拟的有效性：&lt;/p&gt;
+&lt;p&gt;一方面，输出中的 &lt;code&gt;alpha&lt;/code&gt; 已覆盖从初始孔隙态到完全压实态的整个范围；另一方面，压力峰值已进入 &lt;code&gt;GPa&lt;/code&gt; 量级，说明压实波强度足够，已形成真实压实结构。&lt;/p&gt;
+&lt;hr&gt;</description></item></channel></rss>

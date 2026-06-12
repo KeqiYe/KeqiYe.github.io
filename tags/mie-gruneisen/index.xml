@@ -1,0 +1,162 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Mie-Gruneisen | Keqi 的博客</title><link>https://yekq.top/tags/mie-gruneisen/</link><atom:link href="https://yekq.top/tags/mie-gruneisen/index.xml" rel="self" type="application/rss+xml"/><description>Mie-Gruneisen</description><generator>HugoBlox Kit (https://hugoblox.com)</generator><language>zh-Hans</language><lastBuildDate>Tue, 26 May 2026 12:30:00 +0800</lastBuildDate><image><url>https://yekq.top/media/icon_hu_bf3b12c4891d2eeb.png</url><title>Mie-Gruneisen</title><link>https://yekq.top/tags/mie-gruneisen/</link></image><item><title>铝材料 Mie-Gruneisen Hugoniot 验证 - GASPHiA 测试算例</title><link>https://yekq.top/blog/gasphia/aluminum-mie-gruneisen-hugoniot/</link><pubDate>Tue, 26 May 2026 12:30:00 +0800</pubDate><guid>https://yekq.top/blog/gasphia/aluminum-mie-gruneisen-hugoniot/</guid><description>&lt;h1 id="铝材料-mie-gruneisen-hugoniot-验证"&gt;铝材料 Mie-Gruneisen Hugoniot 验证&lt;/h1&gt;
+&lt;h2 id="概述"&gt;概述&lt;/h2&gt;
+&lt;p&gt;本算例验证 GASPHiA 中 &lt;strong&gt;Mie-Gruneisen 状态方程&lt;/strong&gt;对铝材料冲击响应实现的正确性。方法为：在一维杆件右端施加刚性活塞，扫描多组活塞速度 &lt;code&gt;U_p&lt;/code&gt;，然后从模拟结果中提取&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;冲击波速 &lt;code&gt;U_s&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;波后压力平台 &lt;code&gt;P&lt;/code&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;与理论 Hugoniot 关系&lt;/p&gt;
+$$
+U_s = c_0 + sU_p, \qquad P = \rho_0 U_s U_p
+$$&lt;p&gt;进行对比。&lt;/p&gt;
+&lt;p&gt;算例实际扫描了 &lt;code&gt;500, 1000, 2000, 3000, 5000 m/s&lt;/code&gt; 五组速度，结果整体稳定：&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;U_s&lt;/code&gt; 相对理论误差约在 &lt;code&gt;0.07% - 1.60%&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;P&lt;/code&gt; 相对理论误差约在 &lt;code&gt;0.30% - 1.15%&lt;/code&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;hr&gt;
+&lt;h2 id="验证目标"&gt;验证目标&lt;/h2&gt;
+&lt;p&gt;与弹性单轴应变波算例不同，本算例的验证重点已从线弹性波速和偏应力平台转向&lt;strong&gt;冲击压缩后的热力学响应&lt;/strong&gt;。对于给定的材料模型，冲击波前后的状态必须落在对应的 Hugoniot 曲线上，才能保证热力学一致性。&lt;/p&gt;
+&lt;p&gt;本算例采用一维铝靶和右侧移动刚性活塞，通过不同活塞速度生成不同强度的冲击波。对每个速度 case，后处理步骤为：&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;从多帧输出中拟合冲击波前位置，得到数值波速 &lt;code&gt;U_s&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;在稳定波后平台上对压力和粒子速度取平均，得到数值 &lt;code&gt;P&lt;/code&gt; 和 &lt;code&gt;U_p&lt;/code&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;hr&gt;
+&lt;h2 id="理论关系"&gt;理论关系&lt;/h2&gt;
+&lt;p&gt;本算例采用的铝材料 Mie-Gruneisen Hugoniot 线性关系为：&lt;/p&gt;
+$$
+U_s = c_0 + sU_p
+$$$$
+P = \rho_0 U_s U_p
+$$&lt;p&gt;参数取值为：&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;初始密度：&lt;code&gt;\rho_0 = 2700 kg/m^3&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;体积声速：&lt;code&gt;c_0 = 5328 m/s&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;Hugoniot 线性斜率：&lt;code&gt;s = 1.338&lt;/code&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;在这个验证框架下，数值结果应该回答两个问题：&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;拟合得到的 &lt;code&gt;U_s&lt;/code&gt; 是否沿着理论直线 &lt;code&gt;U_s = c_0 + sU_p&lt;/code&gt; 排列&lt;/li&gt;
+&lt;li&gt;提取出来的波后压力 &lt;code&gt;P&lt;/code&gt; 是否沿着理论曲线 &lt;code&gt;P = \rho_0 U_s U_p&lt;/code&gt; 排列&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;只要两者均成立，即可确认 EOS 的基本 Hugoniot 响应是可靠的。&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id="运行方式"&gt;运行方式&lt;/h2&gt;
+&lt;p&gt;测试目录：&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;GASPHiA-Tests/AluminumMieGruneisenHugoniot
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;执行以下命令启动：&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;./run_all.sh --source-dir /path/to/GASPHiA --cuda &lt;span class="m"&gt;0&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;脚本自动完成以下步骤：&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;编译输入生成器 &lt;code&gt;gen_input_hugoniot&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;使用本目录的 &lt;code&gt;para.cuh&lt;/code&gt; 编译 GASPHiA&lt;/li&gt;
+&lt;li&gt;依次运行 &lt;code&gt;500, 1000, 2000, 3000, 5000 m/s&lt;/code&gt; 五组活塞速度&lt;/li&gt;
+&lt;li&gt;将每组输出归档到 &lt;code&gt;output_sweep/output_V*/&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;提取 &lt;code&gt;U_s&lt;/code&gt;、&lt;code&gt;U_p&lt;/code&gt; 和 &lt;code&gt;P&lt;/code&gt; 并生成 Hugoniot 对比图&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;与其他验证算例一致，本算例通过 &lt;code&gt;PARA_CUH&lt;/code&gt; 引用测试目录自有的编译参数，不修改主源码树中的参数文件。&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id="结果解读"&gt;结果解读&lt;/h2&gt;
+&lt;h3 id="u_s---u_p-关系"&gt;&lt;code&gt;U_s - U_p&lt;/code&gt; 关系&lt;/h3&gt;
+&lt;p&gt;
+&lt;figure &gt;
+&lt;div class="flex justify-center "&gt;
+&lt;div class="w-full" &gt;
+&lt;img alt="Hugoniot Us-Up 验证图"
+srcset="https://yekq.top/blog/gasphia/aluminum-mie-gruneisen-hugoniot/Hugoniot_Us_Up_hu_78d70beadb0bcc29.webp 320w, https://yekq.top/blog/gasphia/aluminum-mie-gruneisen-hugoniot/Hugoniot_Us_Up_hu_4f5eed8d107b0430.webp 480w, https://yekq.top/blog/gasphia/aluminum-mie-gruneisen-hugoniot/Hugoniot_Us_Up_hu_11dfa6bc91be4bf9.webp 760w"
+sizes="(max-width: 480px) 100vw, (max-width: 768px) 90vw, (max-width: 1024px) 80vw, 760px"
+src="https://yekq.top/blog/gasphia/aluminum-mie-gruneisen-hugoniot/Hugoniot_Us_Up_hu_78d70beadb0bcc29.webp"
+width="760"
+height="608"
+loading="lazy" data-zoomable /&gt;&lt;/div&gt;
+&lt;/div&gt;&lt;/figure&gt;
+&lt;/p&gt;
+&lt;p&gt;该图的核心信息是：模拟提取的冲击波速点基本沿理论直线分布，未出现系统性偏离。对于冲击波问题，这是判断 EOS 波速响应是否正确的基本验证关。&lt;/p&gt;
+&lt;h3 id="p---u_p-关系"&gt;&lt;code&gt;P - U_p&lt;/code&gt; 关系&lt;/h3&gt;
+&lt;p&gt;
+&lt;figure &gt;
+&lt;div class="flex justify-center "&gt;
+&lt;div class="w-full" &gt;
+&lt;img alt="Hugoniot P-Up 验证图"
+srcset="https://yekq.top/blog/gasphia/aluminum-mie-gruneisen-hugoniot/Hugoniot_P_Up_hu_8f39a077e075ad45.webp 320w, https://yekq.top/blog/gasphia/aluminum-mie-gruneisen-hugoniot/Hugoniot_P_Up_hu_7bf58de599a9c9a8.webp 480w, https://yekq.top/blog/gasphia/aluminum-mie-gruneisen-hugoniot/Hugoniot_P_Up_hu_a54fd0b9a226a98.webp 760w"
+sizes="(max-width: 480px) 100vw, (max-width: 768px) 90vw, (max-width: 1024px) 80vw, 760px"
+src="https://yekq.top/blog/gasphia/aluminum-mie-gruneisen-hugoniot/Hugoniot_P_Up_hu_8f39a077e075ad45.webp"
+width="760"
+height="622"
+loading="lazy" data-zoomable /&gt;&lt;/div&gt;
+&lt;/div&gt;&lt;/figure&gt;
+&lt;/p&gt;
+&lt;p&gt;该图展示的是波后压力平台。相较于波头位置，波后压力对 EOS 的热力学输出更加敏感。图中模拟点与理论曲线吻合良好，表明波后压力提取与 EOS 响应之间的一致性较高。&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id="实际运行数据"&gt;实际运行数据&lt;/h2&gt;
+&lt;p&gt;本次速度扫描结果如下。&lt;/p&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th style="text-align: left"&gt;Case 活塞速度&lt;/th&gt;
+&lt;th style="text-align: left"&gt;数值 &lt;code&gt;Up&lt;/code&gt;&lt;/th&gt;
+&lt;th style="text-align: left"&gt;理论 &lt;code&gt;Us&lt;/code&gt;&lt;/th&gt;
+&lt;th style="text-align: left"&gt;数值 &lt;code&gt;Us&lt;/code&gt;&lt;/th&gt;
+&lt;th style="text-align: left"&gt;&lt;code&gt;Us&lt;/code&gt; 相对误差&lt;/th&gt;
+&lt;th style="text-align: left"&gt;理论 &lt;code&gt;P&lt;/code&gt;&lt;/th&gt;
+&lt;th style="text-align: left"&gt;数值 &lt;code&gt;P&lt;/code&gt;&lt;/th&gt;
+&lt;th style="text-align: left"&gt;&lt;code&gt;P&lt;/code&gt; 相对误差&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;500 m/s&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;500.04 m/s&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;5997.00 m/s&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;6093.02 m/s&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;1.60%&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;8.096 GPa&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;8.032 GPa&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;-0.79%&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;1000 m/s&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;1000.02 m/s&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;6666.00 m/s&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;6659.35 m/s&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;-0.10%&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;17.998 GPa&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;18.052 GPa&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;0.30%&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;2000 m/s&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;1999.93 m/s&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;8004.00 m/s&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;7933.33 m/s&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;-0.88%&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;43.222 GPa&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;43.719 GPa&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;1.15%&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;3000 m/s&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;2999.66 m/s&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;9342.00 m/s&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;9319.76 m/s&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;-0.24%&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;75.670 GPa&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;75.895 GPa&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;0.30%&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;5000 m/s&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;4999.44 m/s&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;12018.00 m/s&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;12009.28 m/s&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;-0.07%&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;162.243 GPa&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;162.792 GPa&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;0.34%&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;从上表可得出两点结论：&lt;/p&gt;
+&lt;p&gt;其一，活塞速度平台提取稳定，数值 &lt;code&gt;Up&lt;/code&gt; 与设置值非常接近，表明波后平台识别区域选取合理。其二，&lt;code&gt;Us&lt;/code&gt; 和 &lt;code&gt;P&lt;/code&gt; 两个核心量均未随冲击强度升高而明显发散，说明该版实现并非仅适用于某个低速 case，而是在整段速度范围内均保持了良好的一致性。&lt;/p&gt;
+&lt;hr&gt;</description></item></channel></rss>

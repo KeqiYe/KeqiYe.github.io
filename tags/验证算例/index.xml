@@ -1,0 +1,170 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>验证算例 | Keqi 的博客</title><link>https://yekq.top/tags/%E9%AA%8C%E8%AF%81%E7%AE%97%E4%BE%8B/</link><atom:link href="https://yekq.top/tags/%E9%AA%8C%E8%AF%81%E7%AE%97%E4%BE%8B/index.xml" rel="self" type="application/rss+xml"/><description>验证算例</description><generator>HugoBlox Kit (https://hugoblox.com)</generator><language>zh-Hans</language><lastBuildDate>Tue, 26 May 2026 11:30:00 +0800</lastBuildDate><image><url>https://yekq.top/media/icon_hu_bf3b12c4891d2eeb.png</url><title>验证算例</title><link>https://yekq.top/tags/%E9%AA%8C%E8%AF%81%E7%AE%97%E4%BE%8B/</link></image><item><title>1D 弹性单轴应变波验证 - GASPHiA 测试算例</title><link>https://yekq.top/blog/gasphia/1d-elastic-uniaxial-strain-wave/</link><pubDate>Tue, 26 May 2026 11:30:00 +0800</pubDate><guid>https://yekq.top/blog/gasphia/1d-elastic-uniaxial-strain-wave/</guid><description>&lt;h1 id="1d-弹性单轴应变波验证"&gt;1D 弹性单轴应变波验证&lt;/h1&gt;
+&lt;h2 id="概述"&gt;概述&lt;/h2&gt;
+&lt;p&gt;右侧刚性活塞以恒定速度推动铝质线弹性杆，杆左端固定，系统中传播的是一维弹性单轴应变压缩波。该算例不涉及飞片撞击、塑性屈服或非线性 Hugoniot 关系，因此适合用于检验 GASPHiA 在&lt;strong&gt;线弹性波速、压力平台、偏应力平台以及总轴向应力平台&lt;/strong&gt;上的计算准确性。&lt;/p&gt;
+&lt;p&gt;本次运行结果：&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;纵波波速相对理论误差约 &lt;code&gt;1.80%&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;压力平台相对理论误差约 &lt;code&gt;0.24% - 0.27%&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;偏应力平台相对理论误差约 &lt;code&gt;1.01% - 1.04%&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;总轴向应力平台相对理论误差约 &lt;code&gt;0.48% - 0.51%&lt;/code&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;若后续需修改弹性 EOS、强度模型、应力更新或边界处理，该算例适合用作快速回归验证。&lt;/p&gt;
+&lt;p&gt;
+&lt;figure &gt;
+&lt;div class="flex justify-center "&gt;
+&lt;div class="w-full" &gt;
+&lt;img alt="1D 弹性单轴应变波验证图"
+srcset="https://yekq.top/blog/gasphia/1d-elastic-uniaxial-strain-wave/elastic_wave_validation_hu_e9d8d44720543445.webp 320w, https://yekq.top/blog/gasphia/1d-elastic-uniaxial-strain-wave/elastic_wave_validation_hu_78ed8013ae9ef41d.webp 480w, https://yekq.top/blog/gasphia/1d-elastic-uniaxial-strain-wave/elastic_wave_validation_hu_8c661a2579b50747.webp 650w"
+sizes="(max-width: 480px) 100vw, (max-width: 768px) 90vw, (max-width: 1024px) 80vw, 760px"
+src="https://yekq.top/blog/gasphia/1d-elastic-uniaxial-strain-wave/elastic_wave_validation_hu_e9d8d44720543445.webp"
+width="650"
+height="760"
+loading="lazy" data-zoomable /&gt;&lt;/div&gt;
+&lt;/div&gt;&lt;/figure&gt;
+&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id="理论解与验证指标"&gt;理论解与验证指标&lt;/h2&gt;
+&lt;p&gt;对于一维弹性单轴应变压缩波，理论关系为：&lt;/p&gt;
+$$
+c_L = \sqrt{\frac{K + 4G/3}{\rho_0}}
+$$$$
+\varepsilon_{xx} = \frac{U_p}{c_L}
+$$$$
+P = K \varepsilon_{xx}
+$$$$
+|S_{xx}| = \frac{4G}{3}\varepsilon_{xx}
+$$$$
+|\sigma_{xx}| = P + |S_{xx}| = \rho_0 c_L U_p
+$$&lt;p&gt;本算例采用的参数是：&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;初始密度：&lt;code&gt;\rho_0 = 2700 kg/m^3&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;体模量：&lt;code&gt;K = 75.2 GPa&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;剪切模量：&lt;code&gt;G = 26.0 GPa&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;活塞速度：&lt;code&gt;U_p = 100 m/s&lt;/code&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;据此得到的理论值为：&lt;/p&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th style="text-align: left"&gt;量&lt;/th&gt;
+&lt;th style="text-align: left"&gt;理论值&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;纵波波速 &lt;code&gt;c_L&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;6378.98 m/s&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;压力平台 &lt;code&gt;P&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;1.1789 GPa&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;偏应力平台 `&lt;/td&gt;
+&lt;td style="text-align: left"&gt;Sxx&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;总轴向应力平台 `&lt;/td&gt;
+&lt;td style="text-align: left"&gt;\sigma_{xx}&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;模拟结果应对比以下指标：&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;波头传播速度是否接近 &lt;code&gt;c_L&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;波后压力平台是否接近理论值&lt;/li&gt;
+&lt;li&gt;波后偏应力平台是否接近理论值&lt;/li&gt;
+&lt;li&gt;总轴向应力平台是否稳定，并且量级正确&lt;/li&gt;
+&lt;/ol&gt;
+&lt;hr&gt;
+&lt;h2 id="运行方式"&gt;运行方式&lt;/h2&gt;
+&lt;p&gt;测试目录：&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;GASPHiA-Tests/1D_Elastic_Uniaxial_Strain_Wave
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;执行以下命令启动：&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;./run_all.sh --source-dir /path/to/GASPHiA --cuda &lt;span class="m"&gt;0&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;脚本依次完成以下步骤：&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;编译初始条件生成器&lt;/li&gt;
+&lt;li&gt;生成 &lt;code&gt;input/input_1d_uniaxial_strain.h5&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;使用本目录的 &lt;code&gt;para.cuh&lt;/code&gt; 编译 GASPHiA&lt;/li&gt;
+&lt;li&gt;运行 &lt;code&gt;ust.ini&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;对输出结果做后处理并生成验证图&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;需要说明的工程细节：编译时通过 &lt;code&gt;PARA_CUH&lt;/code&gt; 指向本算例目录下的 &lt;code&gt;para.cuh&lt;/code&gt;，而非将测试参数复制进主源码目录。这样在不同测试之间切换时不会污染主工程的参数配置。&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id="结果解读"&gt;结果解读&lt;/h2&gt;
+&lt;p&gt;上方的验证图给出了 &lt;code&gt;20 us&lt;/code&gt;、&lt;code&gt;40 us&lt;/code&gt; 和 &lt;code&gt;60 us&lt;/code&gt; 三个时刻的数值结果，并与理论平台进行了对比。三行分别对应：&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;压力 &lt;code&gt;P&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;偏应力绝对值 &lt;code&gt;|Sxx|&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;总轴向应力绝对值 &lt;code&gt;|\sigma_{xx}|&lt;/code&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;从图中可观察到以下关键特征：&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;波头以稳定速度从右向左传播，且位置与理论波速给出的参考位置接近。&lt;/li&gt;
+&lt;li&gt;波后平台平坦，未出现非物理振荡。&lt;/li&gt;
+&lt;li&gt;压力、偏应力和总应力三个量级均落在理论值附近，表明 EOS 与应力分解的耦合是自洽的。&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;与更复杂的冲击算例相比，该测试不涉及波系干涉、破碎、塑性或孔隙压实等复杂过程。其价值在于结构简单，便于在出现偏差时精准定位到具体实现模块。&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id="实际运行数据"&gt;实际运行数据&lt;/h2&gt;
+&lt;p&gt;本次运行提取的关键指标如下。&lt;/p&gt;
+&lt;h3 id="波速"&gt;波速&lt;/h3&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th style="text-align: left"&gt;指标&lt;/th&gt;
+&lt;th style="text-align: left"&gt;数值&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;理论波速 &lt;code&gt;cL_ref&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;6378.98 m/s&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;数值波速 &lt;code&gt;cL_num&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;6494.04 m/s&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;相对误差&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;1.80%&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;h3 id="三个采样时刻的平台指标"&gt;三个采样时刻的平台指标&lt;/h3&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th style="text-align: left"&gt;时间&lt;/th&gt;
+&lt;th style="text-align: left"&gt;波头位置误差&lt;/th&gt;
+&lt;th style="text-align: left"&gt;压力平台误差&lt;/th&gt;
+&lt;th style="text-align: left"&gt;偏应力平台误差&lt;/th&gt;
+&lt;th style="text-align: left"&gt;总应力平台误差&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;20 us&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;-2.06 mm&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;0.24%&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;1.01%&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;0.48%&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;40 us&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;-4.24 mm&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;0.26%&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;1.03%&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;0.50%&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;60 us&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;-6.67 mm&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;0.27%&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;1.04%&lt;/code&gt;&lt;/td&gt;
+&lt;td style="text-align: left"&gt;&lt;code&gt;0.51%&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;从平台量的角度看，结果整体稳定，尤其是压力和总应力误差均控制在较低水平。波头位置误差随传播时间有轻微累积，但整体量级仍在可接受范围内。&lt;/p&gt;</description></item></channel></rss>
