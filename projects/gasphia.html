@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GASPHiA | 叶科奇</title>
+  <meta name="description" content="GASPHiA：高性能 CUDA-SPH 三维多物理场引擎。">
+  <link rel="stylesheet" href="../styles.css">
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']],
+        displayMath: [['$$', '$$'], ['\\[', '\\]']],
+        processEscapes: true
+      },
+      options: {
+        skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+      }
+    };
+  </script>
+  <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
+</head>
+<body>
+  <main class="page">
+    <header class="site-header">
+      <div class="identity">
+        <h1>GASPHiA</h1>
+        <p>高性能 CUDA-SPH 三维多物理场引擎</p>
+      </div>
+      <nav class="nav" aria-label="主导航">
+        <a href="../index.html">首页</a>
+        <a href="../index.html#projects">项目</a>
+      </nav>
+    </header>
+    <section>
+      <ul>
+        <li><a href="simulations.html">查看 GASPHiA 模拟视频</a></li>
+      </ul>
+    </section>
+    <section>
+      <h2>简介</h2>
+      <p>
+        GASPHiA 是一个使用 C++ 与 CUDA 开发的三维 SPH 程序，面向千万级粒子的多物理场模拟。
+        程序由 CPU 负责流程控制，计算过程在 GPU 上完成，集成物质强度、自引力、损伤与多类材料模型。
+      </p>
+      <p>
+        该代码用于复杂流体动力学、超高速撞击、碎石堆小行星撞击、孔隙材料压实与星系引力干涉等问题。
+      </p>
+    </section>
+
+    <section>
+      <h2>主要特性</h2>
+      <ul>
+        <li><strong>CUDA 全并行计算：</strong>利用 NVIDIA GPU 的并行能力加速粒子相互作用、状态更新和物理模型计算。</li>
+        <li><strong>Barnes-Hut 八叉树：</strong>统一支撑 SPH 近邻搜索与自引力计算，树遍历较初始版本加速 10.6 倍，较直接计算加速约 230 倍。</li>
+        <li><strong>多物理模型：</strong>包含材料强度、屈服、损伤断裂、孔隙度压实和自引力模型。</li>
+        <li><strong>科学可视化工作流：</strong>输出 HDF5 与 XDMF 数据，可直接用于 ParaView 和 VisIt 后处理。</li>
+      </ul>
+    </section>
+
+
+
+    <section>
+      <h2>技术细节</h2>
+      <h3>计算精度与维度</h3>
+      <ul>
+        <li><strong>可切换精度：</strong>支持单精度（<code>float</code>）和双精度（<code>double</code>）计算，可根据 GPU 性能和科学计算精度要求选择。</li>
+        <li><strong>模拟维度：</strong>原生支持一维、二维（平面应变）和三维模拟域。</li>
+      </ul>
+      <h3>物理与数值方法</h3>
+      <ul>
+        <li><strong>引力模型：</strong>支持均匀外引力场与天体物理场景中的 N 体自引力。</li>
+        <li><strong>强度与屈服模型：</strong>支持 Von Mises 和 Lundborg 等模型，用于描述固体的弹性极限与塑性流动。</li>
+        <li><strong>损伤模型：</strong>可模拟拉伸应力下的材料失效与碎片化。</li>
+        <li><strong>孔隙度模型：</strong>支持 <em>p-α</em> 或者 <em>epslion-α</em> 孔隙度模型，用于多孔地质材料的压实与压碎。</li>
+        <li><strong>时间积分：</strong>实现了预测-校正积分与自适应RK23。</li>
+      </ul>
+      <h3>配置与输出</h3>
+      <ul>
+        <li><strong>INI 配置：</strong>通过可读的 INI 文件控制模拟参数，并使用轻量级 inih 库解析。</li>
+        <li><strong>标准化输出：</strong>结果写入 HDF5，并生成配套 XDMF 文件，可直接用于 ParaView 和 VisIt 后处理。</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>代码访问与使用政策</h2>
+      <p>GASPHiA 源代码仅向学术研究人员和合作者提供，仅供非商业、教育和研究目的使用。</p>
+      <p><strong>如需获取源代码，请发送电子邮件至：</strong></p>
+      <ul>
+        <li><strong>叶科奇（作者）：</strong><code>yekq6@mail2.sysu.edu.cn</code> | <code>plloningye@gmail.com</code></li>
+        <li><strong>刘晓东教授（导师，中山大学航空航天学院）：</strong><code>liuxd36@mail.sysu.edu.cn</code></li>
+      </ul>
+      <p>请在请求中简要介绍您自己、您的机构以及您打算使用该代码的研究应用。</p>
+      <p>使用本代码必须遵守每个源文件开头版权声明中规定的条款。未经作者事先书面许可，严禁任何形式的再分发、商业目的的修改或使用。</p>
+    </section>
+
+    <section>
+      <h2>致谢</h2>
+      <p>衷心感谢刘晓东教授在作者博士研究期间给予的支持和指导。</p>
+      <p>本项目使用以下第三方库：</p>
+      <ul>
+        <li><strong>HDF5：</strong>高性能数据存储（<a href="https://www.hdfgroup.org/">The HDF Group</a>）</li>
+        <li><strong>inih：</strong>INI 配置文件解析（<a href="https://github.com/benhoyt/inih">Ben Hoyt</a>）</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>参考资料</h2>
+      <ol>
+        <li>Schäfer, C., Riecker, S., Maindl, T. I., Schaal, K., &amp; Speith, R. (2016). A smooth particle hydrodynamics code to model collisions between solid, self-gravitating objects. <em>Astronomy &amp; Astrophysics</em>, <em>590</em>, A19.</li>
+        <li>Barnes, J., &amp; Hut, P. (1986). A hierarchical O(N log N) force-calculation algorithm. <em>Nature</em>, <em>324</em>(6096), 446–449.</li>
+        <li>Nyland, L., Harris, M., &amp; Prins, J. (2007). Fast n-body simulation with CUDA. <em>GPU Gems</em>, 3, 62–66.</li>
+        <li>Burtscher, M., &amp; Pingali, K. (2011). An efficient CUDA implementation of the tree-based Barnes-Hut n-body algorithm. In <em>GPU Computing Gems Emerald Edition</em> (pp. 75–92). Morgan Kaufmann.</li>
+        <li>Benz, W., &amp; Asphaug, E. (1995). Simulations of brittle solids using smooth particle hydrodynamics. <em>Computer Physics Communications</em>, <em>87</em>(1–2), 253–265.</li>
+        <li>Lundborg, N. (1968). Strength of rock-like materials. <em>International Journal of Rock Mechanics and Mining Sciences &amp; Geomechanics Abstracts</em>, <em>5</em>(5), 427–454.</li>
+        <li>Collins, G. S., Melosh, H. J., &amp; Ivanov, B. A. (2004). Modeling damage and deformation in impact simulations. <em>Meteoritics &amp; Planetary Science</em>, <em>39</em>(2), 217–231.</li>
+        <li>Jutzi, M. (2015). SPH calculations of asteroid disruptions: The role of pressure dependent failure models. <em>Icarus</em>, <em>250</em>, 356–362.</li>
+        <li>Melosh, H. J., Ryan, E. V., &amp; Asphaug, E. (1992). Dynamic fragmentation in impacts: Hydrocode simulation of laboratory impacts. <em>Journal of Geophysical Research: Planets</em>, <em>97</em>(E9), 14735–14759.</li>
+        <li>Jutzi, M., Benz, W., &amp; Michel, P. (2008). Numerical simulations of impacts involving porous bodies: I. Implementing sub-resolution porosity in a 3D SPH hydrocode. <em>Icarus</em>, <em>198</em>(1), 242–255.</li>
+        <li>Bogacki, P., &amp; Shampine, L. F. (1989). A 3(2) pair of Runge-Kutta formulas. <em>Applied Mathematics Letters</em>, <em>2</em>(4), 321–325.</li>
+      </ol>
+    </section>
+
+    <section>
+      <h2>版权</h2>
+      <p>版权所有 &copy; 2026 叶科奇。保留所有权利。</p>
+    </section>
+
+    <section>
+      <h2>更多内容</h2>
+      <ul>
+        <li><a href="../gasphia-pages/1d-shock-tube.html">1D Sod 激波管实验：CUDA SPH 基准测试</a></li>
+        <li><a href="../gasphia-pages/1d-elastic-uniaxial-strain-wave.html">1D 弹性单轴应变波验证：GASPHiA 测试算例</a></li>
+        <li><a href="../gasphia-pages/aluminum-mie-gruneisen-hugoniot.html">铝材料 Mie-Gruneisen Hugoniot 验证：GASPHiA 测试算例</a></li>
+        <li><a href="../gasphia-pages/p-alpha-porosity-model.html">P-alpha 孔隙度模型的实现与踩坑记录</a></li>
+        <li><a href="../gasphia-pages/eplison-alpha-porosity-model.html">基于应变的孔隙度模型（epsilon-alpha 模型）</a></li>
+        <li><a href="../gasphia-pages/jutzi2008-p-alpha-compaction-wave.html">Jutzi 2008 一维 p-alpha 压实波验证：GASPHiA 测试算例</a></li>
+        <li><a href="../gasphia-pages/nakamura1991-basalt-sphere-impact.html">Nakamura 1991 玄武岩球撞击破碎验证：GASPHiA 测试算例</a></li>
+        <li><a href="../gasphia-pages/treeCode.html">GASPHiA 中的自引力树代码效率与优化分析</a></li>
+      </ul>
+    </section>
+
+    <footer class="footer">
+      <a href="../index.html#projects">返回项目</a>
+    </footer>
+  </main>
+</body>
+</html>

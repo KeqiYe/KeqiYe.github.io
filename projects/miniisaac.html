@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MiniIsaac | 叶科奇</title>
+  <meta name="description" content="MiniIsaac：自研物理模拟环境、PPO 与 PyTorch 强化学习训练记录。">
+  <link rel="stylesheet" href="../styles.css">
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']],
+        displayMath: [['$$', '$$'], ['\\[', '\\]']],
+        processEscapes: true
+      },
+      options: {
+        skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+      }
+    };
+  </script>
+  <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
+</head>
+
+<body>
+  <main class="page">
+    <header class="site-header">
+      <div class="identity">
+        <h1>MiniIsaac</h1>
+        <p>自研物理模拟环境 + PPO + PyTorch 强化学习训练</p>
+      </div>
+      <nav class="nav" aria-label="主导航">
+        <a href="../index.html">首页</a>
+        <a href="../index.html#projects">项目树</a>
+      </nav>
+    </header>
+
+    <section>
+      <h2>项目定位</h2>
+      <p>
+        MiniIsaac 是一个学习型强化学习与物理模拟项目。目标是从零实现一个轻量物理模拟环境，
+        编写 PPO 训练流程，并使用 PyTorch 定义 actor 与 critic 网络，用于训练 carpet、机械臂等任务。
+      </p>
+      <p>
+        项目理念与 Isaac 系列工具类似：把物理环境、可微分或可采样的状态演化、策略网络训练和实验记录放在同一套工作流里。
+        当前阶段重点放在 PPO 算法推导与基础实现准备。
+      </p>
+    </section>
+
+    <section>
+      <h2>学习笔记</h2>
+      <ol>
+        <li><a href="../miniisaac-pages/ppo-base.html">从 0 推导 PPO 算法</a></li>
+        <li class="placeholder">后续条目待补充</li>
+        <li class="placeholder">后续条目待补充</li>
+      </ol>
+    </section>
+
+    <section>
+      <h2>开发计划</h2>
+      <ul>
+        <li><strong>物理环境：</strong>先实现可控状态、动作、奖励和终止条件，再逐步加入 carpet 与机械臂任务。</li>
+        <li><strong>PPO 训练：</strong>完成 trajectory 采样、优势函数估计、ratio clipping、actor-critic 更新和日志记录。</li>
+        <li><strong>网络结构：</strong>使用 PyTorch 定义 actor 与 critic，并保留可替换网络结构的接口。</li>
+      </ul>
+    </section>
+
+    <footer class="footer">
+      <a href="../index.html#projects">返回项目</a>
+    </footer>
+  </main>
+</body>
+
+</html>

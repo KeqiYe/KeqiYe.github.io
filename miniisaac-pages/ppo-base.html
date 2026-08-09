@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>从 0 推导 PPO 算法 | MiniIsaac</title>
+  <meta name="description" content="MiniIsaac 学习笔记：从策略梯度开始推导 PPO 算法的基础形式。">
+  <link rel="stylesheet" href="../styles.css">
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']],
+        displayMath: [['$$', '$$'], ['\\[', '\\]']],
+        processEscapes: true
+      },
+      options: {
+        skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+      }
+    };
+  </script>
+  <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
+</head>
+
+<body>
+  <main class="page article-page">
+    <header class="site-header">
+      <div class="identity">
+        <h1>从 0 推导 PPO 算法</h1>
+        <p>MiniIsaac 学习笔记</p>
+      </div>
+      <nav class="nav" aria-label="主导航">
+        <a href="../index.html">首页</a>
+        <a href="../projects/miniisaac.html">MiniIsaac</a>
+      </nav>
+    </header>
+
+    <article>
+      <p class="article-meta">主题：Proximal Policy Optimization Algorithms 的基础推导与策略梯度背景。</p>
+
+      <p>
+        本文从 0 开始推导 PPO（Proximal Policy Optimization Algorithms）算法。
+        PPO 是强化学习中的经典算法。我希望借助强化学习和自身的物理模拟基础，构建一个 MiniIsaac 系统，用于训练机器人。
+        AI 推荐给我的第一个 RL 算法就是 PPO。学习这个算法之前，首先要对背景理论建立一个基本了解。
+      </p>
+
+      <h2>目标：训练一个 Policy</h2>
+      <p>
+        我们的目标是训练一个 policy。这个 policy 输入一个 state，输出一个 action；
+        对于连续 action，则输出 action 的概率分布。优化目标是最大化：
+      </p>
+      <div class="math-block">\[
+J(\theta) = \mathbb{E}_{\tau \sim P_\theta(\tau)}[R(\tau)]
+\tag{1}
+\]</div>
+      <p>
+        这里 \(\theta\) 是 policy 的参数，也就是我们要训练的东西。
+        \(\tau\) 是一整条轨迹：
+      </p>
+      <div class="math-block">\[
+\tau = (s_0, a_0, s_1, a_1, \cdots, s_T, a_T)
+\]</div>
+      <p>
+        可以理解为：state \(s_0\) 输入给 policy，policy 给出 action \(a_0\)，
+        系统（仿真引擎）给出新的 state \(s_1\)，如此循环直到结束。
+        \(R(\tau)\) 是这条轨迹的总回报：
+      </p>
+      <div class="math-block">\[
+R(\tau) = r_0 + r_1 + r_2 + \cdots
+\]</div>
+      <p>
+        因此，\(J(\theta)\) 的含义是：当前策略平均能拿到多少总奖励。
+        因为 \(\tau\) 是随机产生的，所以期望可以写成求和形式：
+      </p>
+      <div class="math-block">\[
+J(\theta) = \sum_{\tau} P_\theta(\tau) R(\tau)
+\tag{2}
+\]</div>
+
+      <h2>策略梯度</h2>
+      <p>为了训练 policy 中的参数 \(\theta\)，对式 (2) 求梯度：</p>
+      <div class="math-block">\[
+\begin{aligned}
+\nabla_\theta J(\theta)
+&= \nabla_\theta \sum_\tau P_\theta(\tau) R(\tau) \\
+&= \sum_\tau R(\tau) \nabla_\theta P_\theta(\tau)
+\end{aligned}
+\tag{3}
+\]</div>
+      <p>然后使用一个恒等式：</p>
+      <div class="math-block">\[
+\nabla_\theta P_\theta(\tau)
+= P_\theta(\tau)\nabla_\theta \log P_\theta(\tau)
+\tag{4}
+\]</div>
+      <p>
+        这个等式来自 \(\frac{d \log f(x)}{dx} = \frac{1}{f(x)} \frac{df(x)}{dx}\)，
+        因此 \(\frac{df(x)}{dx} = f(x) \frac{d \log f(x)}{dx}\)。
+      </p>
+      <p>所以：</p>
+      <div class="math-block">\[
+\nabla_\theta J(\theta)
+= \sum_\tau P_\theta(\tau) R(\tau) \nabla_\theta \log P_\theta(\tau)
+\tag{5}
+\]</div>
+      <p>式 (5) 满足期望定义，因此：</p>
+      <div class="math-block">\[
+\nabla_\theta J(\theta)
+= \mathbb{E}_{\tau \sim P_\theta}
+\left[R(\tau)\nabla_\theta \log P_\theta(\tau)\right]
+\tag{6}
+\]</div>
+      <p>用有限条采样轨迹估计就是：</p>
+      <div class="math-block">\[
+\nabla_\theta J(\theta)
+\approx \frac{1}{N}\sum_{n=1}^{N}
+R(\tau_n)\nabla_\theta \log P_\theta(\tau_n)
+\tag{7}
+\]</div>
+
+      <h2>把轨迹概率拆成动作概率</h2>
+      <p>下面分析 \(\nabla_\theta \log P_\theta(\tau)\)。一条轨迹的完整概率是：</p>
+      <div class="math-block">\[
+P_\theta(\tau)
+= \rho(s_0)\prod_{t=0}^{T-1}
+\pi_\theta(a_t \mid s_t)P(s_{t+1}\mid s_t, a_t)
+\tag{8}
+\]</div>
+      <p>其中：</p>
+      <ul>
+        <li>\(\rho(s_0)\) 是初始状态分布，也就是环境 reset 后落在 \(s_0\) 的概率。</li>
+        <li>\(\pi_\theta(a_t \mid s_t)\) 是 policy 在状态 \(s_t\) 下选择动作 \(a_t\) 的概率。</li>
+        <li>\(P(s_{t+1}\mid s_t, a_t)\) 是环境动力学，也就是在 \(s_t\) 做 \(a_t\) 后转移到 \(s_{t+1}\) 的概率。</li>
+      </ul>
+      <p>对式 (8) 取 log：</p>
+      <div class="math-block">\[
+\log P_\theta(\tau)
+= \log \rho(s_0)
++ \sum_{t=0}^{T-1}\log \pi_\theta(a_t \mid s_t)
++ \sum_{t=0}^{T-1}\log P(s_{t+1}\mid s_t, a_t)
+\tag{9}
+\]</div>
+      <p>
+        然后对 \(\theta\) 求梯度。注意到 \(\theta\) 是 policy 网络参数，
+        环境初始分布和环境动力学不依赖 \(\theta\)，所以：
+      </p>
+      <div class="math-block">\[
+\nabla_\theta \log \rho(s_0) = 0,
+\qquad
+\nabla_\theta \log P(s_{t+1}\mid s_t,a_t) = 0
+\]</div>
+      <p>于是：</p>
+      <div class="math-block">\[
+\nabla_\theta \log P_\theta(\tau)
+= \sum_{t=0}^{T-1}\nabla_\theta \log \pi_\theta(a_t \mid s_t)
+\tag{10}
+\]</div>
+      <p>将式 (10) 代回式 (6)，得到策略梯度：</p>
+      <div class="math-block">\[
+\nabla_\theta J(\theta)
+= \mathbb{E}_{\tau \sim P_\theta}
+\left[
+\sum_{t=0}^{T-1} R(\tau)
+\nabla_\theta \log \pi_\theta(a_t \mid s_t)
+\right]
+\tag{11}
+\]</div>
+
+      <h2>优势函数</h2>
+      <p>
+        \(R(\tau)\nabla_\theta \log \pi_\theta(a_t \mid s_t)\) 表示：
+        如果整条轨迹好，那么这条轨迹里的所有动作都会被鼓励；
+        如果整条轨迹差，那么所有动作都会被惩罚。
+      </p>
+      <p>
+        这显然不合理，因为一条轨迹最后失败，不代表前面每一步都错。
+        更合理的问题是：一个动作相比当前状态下的平均动作，到底好多少？因此可以引入优势函数：
+      </p>
+      <div class="math-block">\[
+A^\pi(s_t,a_t) = Q^\pi(s_t,a_t) - V^\pi(s_t)
+\tag{12}
+\]</div>
+      <p>
+        其中，\(Q^\pi(s_t,a_t)\) 表示在 \(s_t\) 时做 \(a_t\) 后，未来回报的期望；
+        \(V^\pi(s_t)\) 表示在 \(s_t\) 时按照当前策略正常行动，未来平均回报是多少。
+      </p>
+      <ul>
+        <li>\(A^\pi(s_t,a_t) &gt; 0\)：说明这个动作比平均水平好，以后要多采取这个动作。</li>
+        <li>\(A^\pi(s_t,a_t) &lt; 0\)：说明这个动作比平均水平差，以后要少使用这个动作。</li>
+      </ul>
+      <p>
+        实际训练时，真实的 \(A^\pi\) 不知道，所以使用估计值 \(\hat{A}_t\)。
+        于是策略梯度变成：
+      </p>
+      <div class="math-block">\[
+\nabla_\theta J(\theta)
+\approx
+\mathbb{E}_t
+\left[
+\nabla_\theta \log \pi_\theta(a_t \mid s_t)\hat{A}_t
+\right]
+\tag{13}
+\]</div>
+      <p>再用有限 batch 的经验平均代替理论期望，就得到 PPO 论文 2.1 节的策略梯度估计式：</p>
+      <div class="math-block">\[
+\hat{g}
+= \hat{\mathbb{E}}_t
+\left[
+\nabla_\theta \log \pi_\theta(a_t \mid s_t)\hat{A}_t
+\right]
+\tag{14}
+\]</div>
+      <p>
+        这里带 hat 的期望不是解析计算期望，而是通过采样 \(N\) 条轨迹、每条 \(T\) 步得到的经验平均：
+      </p>
+      <div class="math-block">\[
+\hat{g}
+= \frac{1}{NT}
+\sum_{n=1}^{N}\sum_{t=0}^{T-1}
+\nabla_\theta \log \pi_\theta(a_t^{(n)} \mid s_t^{(n)})
+\hat{A}_t^{(n)}
+\tag{15}
+\]</div>
+
+      <p>
+        理论上，有了式 (15)，我们就可以训练参数 \(\theta\) 了。
+        与监督学习不同，强化学习没有标准答案；式 (15) 的含义是：
+        如果某个动作的优势函数 \(\hat{A}_t\) 为正，就提高这个动作在当前状态下出现的概率；
+        如果 \(\hat{A}_t\) 为负，就降低这个动作出现的概率。
+      </p>
+      <p>
+        但如果反复沿着这个方向更新，好的 action 概率可能被推得过高，差的 action 概率可能被压得过低。
+        这会带来一个问题：\(\hat{A}_t\) 是基于旧策略采样和估计出来的。
+        如果新策略与旧策略差距太大，旧 batch 上的优势估计就不再可靠，式 (15) 的更新方向也可能失真。
+      </p>
+
+      <h2>Clipped Surrogate Objective</h2>
+      <p>
+        PPO 的核心做法是比较新策略和旧策略对同一个动作的概率，并限制这个比值的变化幅度。
+        这个概率比值定义为：
+      </p>
+      <div class="math-block">\[
+r_t(\theta)
+= \frac{\pi_\theta(a_t \mid s_t)}
+{\pi_{\theta_{\mathrm{old}}}(a_t \mid s_t)}
+\tag{16}
+\]</div>
+      <p>
+        其中，分子是当前正在更新的新策略，分母是采样数据时使用的旧策略。
+        如果 \(r_t(\theta) &gt; 1\)，说明新策略比旧策略更倾向于选择这个动作；
+        如果 \(r_t(\theta) &lt; 1\)，说明新策略降低了这个动作的概率。
+      </p>
+      <p>PPO 的 clipped surrogate objective 可以写为：</p>
+      <div class="math-block">\[
+L^{\mathrm{CLIP}}(\theta)
+= \hat{\mathbb{E}}_t
+\left[
+\min\left(
+r_t(\theta)\hat{A}_t,
+\operatorname{clip}(r_t(\theta), 1-\epsilon, 1+\epsilon)\hat{A}_t
+\right)
+\right]
+\tag{17}
+\]</div>
+      <p>
+        式 (17) 中，第一项 \(r_t(\theta)\hat{A}_t\) 是普通的策略梯度目标：
+        优势为正的动作会被鼓励，优势为负的动作会被抑制。
+        第二项对 \(r_t(\theta)\) 做裁剪，限制新旧策略之间的差距，从而让训练更稳定。
+      </p>
+      <p>
+        PPO 论文中常用 \(\epsilon = 0.2\)。这意味着在一个 batch 的更新中，
+        \(r_t(\theta)\) 会被限制在：
+      </p>
+      <div class="math-block">\[
+1-\epsilon \le r_t(\theta) \le 1+\epsilon,
+\qquad
+\epsilon = 0.2
+\tag{18}
+\]</div>
+      <p>
+        也就是说，新策略相对旧策略对某个动作的概率通常被限制在 \(0.8\) 到 \(1.2\) 之间。
+        直观理解是：优秀动作的概率不要一次上调太多，较差动作的概率也不要一次下调太多。
+      </p>
+
+      <h2>Actor-Critic 实现目标</h2>
+      <p>
+        论文第 5 节给出的实现方式是 actor-critic 风格的 PPO。
+        如果 actor 和 critic 使用同一个神经网络骨干，或者在同一次优化里同时更新策略和值函数，
+        训练目标通常由三部分组成：
+      </p>
+      <div class="math-block">\[
+L^{\mathrm{CLIP+VF+S}}(\theta)
+= \hat{\mathbb{E}}_t
+\left[
+L_t^{\mathrm{CLIP}}(\theta)
+- c_1 L_t^{\mathrm{VF}}(\theta)
++ c_2 S[\pi_\theta](s_t)
+\right]
+\tag{19}
+\]</div>
+      <p>其中 value function loss 是：</p>
+      <div class="math-block">\[
+L_t^{\mathrm{VF}}(\theta)
+= \left(V_\theta(s_t) - V_t^{\mathrm{targ}}\right)^2
+\tag{20}
+\]</div>
+      <p>
+        \(S[\pi_\theta](s_t)\) 是策略分布的 entropy bonus，用来鼓励探索；
+        \(c_1\) 和 \(c_2\) 分别控制 critic loss 与 entropy bonus 的权重。
+        注意论文中的目标是“最大化”式 (19)，而 PyTorch 优化器默认做梯度下降。
+        因此实现时常写成最小化下面这个 loss：
+      </p>
+      <div class="math-block">\[
+\mathcal{L}(\theta)
+= -L_t^{\mathrm{CLIP}}(\theta)
++ c_1 L_t^{\mathrm{VF}}(\theta)
+- c_2 S[\pi_\theta](s_t)
+\tag{21}
+\]</div>
+      <p>
+        对连续动作空间，actor 通常输出高斯分布的均值 \(\mu_\theta(s_t)\)，
+        同时维护或预测标准差 \(\sigma_\theta(s_t)\)；然后从
+        \(\mathcal{N}(\mu_\theta, \sigma_\theta)\) 中采样动作。
+        训练 PPO 时需要保存采样当时旧策略的 \(\log \pi_{\theta_{\mathrm{old}}}(a_t\mid s_t)\)，
+        之后更新网络时再用新策略重新计算 \(\log \pi_\theta(a_t\mid s_t)\)。
+      </p>
+
+      <h2>\(\hat{A}_t\) 的计算方法</h2>
+      <p>
+        论文中提到，降低方差的 advantage estimator 通常依赖一个学习出来的状态价值函数 \(V(s)\)。
+        对固定长度 \(T\) 的 rollout，最直接的有限时域估计为：
+      </p>
+      <div class="math-block">\[
+\hat{A}_t
+= -V(s_t)
++ r_t + \gamma r_{t+1} + \cdots
++ \gamma^{T-t-1}r_{T-1}
++ \gamma^{T-t}V(s_T)
+\tag{22}
+\]</div>
+      <p>
+        这等价于“从当前时刻开始，把后续奖励折扣求和，再加上最后一个状态的 bootstrap value，
+        最后减去当前状态价值”。但实际 PPO 更常用截断版 Generalized Advantage Estimation（GAE）：
+      </p>
+      <div class="math-block">\[
+\hat{A}_t
+= \delta_t + (\gamma\lambda)\delta_{t+1}
++ \cdots
++ (\gamma\lambda)^{T-t-1}\delta_{T-1}
+\tag{23}
+\]</div>
+      <p>其中 TD residual 为：</p>
+      <div class="math-block">\[
+\delta_t
+= r_t + \gamma V(s_{t+1}) - V(s_t)
+\tag{24}
+\]</div>
+      <p>
+        \(\gamma\) 是奖励折扣因子，\(\lambda\) 是 GAE 参数。
+        当 \(\lambda = 1\) 时，式 (23) 接近式 (22) 的 Monte Carlo 风格估计；
+        当 \(\lambda\) 更小时，估计会更依赖一步 TD，方差更小但偏差更大。
+        PPO 论文实验中常用 \(\gamma = 0.99\)、\(\lambda = 0.95\)。
+      </p>
+      <p>代码实现时通常不用显式写出式 (23) 的长求和，而是从 rollout 末尾向前递推：</p>
+      <div class="math-block">\[
+\hat{A}_t
+= \delta_t
++ \gamma\lambda(1-d_t)\hat{A}_{t+1}
+\tag{25}
+\]</div>
+      <p>
+        这里 \(d_t\) 表示第 \(t\) 步后 episode 是否结束。
+        如果 episode 在这一步结束，\(d_t=1\)，后面的 advantage 不应再传回来；
+        如果没有结束，\(d_t=0\)，就继续 bootstrap。
+      </p>
+      <p>critic 的训练目标 \(V_t^{\mathrm{targ}}\) 通常由 advantage 和旧 value 相加得到：</p>
+      <div class="math-block">\[
+V_t^{\mathrm{targ}}
+= \hat{A}_t + V_{\theta_{\mathrm{old}}}(s_t)
+\tag{26}
+\]</div>
+
+      <h2>PPO 训练流程</h2>
+      <p>按照论文 Algorithm 1，一个 actor-critic PPO 迭代可以整理为下面的实现流程：</p>
+      <ol>
+        <li>用旧策略 \(\pi_{\theta_{\mathrm{old}}}\) 和环境交互，收集 \(N\) 个 actor、每个 \(T\) 步的 rollout。</li>
+        <li>每一步保存 \(s_t\)、\(a_t\)、\(r_t\)、\(d_t\)、\(\log \pi_{\theta_{\mathrm{old}}}(a_t\mid s_t)\) 和 \(V_{\theta_{\mathrm{old}}}(s_t)\)。</li>
+        <li>rollout 结束后，用式 (24) 和式 (25) 从后往前计算 \(\hat{A}_t\)。</li>
+        <li>用式 (26) 得到 critic 的 target return，并对 \(\hat{A}_t\) 做归一化，减少训练方差。</li>
+        <li>把 \(NT\) 个样本打乱，按 minibatch 切分，重复优化 \(K\) 个 epoch。</li>
+        <li>在每个 minibatch 上重新计算新策略的 log probability、entropy 和 value。</li>
+        <li>用新旧 log probability 的差计算概率比值：
+          \(r_t(\theta)=\exp(\log \pi_\theta-\log \pi_{\theta_{\mathrm{old}}})\)。</li>
+        <li>根据式 (17) 计算 clipped actor objective，根据式 (20) 计算 critic loss，再按式 (21) 组合总 loss。</li>
+        <li>反向传播更新 actor 和 critic。完成 \(K\) 个 epoch 后，令 \(\theta_{\mathrm{old}}\leftarrow\theta\)，进入下一轮采样。</li>
+      </ol>
+      <p>
+        这个流程解释了 PPO 为什么比普通策略梯度更高效：
+        普通策略梯度通常一批数据只更新一次，而 PPO 通过 clipping 控制更新幅度，
+        允许同一批 rollout 数据被重复用于多个 minibatch epoch。
+      </p>
+
+      <h2>实现参数起点</h2>
+      <p>
+        对 MiniIsaac 这类连续控制任务，可以先参考 PPO 论文在 MuJoCo benchmark 中使用的一组基础参数，
+        后续再根据 carpet 或机械臂环境的稳定性调整：
+      </p>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>参数</th>
+              <th>含义</th>
+              <th>参考值</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>\(T\)</td>
+              <td>每轮 rollout 的 horizon</td>
+              <td>2048</td>
+            </tr>
+            <tr>
+              <td>Adam stepsize</td>
+              <td>优化器学习率</td>
+              <td>\(3\times10^{-4}\)</td>
+            </tr>
+            <tr>
+              <td>\(K\)</td>
+              <td>每批数据重复训练的 epoch 数</td>
+              <td>10</td>
+            </tr>
+            <tr>
+              <td>\(M\)</td>
+              <td>minibatch size</td>
+              <td>64</td>
+            </tr>
+            <tr>
+              <td>\(\gamma\)</td>
+              <td>奖励折扣因子</td>
+              <td>0.99</td>
+            </tr>
+            <tr>
+              <td>\(\lambda\)</td>
+              <td>GAE 参数</td>
+              <td>0.95</td>
+            </tr>
+            <tr>
+              <td>\(\epsilon\)</td>
+              <td>clip 范围参数</td>
+              <td>0.2</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </article>
+
+    <footer class="footer">
+      <a href="../projects/miniisaac.html">返回 MiniIsaac</a>
+    </footer>
+  </main>
+</body>
+
+</html>

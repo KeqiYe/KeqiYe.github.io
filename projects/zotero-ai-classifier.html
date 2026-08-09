@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Zotero-AI-Classifier | 叶科奇</title>
+  <meta name="description" content="Zotero-AI-Classifier：基于大语言模型的 Zotero 文献智能分类插件。">
+  <link rel="stylesheet" href="../styles.css">
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']],
+        displayMath: [['$$', '$$'], ['\\[', '\\]']],
+        processEscapes: true
+      },
+      options: {
+        skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+      }
+    };
+  </script>
+  <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
+</head>
+
+<body>
+  <main class="page">
+    <header class="site-header">
+      <div class="identity">
+        <h1>Zotero-AI-Classifier</h1>
+        <p>基于大语言模型的 Zotero 文献智能分类插件</p>
+      </div>
+      <nav class="nav" aria-label="主导航">
+        <a href="../index.html">首页</a>
+        <a href="../index.html#projects">项目</a>
+      </nav>
+    </header>
+
+    <section>
+      <h2>简介</h2>
+      <p>
+        Zotero-AI-Classifier 是一个用于科研文献管理的 Zotero 插件。它读取文献标题、摘要和关键词，
+        将这些信息与用户设定的分类目录一起发送给兼容 OpenAI API 格式的大语言模型，自动判断文献应归入的目录。
+      </p>
+      <p>
+        这个项目重点不是单纯调用 AI，而是把分类提示词、置信度阈值、任务中止、日志记录和本地配置管理整合成可用的科研工作流。
+      </p>
+    </section>
+
+    <section>
+      <h2>核心功能</h2>
+      <ul>
+        <li><strong>智能归类：</strong>根据标题、摘要和关键词自动选择最合适的分类路径。</li>
+        <li><strong>置信度阈值：</strong>只有高于用户设定阈值的结果才自动移动文献，降低误分类风险。</li>
+        <li><strong>结构保存与恢复：</strong>支持备份和恢复 Zotero 收藏夹结构。</li>
+        <li><strong>数据导出：</strong>可将标题、摘要和关键词导出为 JSON，便于后续分析或让 AI 推荐分类层级。</li>
+        <li><strong>TXT 层级导入：</strong>从文本文件批量创建文献分类目录。</li>
+        <li><strong>隐私优先：</strong>API Key 存储在本地配置文件中，不经过额外服务器转发。</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>实现思路</h2>
+      <ul>
+        <li>通过 Zotero API 获取文献标题、摘要和关键词。</li>
+        <li>将文献信息和用户的分类目录结构组合成 Prompt。</li>
+        <li>调用兼容 OpenAI API 格式的 LLM 服务，要求返回分类路径、置信度和理由。</li>
+        <li>解析返回 JSON，并根据置信度阈值决定是否移动文献。</li>
+        <li>分类过程串行处理，降低 API 限流风险；单篇失败不影响后续任务。</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>仓库</h2>
+      <ul>
+        <li><a href="https://github.com/KeqiYe/Zotero-AI-Classifier">GitHub 仓库</a></li>
+      </ul>
+    </section>
+
+    <footer class="footer">
+      <a href="../index.html#projects">返回项目</a>
+    </footer>
+  </main>
+</body>
+
+</html>

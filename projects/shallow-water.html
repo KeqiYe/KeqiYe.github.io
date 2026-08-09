@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>基于位移法浅水波方程的模拟 | 叶科奇</title>
+  <meta name="description" content="硕士学位论文：基于位移法浅水波方程的模拟动画。">
+  <link rel="stylesheet" href="../styles.css">
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']],
+        displayMath: [['$$', '$$'], ['\\[', '\\]']],
+        processEscapes: true
+      },
+      options: {
+        skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+      }
+    };
+  </script>
+  <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
+</head>
+<body>
+  <main class="page">
+    <header class="site-header">
+      <div class="identity">
+        <h1>基于位移法浅水波方程的模拟</h1>
+        <p>硕士学位论文模拟 · 浅水波</p>
+      </div>
+      <nav class="nav" aria-label="主导航">
+        <a href="../index.html">首页</a>
+        <a href="../index.html#projects">项目树</a>
+        <a href="simulations.html">SPH 模拟</a>
+      </nav>
+    </header>
+
+    <section>
+      <h2>概述</h2>
+      <p>
+        本页集中展示硕士学位论文研究中完成的浅水波数值模拟动画。相关工作以位移法浅水波方程为基础，
+        涵盖水波与固体边界干涉、三维水波传播、自由晃动及湖面自由震荡等算例。
+      </p>
+    </section>
+
+    <section>
+      <div class="media-grid">
+        <figure id="boundary">
+          <img class="media" src="../media/blog/displacement-based-shallow-water-wave-simulations/wave-solid-boundary-interaction.gif" alt="水波与固体边界干涉动画" loading="lazy">
+          <figcaption><strong>水波与固体边界干涉。</strong> 水波在传播过程中与固体边界发生干涉，展示自由液面在复杂边界附近的演化过程，采用有限元离散。</figcaption>
+        </figure>
+        <figure id="motion">
+          <img class="media" src="../media/blog/displacement-based-shallow-water-wave-simulations/three-dimensional-wave-motion.gif" alt="三维水波运动动画" loading="lazy">
+          <figcaption><strong>三维水波运动。</strong> 三维水波在计算域内传播与演化，展示自由液面位移随时间的变化，采用无网格法离散（背景网格积分方法）。</figcaption>
+        </figure>
+        <figure id="sloshing">
+          <img class="media" src="../media/blog/displacement-based-shallow-water-wave-simulations/three-dimensional-free-sloshing.gif" alt="三维水波自由晃动动画" loading="lazy">
+          <figcaption><strong>三维水波自由晃动。</strong> 三维自由液面在约束区域内发生晃动，展示液面形态的周期性演化，采用无网格法离散（背景网格积分方法）。</figcaption>
+        </figure>
+        <figure id="lake">
+          <img class="media" src="../media/blog/displacement-based-shallow-water-wave-simulations/quarter-lake-free-oscillation.gif" alt="四分之一湖面自由震荡动画" loading="lazy">
+          <figcaption><strong>四分之一湖面自由震荡。</strong> 四分之一湖面模型的自由震荡过程，用于展示大尺度自由液面在位移法浅水波方程下的动态响应，采用有限元离散。</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <a href="../index.html#projects">返回项目树</a>
+    </footer>
+  </main>
+</body>
+</html>

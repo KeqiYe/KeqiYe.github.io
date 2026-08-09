@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>叶科奇 | 学术主页</title>
+  <meta name="description" content="叶科奇的学术主页，展示教育背景、研究项目、模拟动画与论文。">
+  <link rel="stylesheet" href="styles.css">
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']],
+        displayMath: [['$$', '$$'], ['\\[', '\\]']],
+        processEscapes: true
+      },
+      options: {
+        skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+      }
+    };
+  </script>
+  <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
+</head>
+
+<body class="home-page">
+  <main class="page">
+    <header class="site-header">
+      <img class="profile-photo" src="me2.jpg" alt="叶科奇">
+      <div class="identity">
+        <h1>叶科奇</h1>
+        <p>C++ / CUDA 物理引擎与高性能计算</p>
+        <p>plloningye [at] gmail.com · yekq6 [at] mail2.sysu.edu.cn · <a href="https://yekq.top/">yekq.top</a></p>
+      </div>
+    </header>
+
+    <div class="home-layout">
+      <div class="home-primary">
+        <section id="about">
+          <h2>简介</h2>
+          <p>
+            我目前是中山大学航空宇航科学与技术方向博士研究生，主要研究 CUDA 高性能计算、超高速撞击和 SPH 数值模拟。
+            我关注如何将物理模型、数值算法与 GPU 并行程序设计结合起来，用于千万级粒子规模的冲击动力学、天体动力学和流固耦合问题。
+            我的研究背景还包含其他模拟算法，如有限单元法、无网格法、基于位置的动力学（PBD）等。
+          </p>
+        </section>
+
+        <section id="projects">
+          <h2>项目</h2>
+          <div class="project-index">
+            <article class="project-entry">
+              <span class="project-number" aria-hidden="true">01</span>
+              <div class="project-entry-body">
+                <h3>GASPHiA</h3>
+                <p>面向超高速撞击与小天体撞击的高性能 CUDA-SPH 三维多物理场引擎。</p>
+                <p class="project-links"><a href="projects/gasphia.html">项目详情</a></p>
+              </div>
+            </article>
+
+            <article class="project-entry">
+              <span class="project-number" aria-hidden="true">02</span>
+              <div class="project-entry-body">
+                <h3>MiniPBD</h3>
+                <p>位置动力学的核心公式推导，以及可实时拖拽的绳索与布料模拟。</p>
+                <p class="project-links">
+                  <a href="minipbd-pages/core-physics.html">核心物理公式</a>
+                  <span aria-hidden="true">·</span>
+                  <a href="minipbd-pages/rope-cloth-demo.html">交互展示</a>
+                </p>
+              </div>
+            </article>
+
+            <article class="project-entry">
+              <span class="project-number" aria-hidden="true">03</span>
+              <div class="project-entry-body">
+                <h3>位移法浅水波模拟</h3>
+                <p>采用有限元与无网格离散，从拉格朗日视角研究复杂水底和间断水面的水波演化。</p>
+                <p class="project-links"><a href="projects/shallow-water.html">模拟动画与学位论文工作</a></p>
+              </div>
+            </article>
+
+            <article class="project-entry">
+              <span class="project-number" aria-hidden="true">04</span>
+              <div class="project-entry-body">
+                <h3>LeetGPU</h3>
+                <p>记录 CUDA Kernel 编写、访存优化、共享内存分块和寄存器粗化等性能优化练习。</p>
+                <p class="project-links"><a href="projects/leetgpu.html">查看题解</a></p>
+              </div>
+            </article>
+
+            <article class="project-entry">
+              <span class="project-number" aria-hidden="true">05</span>
+              <div class="project-entry-body">
+                <h3>MiniIsaac</h3>
+                <p>从零搭建物理模拟环境与 PPO 训练流程，逐步支持 carpet 和机械臂等任务。</p>
+                <p class="project-links">
+                  <a href="projects/miniisaac.html">开发记录</a>
+                  <span aria-hidden="true">·</span>
+                  <a href="miniisaac-pages/ppo-base.html">PPO 推导</a>
+                </p>
+              </div>
+            </article>
+
+            <article class="project-entry">
+              <span class="project-number" aria-hidden="true">06</span>
+              <div class="project-entry-body">
+                <h3>Zotero-AI-Classifier</h3>
+                <p>利用大语言模型读取文献元数据，并按照用户设定的分类体系自动归档。</p>
+                <p class="project-links"><a href="projects/zotero-ai-classifier.html">项目详情</a></p>
+              </div>
+            </article>
+          </div>
+        </section>
+      </div>
+
+      <aside class="home-sidebar" aria-label="学术档案">
+        <section id="education" class="sidebar-section">
+          <h2>教育背景</h2>
+          <div class="education-entry">
+            <span class="education-time">2023—2027</span>
+            <strong>中山大学（深圳）</strong>
+            <p>航空宇航科学与技术 · 博士研究生</p>
+            <p>导师：刘晓东 教授</p>
+          </div>
+          <div class="education-entry">
+            <span class="education-time">2020—2023</span>
+            <strong>大连理工大学</strong>
+            <p>动力学与控制 · 硕士研究生</p>
+            <p>导师：钟万勰 院士、吴锋 教授</p>
+          </div>
+          <div class="education-entry">
+            <span class="education-time">2016—2020</span>
+            <strong>中国矿业大学</strong>
+            <p>工程力学 · 本科生</p>
+          </div>
+        </section>
+
+        <section class="sidebar-section">
+          <h2>研究关键词</h2>
+          <ul class="research-tags" aria-label="研究关键词列表">
+            <li>CUDA 高性能计算</li>
+            <li>SPH 数值模拟</li>
+            <li>超高速撞击</li>
+            <li>天体动力学</li>
+            <li>无网格方法</li>
+            <li>物理引擎</li>
+          </ul>
+        </section>
+
+        <section id="publications" class="sidebar-section">
+          <h2>代表论文</h2>
+          <ol class="publication-preview">
+            <li>
+              <span class="publication-title">An adaptive symplectic integrator for gravitational dynamics.</span>
+              <span class="publication-venue">Astronomy &amp; Astrophysics, 2025.</span>
+            </li>
+            <li>
+              <span class="publication-title">An adaptive artificial viscosity for the displacement shallow water wave
+                equation.</span>
+              <span class="publication-venue">Applied Mathematics and Mechanics, 2022.</span>
+            </li>
+          </ol>
+          <p class="sidebar-link"><a href="publications.html">查看完整论文列表</a></p>
+        </section>
+      </aside>
+    </div>
+
+  </main>
+</body>
+
+</html>

@@ -1,0 +1,1096 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>绳索与布料交互展示 | MiniPBD</title>
+  <meta name="description" content="MiniPBD 绳索与布料交互展示：拖动粒子并调节重力、约束迭代次数与粒子密度。" />
+  <style>
+    :root {
+      color-scheme: dark;
+      --panel: rgba(14, 19, 30, 0.86);
+      --border: rgba(255, 255, 255, 0.12);
+      --text: #eef4ff;
+      --muted: #cbd5e1;
+      --accent: #38bdf8;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: #080b12;
+      font-family: Inter, "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+      color: var(--text);
+    }
+
+    #viewport, canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    canvas {
+      touch-action: none;
+      outline: none;
+    }
+
+    .panel {
+      position: fixed;
+      z-index: 10;
+      top: 18px;
+      left: 18px;
+      width: min(310px, calc(100vw - 36px));
+      padding: 16px;
+      border: 1px solid var(--border);
+      border-radius: 15px;
+      background: var(--panel);
+      box-shadow: 0 18px 48px rgba(0, 0, 0, 0.34);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      user-select: none;
+    }
+
+    h1 {
+      margin: 0 0 4px;
+      font-size: 20px;
+      letter-spacing: 0.02em;
+    }
+
+    .subtitle {
+      margin: 0 0 12px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .demo-nav {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 14px;
+      margin-top: 13px;
+      padding-top: 12px;
+      border-top: 1px solid var(--border);
+      font-size: 12px;
+    }
+
+    .demo-nav a {
+      color: #7dd3fc;
+      text-decoration: none;
+    }
+
+    .demo-nav a:hover,
+    .demo-nav a:focus-visible {
+      text-decoration: underline;
+    }
+
+    .control {
+      display: grid;
+      grid-template-columns: 88px 1fr 58px;
+      align-items: center;
+      gap: 9px;
+      margin: 10px 0;
+      font-size: 12px;
+    }
+
+    .control label { color: var(--muted); }
+
+    .control output {
+      color: #7dd3fc;
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--accent);
+    }
+
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .toggle-row input {
+      accent-color: var(--accent);
+    }
+
+    .error {
+      position: fixed;
+      z-index: 100;
+      inset: 0;
+      display: none;
+      place-items: center;
+      padding: 30px;
+      background: #090b10;
+      color: #fda4af;
+      text-align: center;
+      line-height: 1.7;
+    }
+
+    @media (max-width: 640px) {
+      .panel {
+        top: 10px;
+        left: 10px;
+        width: min(285px, calc(100vw - 20px));
+        padding: 13px;
+      }
+
+      .control {
+        grid-template-columns: 82px 1fr 56px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div id="viewport"></div>
+
+  <section class="panel">
+    <h1>MiniPBD</h1>
+    <p class="subtitle">绳索与布料交互展示</p>
+
+    <div class="toggle-row">
+      <label for="showParticles">显示粒子节点</label>
+      <input id="showParticles" type="checkbox" />
+    </div>
+
+    <div class="control">
+      <label for="gravity">重力</label>
+      <input id="gravity" type="range" min="0" max="20" step="0.5" value="9.8" />
+      <output id="gravityValue">9.8</output>
+    </div>
+
+    <div class="control">
+      <label for="iterations">约束迭代</label>
+      <input id="iterations" type="range" min="1" max="14" step="1" value="7" />
+      <output id="iterationsValue">7</output>
+    </div>
+
+    <div class="control">
+      <label for="clothDensity">布料密度</label>
+      <input id="clothDensity" type="range" min="8" max="64" step="1" value="32" />
+      <output id="clothDensityValue">32×32</output>
+    </div>
+
+    <div class="control">
+      <label for="ropeDensity">绳子密度</label>
+      <input id="ropeDensity" type="range" min="8" max="64" step="1" value="28" />
+      <output id="ropeDensityValue">28</output>
+    </div>
+
+    <nav class="demo-nav" aria-label="MiniPBD 导航">
+      <a href="core-physics.html">核心公式推导</a>
+      <a href="../index.html#projects">返回项目树</a>
+    </nav>
+  </section>
+
+  <div id="error" class="error"></div>
+
+  <script src="https://unpkg.com/three@0.139.2/build/three.min.js"></script>
+  <script src="https://unpkg.com/three@0.139.2/examples/js/controls/OrbitControls.js"></script>
+
+  <script>
+    "use strict";
+
+    (() => {
+      const errorBox = document.getElementById("error");
+
+      if (!window.THREE || !THREE.OrbitControls) {
+        errorBox.style.display = "grid";
+        errorBox.textContent =
+          "Three.js 加载失败。请检查网络连接，或将 Three.js 下载到本地后修改 script 地址。";
+        return;
+      }
+
+      const CONFIG = {
+        fixedDt: 1 / 60,
+        gravity: 9.8,
+        substeps: 4,
+        iterations: 7,
+        damping: 0.995,
+        bendStrength: 0.28,
+        floorY: 0.04
+      };
+
+      const state = {
+        bodies: [],
+        pickTargets: [],
+        lastTime: performance.now(),
+        accumulator: 0,
+        showParticles: false
+      };
+
+      // -----------------------------------------------------------------------
+      // Three.js 场景
+      // -----------------------------------------------------------------------
+
+      const viewport = document.getElementById("viewport");
+      const scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x090d16);
+      scene.fog = new THREE.Fog(0x090d16, 8, 16);
+
+      const camera = new THREE.PerspectiveCamera(
+        48,
+        window.innerWidth / window.innerHeight,
+        0.05,
+        50
+      );
+      camera.position.set(4.7, 2.9, 5.8);
+
+      const renderer = new THREE.WebGLRenderer({
+        antialias: true,
+        powerPreference: "high-performance"
+      });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      renderer.outputEncoding = THREE.sRGBEncoding;
+      viewport.appendChild(renderer.domElement);
+
+      const controls = new THREE.OrbitControls(camera, renderer.domElement);
+      controls.target.set(0, 1.7, 0);
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.065;
+      controls.minDistance = 2.6;
+      controls.maxDistance = 11;
+      controls.maxPolarAngle = Math.PI * 0.49;
+      controls.update();
+
+      scene.add(new THREE.HemisphereLight(0xbddcff, 0x242016, 1.25));
+
+      const keyLight = new THREE.DirectionalLight(0xffffff, 1.65);
+      keyLight.position.set(3.5, 6, 4);
+      keyLight.castShadow = true;
+      keyLight.shadow.mapSize.set(2048, 2048);
+      keyLight.shadow.camera.left = -5;
+      keyLight.shadow.camera.right = 5;
+      keyLight.shadow.camera.top = 6;
+      keyLight.shadow.camera.bottom = -2;
+      scene.add(keyLight);
+
+      const rimLight = new THREE.PointLight(0x60a5fa, 1.1, 12);
+      rimLight.position.set(-4, 3.5, -3);
+      scene.add(rimLight);
+
+      const floor = new THREE.Mesh(
+        new THREE.PlaneGeometry(18, 18),
+        new THREE.MeshStandardMaterial({
+          color: 0x1c2432,
+          roughness: 0.9,
+          metalness: 0.03
+        })
+      );
+      floor.rotation.x = -Math.PI / 2;
+      floor.receiveShadow = true;
+      scene.add(floor);
+
+      const floorGrid = new THREE.GridHelper(18, 36, 0x506174, 0x293748);
+      floorGrid.position.y = 0.006;
+      floorGrid.material.transparent = true;
+      floorGrid.material.opacity = 0.48;
+      scene.add(floorGrid);
+
+      // -----------------------------------------------------------------------
+      // PBD 对象
+      // -----------------------------------------------------------------------
+
+      class PBDObject {
+        constructor({
+          name,
+          positions,
+          invMass,
+          constraints,
+          indices = null,
+          color = 0xffffff,
+          type = "rope"
+        }) {
+          this.name = name;
+          this.type = type;
+          this.positions = new Float32Array(positions);
+          this.previous = new Float32Array(positions);
+          this.invMass = new Float32Array(invMass);
+          this.constraints = constraints;
+          this.indices = indices ? new Uint32Array(indices) : null;
+          this.draggedId = -1;
+          this.draggedInvMass = 0;
+
+          this.createVisuals(color);
+        }
+
+        get particleCount() {
+          return this.positions.length / 3;
+        }
+
+        createVisuals(color) {
+          if (this.type === "cloth") {
+            const geometry = new THREE.BufferGeometry();
+            geometry.setAttribute(
+              "position",
+              new THREE.BufferAttribute(this.positions, 3)
+            );
+            geometry.setIndex(new THREE.BufferAttribute(this.indices, 1));
+            geometry.computeVertexNormals();
+
+            this.mainMesh = new THREE.Mesh(
+              geometry,
+              new THREE.MeshPhysicalMaterial({
+                color,
+                side: THREE.DoubleSide,
+                roughness: 0.55,
+                metalness: 0.03,
+                sheen: 0.65,
+                sheenColor: new THREE.Color(0xa5d8ff)
+              })
+            );
+            this.mainMesh.castShadow = true;
+            this.mainMesh.receiveShadow = true;
+          } else {
+            const geometry = new THREE.BufferGeometry();
+            geometry.setAttribute(
+              "position",
+              new THREE.BufferAttribute(this.positions, 3)
+            );
+
+            this.mainMesh = new THREE.Line(
+              geometry,
+              new THREE.LineBasicMaterial({
+                color,
+                linewidth: 2
+              })
+            );
+          }
+
+          this.mainMesh.userData.body = this;
+          scene.add(this.mainMesh);
+
+          const pointGeometry = new THREE.BufferGeometry();
+          pointGeometry.setAttribute(
+            "position",
+            new THREE.BufferAttribute(this.positions, 3)
+          );
+
+          this.pointMaterial = new THREE.PointsMaterial({
+            color: this.type === "cloth" ? 0xe0f2fe : 0xfef3c7,
+            size: this.type === "cloth" ? 0.05 : 0.07,
+            sizeAttenuation: true,
+            transparent: true,
+            opacity: state.showParticles ? 0.86 : 0.001,
+            depthWrite: false
+          });
+
+          this.pointMesh = new THREE.Points(pointGeometry, this.pointMaterial);
+          this.pointMesh.userData.body = this;
+          scene.add(this.pointMesh);
+
+          state.pickTargets.push(this.mainMesh, this.pointMesh);
+        }
+
+        dispose() {
+          state.pickTargets = state.pickTargets.filter(
+            (target) => target !== this.mainMesh && target !== this.pointMesh
+          );
+
+          scene.remove(this.mainMesh);
+          scene.remove(this.pointMesh);
+
+          this.mainMesh.geometry.dispose();
+          this.mainMesh.material.dispose();
+          this.pointMesh.geometry.dispose();
+          this.pointMesh.material.dispose();
+        }
+
+        setParticlesVisible(visible) {
+          this.pointMaterial.opacity = visible ? 0.86 : 0.001;
+          this.pointMaterial.needsUpdate = true;
+        }
+
+        integrate(dt) {
+          const dt2 = dt * dt;
+          const gravityY = -CONFIG.gravity;
+
+          for (let i = 0; i < this.particleCount; i++) {
+            if (this.invMass[i] === 0) continue;
+
+            const k = i * 3;
+            const x = this.positions[k];
+            const y = this.positions[k + 1];
+            const z = this.positions[k + 2];
+
+            const vx = (x - this.previous[k]) * CONFIG.damping;
+            const vy = (y - this.previous[k + 1]) * CONFIG.damping;
+            const vz = (z - this.previous[k + 2]) * CONFIG.damping;
+
+            this.previous[k] = x;
+            this.previous[k + 1] = y;
+            this.previous[k + 2] = z;
+
+            this.positions[k] = x + vx;
+            this.positions[k + 1] = y + vy + gravityY * dt2;
+            this.positions[k + 2] = z + vz;
+          }
+        }
+
+        solveConstraints() {
+          const p = this.positions;
+
+          for (const c of this.constraints) {
+            const i0 = c.i0;
+            const i1 = c.i1;
+            const w0 = this.invMass[i0];
+            const w1 = this.invMass[i1];
+            const wSum = w0 + w1;
+            if (wSum === 0) continue;
+
+            const a = i0 * 3;
+            const b = i1 * 3;
+            const dx = p[b] - p[a];
+            const dy = p[b + 1] - p[a + 1];
+            const dz = p[b + 2] - p[a + 2];
+            const lenSq = dx * dx + dy * dy + dz * dz;
+            if (lenSq < 1e-12) continue;
+
+            const len = Math.sqrt(lenSq);
+            const stiffness =
+              c.kind === "bend" ? CONFIG.bendStrength : c.stiffness;
+            const correction = ((len - c.rest) / len) * stiffness;
+
+            const s0 = correction * (w0 / wSum);
+            const s1 = correction * (w1 / wSum);
+
+            p[a] += dx * s0;
+            p[a + 1] += dy * s0;
+            p[a + 2] += dz * s0;
+
+            p[b] -= dx * s1;
+            p[b + 1] -= dy * s1;
+            p[b + 2] -= dz * s1;
+          }
+        }
+
+        solveFloorCollision() {
+          const p = this.positions;
+
+          for (let i = 0; i < this.particleCount; i++) {
+            if (this.invMass[i] === 0) continue;
+            const k = i * 3;
+
+            if (p[k + 1] < CONFIG.floorY) {
+              p[k + 1] = CONFIG.floorY;
+
+              const oldX = this.previous[k];
+              const oldZ = this.previous[k + 2];
+              this.previous[k] = p[k] - (p[k] - oldX) * 0.72;
+              this.previous[k + 2] = p[k + 2] - (p[k + 2] - oldZ) * 0.72;
+            }
+          }
+        }
+
+        updateVisuals() {
+          this.mainMesh.geometry.attributes.position.needsUpdate = true;
+          this.mainMesh.geometry.computeBoundingSphere();
+
+          if (this.type === "cloth") {
+            this.mainMesh.geometry.computeVertexNormals();
+            this.mainMesh.geometry.attributes.normal.needsUpdate = true;
+          }
+
+          this.pointMesh.geometry.attributes.position.needsUpdate = true;
+          this.pointMesh.geometry.computeBoundingSphere();
+        }
+
+        nearestParticle(worldPoint) {
+          let best = -1;
+          let bestD2 = Infinity;
+
+          for (let i = 0; i < this.particleCount; i++) {
+            if (this.invMass[i] === 0) continue;
+
+            const k = i * 3;
+            const dx = this.positions[k] - worldPoint.x;
+            const dy = this.positions[k + 1] - worldPoint.y;
+            const dz = this.positions[k + 2] - worldPoint.z;
+            const d2 = dx * dx + dy * dy + dz * dz;
+
+            if (d2 < bestD2) {
+              bestD2 = d2;
+              best = i;
+            }
+          }
+
+          return best;
+        }
+
+        startDrag(particleId, worldPoint) {
+          if (particleId < 0 || this.invMass[particleId] === 0) {
+            return false;
+          }
+
+          this.draggedId = particleId;
+          this.draggedInvMass = this.invMass[particleId];
+          this.invMass[particleId] = 0;
+          this.moveDragged(worldPoint);
+          return true;
+        }
+
+        moveDragged(worldPoint) {
+          if (this.draggedId < 0) return;
+
+          const k = this.draggedId * 3;
+          this.positions[k] = worldPoint.x;
+          this.positions[k + 1] = Math.max(worldPoint.y, CONFIG.floorY);
+          this.positions[k + 2] = worldPoint.z;
+
+          this.previous[k] = this.positions[k];
+          this.previous[k + 1] = this.positions[k + 1];
+          this.previous[k + 2] = this.positions[k + 2];
+        }
+
+        endDrag(releaseVelocity) {
+          if (this.draggedId < 0) return;
+
+          const k = this.draggedId * 3;
+          this.invMass[this.draggedId] = this.draggedInvMass;
+
+          const capped = releaseVelocity.clone();
+          if (capped.length() > 4.5) capped.setLength(4.5);
+
+          this.previous[k] = this.positions[k] - capped.x * CONFIG.fixedDt;
+          this.previous[k + 1] = this.positions[k + 1] - capped.y * CONFIG.fixedDt;
+          this.previous[k + 2] = this.positions[k + 2] - capped.z * CONFIG.fixedDt;
+          this.draggedId = -1;
+        }
+      }
+
+      // -----------------------------------------------------------------------
+      // 几何和约束生成
+      // -----------------------------------------------------------------------
+
+      function distance3(positions, i0, i1) {
+        const a = i0 * 3;
+        const b = i1 * 3;
+
+        return Math.hypot(
+          positions[b] - positions[a],
+          positions[b + 1] - positions[a + 1],
+          positions[b + 2] - positions[a + 2]
+        );
+      }
+
+      function addConstraint(list, positions, i0, i1, kind, stiffness) {
+        list.push({
+          i0,
+          i1,
+          rest: distance3(positions, i0, i1),
+          kind,
+          stiffness
+        });
+      }
+
+      function createRope(count = 28) {
+        const positions = [];
+        const invMass = [];
+        const constraints = [];
+
+        for (let i = 0; i < count; i++) {
+          const t = i / (count - 1);
+
+          positions.push(
+            -1.55 + 0.10 * Math.sin(t * Math.PI * 1.5),
+            3.18 - t * 2.42,
+            -0.30 + 0.15 * Math.sin(t * Math.PI)
+          );
+
+          invMass.push(i === 0 ? 0 : 1);
+        }
+
+        for (let i = 0; i < count - 1; i++) {
+          addConstraint(constraints, positions, i, i + 1, "stretch", 1.0);
+        }
+
+        for (let i = 0; i < count - 2; i++) {
+          addConstraint(constraints, positions, i, i + 2, "bend", 1.0);
+        }
+
+        return new PBDObject({
+          name: "rope",
+          positions,
+          invMass,
+          constraints,
+          color: 0xfbbf24,
+          type: "rope"
+        });
+      }
+
+      function createCloth(density) {
+        const cols = density;
+        const rows = density;
+        const width = 2.35;
+        const height = 1.78;
+        const left = -0.50;
+        const top = 3.14;
+        const z = 0.18;
+
+        const positions = [];
+        const invMass = [];
+        const constraints = [];
+        const indices = [];
+        const id = (x, y) => y * cols + x;
+
+        for (let y = 0; y < rows; y++) {
+          const v = y / (rows - 1);
+
+          for (let x = 0; x < cols; x++) {
+            const u = x / (cols - 1);
+
+            positions.push(
+              left + u * width,
+              top - v * height,
+              z + 0.03 * Math.sin(u * Math.PI)
+            );
+
+            const pinnedCorner =
+              y === 0 && (x === 0 || x === cols - 1);
+            invMass.push(pinnedCorner ? 0 : 1);
+          }
+        }
+
+        for (let y = 0; y < rows - 1; y++) {
+          for (let x = 0; x < cols - 1; x++) {
+            const a = id(x, y);
+            const b = id(x + 1, y);
+            const c = id(x, y + 1);
+            const d = id(x + 1, y + 1);
+
+            if ((x + y) % 2 === 0) {
+              indices.push(a, c, b, b, c, d);
+            } else {
+              indices.push(a, c, d, a, d, b);
+            }
+          }
+        }
+
+        for (let y = 0; y < rows; y++) {
+          for (let x = 0; x < cols; x++) {
+            if (x + 1 < cols) {
+              addConstraint(
+                constraints,
+                positions,
+                id(x, y),
+                id(x + 1, y),
+                "stretch",
+                1.0
+              );
+            }
+
+            if (y + 1 < rows) {
+              addConstraint(
+                constraints,
+                positions,
+                id(x, y),
+                id(x, y + 1),
+                "stretch",
+                1.0
+              );
+            }
+
+            if (x + 1 < cols && y + 1 < rows) {
+              addConstraint(
+                constraints,
+                positions,
+                id(x, y),
+                id(x + 1, y + 1),
+                "stretch",
+                0.92
+              );
+              addConstraint(
+                constraints,
+                positions,
+                id(x + 1, y),
+                id(x, y + 1),
+                "stretch",
+                0.92
+              );
+            }
+
+            if (x + 2 < cols) {
+              addConstraint(
+                constraints,
+                positions,
+                id(x, y),
+                id(x + 2, y),
+                "bend",
+                1.0
+              );
+            }
+
+            if (y + 2 < rows) {
+              addConstraint(
+                constraints,
+                positions,
+                id(x, y),
+                id(x, y + 2),
+                "bend",
+                1.0
+              );
+            }
+          }
+        }
+
+        return new PBDObject({
+          name: "cloth",
+          positions,
+          invMass,
+          constraints,
+          indices,
+          color: 0x3b82f6,
+          type: "cloth"
+        });
+      }
+
+      let rope = createRope(28);
+      let cloth = createCloth(32);
+      state.bodies.push(rope, cloth);
+
+      // 只保留很小的固定点标记，不再使用任何门框。
+      const anchorMaterialRope = new THREE.MeshStandardMaterial({
+        color: 0xfbbf24,
+        roughness: 0.35,
+        metalness: 0.35
+      });
+
+      const anchorMaterialCloth = new THREE.MeshStandardMaterial({
+        color: 0x7dd3fc,
+        roughness: 0.35,
+        metalness: 0.35
+      });
+
+      const anchorGeometry = new THREE.SphereGeometry(0.065, 16, 10);
+
+      const ropeAnchor = new THREE.Mesh(anchorGeometry, anchorMaterialRope);
+      ropeAnchor.position.set(
+        rope.positions[0],
+        rope.positions[1],
+        rope.positions[2]
+      );
+      ropeAnchor.castShadow = true;
+      scene.add(ropeAnchor);
+
+      const clothAnchorLeft = new THREE.Mesh(anchorGeometry, anchorMaterialCloth);
+      const clothAnchorRight = new THREE.Mesh(anchorGeometry, anchorMaterialCloth);
+      clothAnchorLeft.castShadow = true;
+      clothAnchorRight.castShadow = true;
+      scene.add(clothAnchorLeft, clothAnchorRight);
+
+      function updateClothAnchors() {
+        const cols = Number(document.getElementById("clothDensity").value);
+        const rightTopIndex = cols - 1;
+
+        clothAnchorLeft.position.set(
+          cloth.positions[0],
+          cloth.positions[1],
+          cloth.positions[2]
+        );
+
+        clothAnchorRight.position.set(
+          cloth.positions[rightTopIndex * 3],
+          cloth.positions[rightTopIndex * 3 + 1],
+          cloth.positions[rightTopIndex * 3 + 2]
+        );
+      }
+
+      function updateRopeAnchor() {
+        ropeAnchor.position.set(
+          rope.positions[0],
+          rope.positions[1],
+          rope.positions[2]
+        );
+      }
+
+      updateClothAnchors();
+      updateRopeAnchor();
+
+      // -----------------------------------------------------------------------
+      // 物理步进
+      // -----------------------------------------------------------------------
+
+      function physicsStep(dt) {
+        const subDt = dt / CONFIG.substeps;
+
+        for (let sub = 0; sub < CONFIG.substeps; sub++) {
+          for (const body of state.bodies) {
+            body.integrate(subDt);
+          }
+
+          for (let iteration = 0; iteration < CONFIG.iterations; iteration++) {
+            for (const body of state.bodies) {
+              body.solveConstraints();
+              body.solveFloorCollision();
+            }
+          }
+        }
+
+        for (const body of state.bodies) {
+          body.updateVisuals();
+        }
+      }
+
+      function rebuildCloth(density) {
+        const currentIndex = state.bodies.indexOf(cloth);
+
+        if (drag.active && drag.body === cloth) {
+          finishDrag();
+        }
+
+        cloth.dispose();
+        cloth = createCloth(density);
+        cloth.setParticlesVisible(state.showParticles);
+
+        if (currentIndex >= 0) {
+          state.bodies[currentIndex] = cloth;
+        } else {
+          state.bodies.push(cloth);
+        }
+
+        updateClothAnchors();
+        state.accumulator = 0;
+      }
+
+      function rebuildRope(density) {
+        const currentIndex = state.bodies.indexOf(rope);
+
+        if (drag.active && drag.body === rope) {
+          finishDrag();
+        }
+
+        rope.dispose();
+        rope = createRope(density);
+        rope.setParticlesVisible(state.showParticles);
+
+        if (currentIndex >= 0) {
+          state.bodies[currentIndex] = rope;
+        } else {
+          state.bodies.unshift(rope);
+        }
+
+        updateRopeAnchor();
+        state.accumulator = 0;
+      }
+
+      // -----------------------------------------------------------------------
+      // 鼠标拖拽
+      // -----------------------------------------------------------------------
+
+      const raycaster = new THREE.Raycaster();
+      raycaster.params.Points.threshold = 0.13;
+      raycaster.params.Line.threshold = 0.12;
+
+      const pointer = new THREE.Vector2();
+
+      const drag = {
+        active: false,
+        body: null,
+        particleId: -1,
+        distance: 0,
+        previousWorld: new THREE.Vector3(),
+        currentWorld: new THREE.Vector3(),
+        velocity: new THREE.Vector3(),
+        lastMoveTime: 0,
+        pointerId: null
+      };
+
+      function updatePointer(evt) {
+        const rect = renderer.domElement.getBoundingClientRect();
+        pointer.x = ((evt.clientX - rect.left) / rect.width) * 2 - 1;
+        pointer.y = -((evt.clientY - rect.top) / rect.height) * 2 + 1;
+        raycaster.setFromCamera(pointer, camera);
+      }
+
+      function worldPointAtDistance(distance, target) {
+        target.copy(raycaster.ray.origin);
+        target.addScaledVector(raycaster.ray.direction, distance);
+        return target;
+      }
+
+      renderer.domElement.addEventListener("pointerdown", (evt) => {
+        if (evt.button !== 0) return;
+
+        updatePointer(evt);
+        const hits = raycaster.intersectObjects(state.pickTargets, false);
+        if (hits.length === 0) return;
+
+        const hit = hits[0];
+        const body = hit.object.userData.body;
+        if (!body) return;
+
+        const worldPoint = hit.point.clone();
+        const particleId =
+          hit.object.isPoints &&
+          hit.index !== undefined &&
+          hit.index < body.particleCount
+            ? hit.index
+            : body.nearestParticle(worldPoint);
+
+        if (!body.startDrag(particleId, worldPoint)) return;
+
+        drag.active = true;
+        drag.body = body;
+        drag.particleId = particleId;
+        drag.distance = hit.distance;
+        drag.previousWorld.copy(worldPoint);
+        drag.currentWorld.copy(worldPoint);
+        drag.velocity.set(0, 0, 0);
+        drag.lastMoveTime = performance.now();
+        drag.pointerId = evt.pointerId;
+
+        controls.enabled = false;
+        renderer.domElement.setPointerCapture(evt.pointerId);
+        evt.preventDefault();
+      });
+
+      renderer.domElement.addEventListener("pointermove", (evt) => {
+        if (!drag.active || !drag.body) return;
+
+        updatePointer(evt);
+        worldPointAtDistance(drag.distance, drag.currentWorld);
+
+        const now = performance.now();
+        const elapsed = Math.max((now - drag.lastMoveTime) / 1000, 1 / 240);
+
+        drag.velocity
+          .copy(drag.currentWorld)
+          .sub(drag.previousWorld)
+          .divideScalar(elapsed);
+
+        drag.previousWorld.copy(drag.currentWorld);
+        drag.lastMoveTime = now;
+        drag.body.moveDragged(drag.currentWorld);
+        evt.preventDefault();
+      });
+
+      function finishDrag(evt = null) {
+        if (!drag.active) return;
+
+        drag.body?.endDrag(drag.velocity);
+
+        const pointerId = evt?.pointerId ?? drag.pointerId;
+        if (
+          pointerId !== null &&
+          renderer.domElement.hasPointerCapture(pointerId)
+        ) {
+          renderer.domElement.releasePointerCapture(pointerId);
+        }
+
+        drag.active = false;
+        drag.body = null;
+        drag.particleId = -1;
+        drag.pointerId = null;
+        controls.enabled = true;
+      }
+
+      renderer.domElement.addEventListener("pointerup", finishDrag);
+      renderer.domElement.addEventListener("pointercancel", finishDrag);
+      renderer.domElement.addEventListener(
+        "contextmenu",
+        (evt) => evt.preventDefault()
+      );
+
+      // -----------------------------------------------------------------------
+      // 精简控制面板
+      // -----------------------------------------------------------------------
+
+      const showParticles = document.getElementById("showParticles");
+      const gravity = document.getElementById("gravity");
+      const gravityValue = document.getElementById("gravityValue");
+      const iterations = document.getElementById("iterations");
+      const iterationsValue = document.getElementById("iterationsValue");
+      const clothDensity = document.getElementById("clothDensity");
+      const clothDensityValue = document.getElementById("clothDensityValue");
+      const ropeDensity = document.getElementById("ropeDensity");
+      const ropeDensityValue = document.getElementById("ropeDensityValue");
+
+      showParticles.addEventListener("change", () => {
+        state.showParticles = showParticles.checked;
+
+        for (const body of state.bodies) {
+          body.setParticlesVisible(state.showParticles);
+        }
+      });
+
+      gravity.addEventListener("input", () => {
+        CONFIG.gravity = Number(gravity.value);
+        gravityValue.value = CONFIG.gravity.toFixed(1);
+      });
+
+      iterations.addEventListener("input", () => {
+        CONFIG.iterations = Number(iterations.value);
+        iterationsValue.value = String(CONFIG.iterations);
+      });
+
+      let clothRebuildTimer = null;
+      let ropeRebuildTimer = null;
+
+      clothDensity.addEventListener("input", () => {
+        const density = Number(clothDensity.value);
+        clothDensityValue.value = `${density}×${density}`;
+
+        clearTimeout(clothRebuildTimer);
+        clothRebuildTimer = setTimeout(
+          () => rebuildCloth(density),
+          120
+        );
+      });
+
+      ropeDensity.addEventListener("input", () => {
+        const density = Number(ropeDensity.value);
+        ropeDensityValue.value = String(density);
+
+        clearTimeout(ropeRebuildTimer);
+        ropeRebuildTimer = setTimeout(
+          () => rebuildRope(density),
+          120
+        );
+      });
+
+      // -----------------------------------------------------------------------
+      // 自适应与循环
+      // -----------------------------------------------------------------------
+
+      window.addEventListener("resize", () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      });
+
+      function animate(now) {
+        requestAnimationFrame(animate);
+
+        const frameDt = Math.min((now - state.lastTime) / 1000, 0.05);
+        state.lastTime = now;
+        state.accumulator += frameDt;
+
+        let steps = 0;
+        while (state.accumulator >= CONFIG.fixedDt && steps < 3) {
+          physicsStep(CONFIG.fixedDt);
+          state.accumulator -= CONFIG.fixedDt;
+          steps++;
+        }
+
+        controls.update();
+        renderer.render(scene, camera);
+      }
+
+      requestAnimationFrame(animate);
+    })();
+  </script>
+</body>
+</html>
