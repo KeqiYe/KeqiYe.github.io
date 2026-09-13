@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>从摇头晃脑到头部稳定 | MDSim · 叶科奇</title>
+  <meta name="description" content="MicroDuck 奖励优化前后的视频对比与核心改进。">
+  <link rel="stylesheet" href="../styles.css">
+  <link rel="canonical" href="https://yekq.top/duck-gym-pages/training.html">
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']],
+        displayMath: [['$$', '$$'], ['\\[', '\\]']],
+        processEscapes: true
+      },
+      options: {
+        skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+      }
+    };
+  </script>
+  <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
+</head>
+
+<body>
+  <main class="page article-page">
+    <header class="site-header">
+      <div class="identity">
+        <h1>从摇头晃脑到头部稳定</h1>
+        <p>MicroDuck 奖励优化前后对照</p>
+      </div>
+    </header>
+
+    <nav class="nav" aria-label="专题导航">
+      <a href="../projects/duck-gym.html">项目简介</a>
+      <a href="../duck-gym-pages/training.html">训练动画</a>
+      <a href="../duck-gym-pages/ppo-base.html">PPO 推导</a>
+      <a href="../duck-gym-pages/avbd.html">AVBD 求解</a>
+    </nav>
+    <hr aria-hidden="true" style="border:0; border-top:1px solid #d8d8d8; margin:16px 0 28px;">
+
+    <section aria-labelledby="comparison">
+      <h2 id="comparison">优化前后对照</h2>
+      <p>
+        两段视频均在平地、头部中立命令下连续运行 20 秒，依次执行前进、后退、左移和右移。
+        左侧沿用最初的 MicroDuck 行走奖励，右侧为优化后的训练结果。
+      </p>
+      <div class="media-grid">
+        <figure>
+          <video controls playsinline preload="metadata" width="960" height="720" style="aspect-ratio: 4 / 3;"
+            poster="../media/duck-gym/walking-20s-poster.png"
+            aria-label="奖励优化前的 MicroDuck 四方向连续行走">
+            <source src="../media/duck-gym/walking-20s.mp4" type="video/mp4">
+            您的浏览器不支持视频播放，请<a href="../media/duck-gym/walking-20s.mp4">下载优化前视频</a>观看。
+          </video>
+          <figcaption><strong>优化前。</strong> 能够跟随运动命令，但头颈关节存在明显的周期性摆动。</figcaption>
+        </figure>
+        <figure>
+          <video controls playsinline preload="metadata" width="960" height="720" style="aspect-ratio: 4 / 3;"
+            poster="../media/duck-gym/head-neutral850-20s-poster.jpg"
+            aria-label="奖励优化后的 MicroDuck 四方向连续行走">
+            <source src="../media/duck-gym/head-neutral850-20s.mp4" type="video/mp4">
+            您的浏览器不支持视频播放，请<a href="../media/duck-gym/head-neutral850-20s.mp4">下载优化后视频</a>观看。
+          </video>
+          <figcaption><strong>优化后。</strong> 保持四方向运动，同时明显抑制头部摇晃。</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <section aria-labelledby="solution">
+      <h2 id="solution">解决思路</h2>
+      <ol>
+        <li>
+          <strong>关注持续速度。</strong> 新增时间常数为 0.5 秒的水平速度 EMA 奖励，
+          减少换脚时瞬时速度波动对训练的干扰。
+        </li>
+        <li>
+          <strong>直接约束晃头。</strong> 加强头部姿态跟踪，并新增头颈关节瞬时角度和角速度惩罚，
+          防止左右对称摆动在长期平均中相互抵消。
+        </li>
+        <li>
+          <strong>加强接触约束。</strong> 自身碰撞权重由 −1 提高到 −5，
+          接触数取一个控制步内四个物理子步的最大值。
+        </li>
+      </ol>
+    </section>
+
+    <section aria-labelledby="reward">
+      <h2 id="reward">核心奖励变化</h2>
+      <p>控制步长为 \(\Delta t=0.02\,\mathrm{s}\)，下列权重均为乘上 \(\Delta t\) 之前的值。</p>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">奖励项</th>
+              <th scope="col">原始项</th>
+              <th scope="col">最初</th>
+              <th scope="col">优化后</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th scope="row">平均水平速度跟踪</th>
+              <td>\(e^{-\|\bar v_{xy}-v^*_{xy}\|^2/0.0025}\)</td>
+              <td>无</td>
+              <td><strong>4</strong></td>
+            </tr>
+            <tr>
+              <th scope="row">头部姿态跟踪</th>
+              <td>\(\operatorname{mean}[e^{-(e_h/0.5)^2}]\)</td>
+              <td>2</td>
+              <td><strong>4</strong></td>
+            </tr>
+            <tr>
+              <th scope="row">自身碰撞</th>
+              <td>活跃自身接触对数 \(N_{\rm self}\)</td>
+              <td>−1</td>
+              <td><strong>−5</strong></td>
+            </tr>
+            <tr>
+              <th scope="row">头颈瞬时角度偏差</th>
+              <td>\(\|e_h\|^2\)</td>
+              <td>无</td>
+              <td><strong>−8</strong></td>
+            </tr>
+            <tr>
+              <th scope="row">头颈瞬时角速度</th>
+              <td>\(\|\dot q_h\|^2\)</td>
+              <td>无</td>
+              <td><strong>−0.04</strong></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>因此，在相同状态与课程位置下：</p>
+      <div class="math-block equation-scroll">\[
+        \begin{aligned}
+        r_{\rm new}=r_{\rm old}+\Delta t\big[
+        &4e^{-\|\bar v_{xy}-v^*_{xy}\|^2/0.0025}
+        +2\operatorname{mean}(e^{-(e_h/0.5)^2}) \\
+        &-4N_{\rm self}-8\|e_h\|^2-0.04\|\dot q_h\|^2
+        \big].
+        \end{aligned}
+      \]</div>
+      <p>
+        其余原始奖励保持不变。瞬时速度核仍使用 <code>0.1</code>，较窄的 <code>0.0025</code>
+        只用于平均速度跟踪。优化后的训练继承原课程计数，动作变化和头部长期偏置权重
+        分别为 −0.8 与 2。
+      </p>
+    </section>
+
+    <footer class="footer">
+      <a href="../projects/duck-gym.html">返回 MDSim</a> ·
+      <a href="../index.html#projects">所有项目</a>
+    </footer>
+  </main>
+</body>
+
+</html>

@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>核心物理公式推导 | MiniPBD</title>
+  <meta name="description" content="从位置估计、约束投影到速度更新，推导 PBD 的核心算法与长度约束。">
+  <link rel="stylesheet" href="../styles.css">
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']],
+        displayMath: [['$$', '$$'], ['\\[', '\\]']],
+        processEscapes: true
+      },
+      options: {
+        skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+      }
+    };
+  </script>
+  <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
+</head>
+<body>
+  <main class="page">
+    <header class="site-header">
+      <div class="identity">
+        <h1>核心物理公式推导</h1>
+        <p>MiniPBD · Position Based Dynamics</p>
+      </div>
+      <nav class="nav" aria-label="主导航">
+        <a href="../index.html">首页</a>
+        <a href="../index.html#projects">项目树</a>
+        <a href="rope-cloth-demo.html">交互展示</a>
+      </nav>
+    </header>
+
+    <section>
+      <p>
+        许多动力学模拟会先由力计算加速度，再通过常微分方程积分得到位置。
+        加速度可以来自压力、场力、外力或材料内部的弹性响应。
+        Position Based Dynamics（PBD）的思路不同：它不显式求解约束力或加速度，
+        而是先估计粒子在下一时刻的位置，再直接修正这些预测位置，使系统回到满足几何约束的构型。
+        几何约束可以表达多种物理条件，例如长度保持、不可压缩性或边界条件。
+        本页只聚焦最基础的长度约束，用它说明 PBD 的主要计算流程。
+      </p>
+    </section>
+
+    <section>
+      <h2>1. 状态量与约束</h2>
+      <p>粒子 $i$ 的位置、速度、质量和逆质量分别为</p>
+      <div class="equation-scroll">
+        $$\mathbf{x}_i,\qquad \mathbf{v}_i,\qquad m_i,\qquad w_i=\frac{1}{m_i}.$$
+      </div>
+      <p>
+        作用于 $n$ 个粒子的标量约束写为
+        $C(\mathbf{p}_1,\ldots,\mathbf{p}_n)=0$，其中 $\mathbf{p}_i$ 是当前时间步的预测位置。
+        不等式约束 $C\geq 0$ 只在 $C&lt;0$ 即约束被违反时投影。
+      </p>
+    </section>
+
+    <section>
+      <h2>2. PBD 的三个主要步骤</h2>
+      <div class="step-grid">
+        <div class="step-card"><strong>① 位置估计</strong><span>由旧位置、速度和外力预测下一时刻位置</span></div>
+        <div class="step-card"><strong>② 约束投影</strong><span>迭代修正预测位置，使几何约束成立</span></div>
+        <div class="step-card"><strong>③ 计算速度</strong><span>由最终位移反推新速度</span></div>
+      </div>
+
+      <h3>2.1 位置估计</h3>
+      <p>给定时间步长 $\Delta t$ 和外力 $\mathbf{f}^{\mathrm{ext}}_i$，先更新速度：</p>
+      <div class="equation-scroll">
+        $$\mathbf{v}_i^*=\mathbf{v}_i^n+\Delta t\,w_i\mathbf{f}^{\mathrm{ext}}_i.$$
+      </div>
+      <p>若外力只有重力 $\mathbf{g}$，则 $w_i\mathbf{f}^{\mathrm{ext}}_i=\mathbf{g}$。随后得到预测位置</p>
+      <div class="equation-scroll">
+        $$\boxed{\mathbf{p}_i=\mathbf{x}_i^n+\Delta t\,\mathbf{v}_i^*}.$$
+      </div>
+      <p>此时 $\mathbf{p}_i$ 只是候选位置，通常尚未满足长度约束或其他几何约束。</p>
+
+      <h3>2.2 约束投影</h3>
+      <p>求位置修正 $\Delta\mathbf{p}_i$，使修正后的预测位置满足</p>
+      <div class="equation-scroll">
+        $$C(\mathbf{p}_1+\Delta\mathbf{p}_1,\ldots,\mathbf{p}_n+\Delta\mathbf{p}_n)=0.$$
+      </div>
+      <p>约束一般是非线性的，在当前预测位置附近作一阶 Taylor 展开：</p>
+      <div class="equation-scroll">
+        $$C(\mathbf{p}+\Delta\mathbf{p})\approx C(\mathbf{p})+
+        \nabla_{\mathbf{p}}C(\mathbf{p})\cdot\Delta\mathbf{p}=0.$$
+      </div>
+      <p>
+        为了用最小的位置改动消除约束误差，PBD 令修正方向沿约束梯度方向。若暂时不考虑质量差异，
+        可写成
+      </p>
+      <div class="equation-scroll">
+        $$\Delta\mathbf{p}=\lambda\nabla_{\mathbf{p}}C.$$
+      </div>
+      <p>
+        其中 $\lambda$ 是标量，表示沿梯度方向移动的幅度。代入一阶 Taylor 展开可得
+      </p>
+      <div class="equation-scroll">
+        $$\lambda=-\frac{C(\mathbf{p})}{\left\|\nabla_{\mathbf{p}}C\right\|^2},
+        \qquad
+        \Delta\mathbf{p}=
+        -\frac{C(\mathbf{p})}{\left\|\nabla_{\mathbf{p}}C\right\|^2}
+        \nabla_{\mathbf{p}}C.$$
+      </div>
+      <p>
+        对多粒子约束，还需要考虑不同粒子的质量。PBD 使用逆质量 $w_i=1/m_i$ 加权修正量：
+        质量小的粒子逆质量更大，移动更多；质量大的粒子逆质量更小，移动更少。
+      </p>
+      <p>为了得到质量加权的最小修正，令每个粒子的修正量沿各自的约束梯度方向：</p>
+      <div class="equation-scroll">
+        $$\Delta\mathbf{p}_i=\lambda w_i\nabla_{\mathbf{p}_i}C.$$
+      </div>
+      <p>代入线性化约束可得</p>
+      <div class="equation-scroll">
+        $$\lambda=-\frac{C(\mathbf{p}_1,\ldots,\mathbf{p}_n)}
+        {\displaystyle\sum_j w_j\left\|\nabla_{\mathbf{p}_j}C\right\|^2}.$$
+      </div>
+      <p>所以 PBD 的通用约束投影公式为</p>
+      <div class="equation-scroll derivation-note">
+        $$\boxed{
+        \Delta\mathbf{p}_i=
+        -\frac{w_i C(\mathbf{p}_1,\ldots,\mathbf{p}_n)}
+        {\displaystyle\sum_j w_j\left\|\nabla_{\mathbf{p}_j}C\right\|^2}
+        \nabla_{\mathbf{p}_i}C
+        }.$$
+      </div>
+      <p class="derivation-note">
+        显然，当 $w_i=0$ 时，$\Delta\mathbf{p}_i=0$，该粒子不会被约束投影修正，
+        因而可以用来构造固定边界条件。
+      </p>
+      <p>
+        实际求解时依次遍历约束并立即写回
+        $\mathbf{p}_i\leftarrow\mathbf{p}_i+\Delta\mathbf{p}_i$，重复若干轮形成 Gauss-Seidel 型迭代。
+        与传统弹性模型不同，基础 PBD 中的“刚度”通常不是材料的弹性模量，
+        而是约束投影被执行得有多充分。迭代次数少时，约束误差不能完全消除，长度约束会表现得更软；
+        迭代次数增多时，误差逐渐减小，系统看起来更接近刚性。
+      </p>
+      <p>
+        可以用数值刚度 $k\in[0,1]$ 控制每次投影的强度。$k=1$ 表示完整应用修正量，
+        粒子间距离尽可能保持不变；$k$ 越小，每次只应用部分修正，距离偏离会更明显：
+      </p>
+      <div class="equation-scroll">
+        $$\Delta\mathbf{p}_i\leftarrow k\,\Delta\mathbf{p}_i.$$
+      </div>
+      <p>
+        直接使用 $k$ 会让表观刚度依赖迭代次数。为减弱这种依赖，若每个时间步执行 $n_s$ 轮约束迭代，
+        可将用户设定的刚度 $k$ 转换为每轮使用的刚度 $k'$：
+      </p>
+      <div class="equation-scroll">
+        $$k'=1-(1-k)^{1/n_s},\qquad \Delta\mathbf{p}_i\leftarrow k'\Delta\mathbf{p}_i$$
+      </div>
+      <p>这样，改变迭代次数时，整体约束强度不会发生过于突兀的变化。</p>
+
+      <h3>2.3 计算速度并提交位置</h3>
+      <p>完成全部投影后，由真实位移重新计算速度并提交位置：</p>
+      <div class="equation-scroll derivation-note">
+        $$\boxed{\mathbf{v}_i^{n+1}=\frac{\mathbf{p}_i-\mathbf{x}_i^n}{\Delta t}},
+        \qquad \boxed{\mathbf{x}_i^{n+1}=\mathbf{p}_i}.$$
+      </div>
+      <p>投影造成的位置变化因此会自动反映到速度中，并被下一时间步继承。</p>
+    </section>
+
+    <section>
+      <h2>3. 长度约束推导</h2>
+      <p>设两个粒子的静止距离为 $d$。为了保持这段距离，定义长度约束</p>
+      <div class="equation-scroll">
+        $$C(\mathbf{p}_1,\mathbf{p}_2)=\|\mathbf{p}_1-\mathbf{p}_2\|-d=0.$$
+      </div>
+      <p>记当前连线方向的单位向量为</p>
+      <div class="equation-scroll">
+        $$\mathbf{n}=\frac{\mathbf{p}_1-\mathbf{p}_2}{\|\mathbf{p}_1-\mathbf{p}_2\|},
+        \qquad \nabla_{\mathbf{p}_1}C=\mathbf{n},\qquad
+        \nabla_{\mathbf{p}_2}C=-\mathbf{n}.$$
+      </div>
+      <p>将这两个梯度代入通用投影式，可得到两端粒子的位置修正：</p>
+      <div class="equation-scroll derivation-note">
+        $$\boxed{\Delta\mathbf{p}_1=-\frac{w_1}{w_1+w_2}
+        (\|\mathbf{p}_1-\mathbf{p}_2\|-d)\mathbf{n}},$$
+        $$\boxed{\Delta\mathbf{p}_2=+\frac{w_2}{w_1+w_2}
+        (\|\mathbf{p}_1-\mathbf{p}_2\|-d)\mathbf{n}}.$$
+      </div>
+      <p>
+        当当前距离大于 $d$ 时，两端粒子沿连线相向移动；当当前距离小于 $d$ 时，则相背移动。
+        修正量按逆质量分配：质量越小，位置修正越大；若 $w_1=0$，粒子 1 被固定，全部长度误差由粒子 2 吸收。
+      </p>
+    </section>
+
+    <section>
+      <h2>4. 算法小结</h2>
+      <ol>
+        <li>用外力更新速度，并计算预测位置 $\mathbf{p}_i$；</li>
+        <li>生成需要保持的长度约束；</li>
+        <li>多轮遍历长度约束，用通用公式修正 $\mathbf{p}_i$；</li>
+        <li>用 $(\mathbf{p}_i-\mathbf{x}_i^n)/\Delta t$ 重建速度；</li>
+        <li>提交 $\mathbf{x}_i^{n+1}=\mathbf{p}_i$，进入下一时间步。</li>
+      </ol>
+      <p class="derivation-note">
+        参考：Müller, Matthias, et al. "Position Based Dynamics."
+        <cite>Journal of Visual Communication and Image Representation</cite> 18.2 (2007): 109-118.
+      </p>
+    </section>
+
+    <footer class="footer">
+      <a href="../index.html#projects">返回项目树</a>
+    </footer>
+  </main>
+</body>
+</html>

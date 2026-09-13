@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>[向量加法] LeetGPU 第一题详解 - 基础 CUDA 核函数与性能分析 | LeetGPU</title>
+  <link rel="stylesheet" href="../styles.css">
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']],
+        displayMath: [['$$', '$$'], ['\\[', '\\]']],
+        processEscapes: true
+      },
+      options: {
+        skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+      }
+    };
+  </script>
+  <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
+</head>
+<body>
+  <main class="page article-page">
+    <header class="site-header">
+      <div class="identity">
+        <h1>[向量加法] LeetGPU 第一题详解 - 基础 CUDA 核函数与性能分析</h1>
+        <p>LeetGPU 题解</p>
+      </div>
+      <nav class="nav" aria-label="主导航">
+        <a href="../index.html">首页</a>
+        <a href="../projects/leetgpu.html">LeetGPU</a>
+      </nav>
+    </header>
+    <article>
+<h3>写在前面</h3>
+<p>本系列是 LeetGPU 平台的刷题记录，每道题我会给出从基础实现到优化的完整思路。如果你是 CUDA 新手，建议先掌握以下基础知识：</p>
+<ul>
+<li>CUDA 核函数编写（<code>__global__</code>）</li>
+<li>线程层次结构（Grid / Block / Thread）</li>
+<li>显存分配与传递</li>
+</ul>
+<hr>
+<h3>题目描述</h3>
+<p>给定两个浮点数组 A 和 B，将它们对应位置的元素相加，结果存入数组 C 中。数学表达式为：</p>
+<div class="math-block">\[
+C_i = A_i + B_i \quad (i = 0, 1, 2, \dots, N-1)
+\]</div>
+<h4>输入输出</h4>
+<ul>
+<li><strong>输入</strong>：设备指针 <code>A</code>, <code>B</code> 和数据规模 <code>N</code></li>
+<li><strong>输出</strong>：设备指针 <code>C</code></li>
+</ul>
+<hr>
+<h3>解法 v0：基础实现</h3>
+<pre><code class="language-cuda">
+__global__ void vector_add_v0(const float* A, const float* B, float* C, int N) {
+    int idx = blockDim.x * blockIdx.x + threadIdx.x;
+    if (idx &lt; N)
+        C[idx] = A[idx] + B[idx];
+}
+</code></pre>
+<h4>代码解读</h4>
+<ul>
+<li>每个线程处理一个元素的加法运算</li>
+<li>使用一维线程块布局：<code>blockDim.x * blockIdx.x + threadIdx.x</code> 计算全局索引</li>
+<li>边界检查 <code>if (idx &lt; N)</code> 防止越界访问</li>
+</ul>
+<h4>性能特点</h4>
+<div class="table-wrap"><table>
+<thead><tr><th>优点</th><th>缺点</th></tr></thead>
+<tbody>
+<tr><td>实现简洁，易于理解</td><td>网格配置与数据规模强绑定</td></tr>
+<tr><td>天然并行，无数据依赖</td><td>盲目启动海量线程增加调度开销</td></tr>
+<tr><td>合并访存，连续线程访问连续显存</td><td></td></tr>
+</tbody></table></div>
+<hr>
+<h3>优化1：跨步循环（Grid-Stride Loop）</h3>
+<p>v0 的问题在于<strong>网格配置与数据规模强绑定</strong>。为了达到最佳 Occupancy，我们通常希望根据设备 SM 数量固定启动线程数。跨步循环完美解耦了两者：</p>
+<pre><code class="language-cuda">
+__global__ void vector_add_v1(const float* A, const float* B, float* C, int N) {
+    int idx = blockDim.x * blockIdx.x + threadIdx.x;
+    int step = blockDim.x * gridDim.x;  // 所有线程总数
+    for (int i = idx; i &lt; N; i += step)
+        C[i] = A[i] + B[i];
+}
+</code></pre>
+<h4>核心思想</h4>
+<ul>
+<li>每个线程处理多个数据，步长 = 总线程数</li>
+<li>任意启动配置都能处理全部数据</li>
+<li>甚至可以退化为 <code>&lt;&lt;&lt;1, 1&gt;&gt;&gt;</code> 串行执行</li>
+</ul>
+<hr>
+<h3>优化2：向量化读取</h3>
+<p>进一步减少循环开销，一次处理 4 个元素：</p>
+<pre><code class="language-cuda">
+__global__ void vector_add_v2(const float* A, const float* B, float* C, int N) {
+    int idx = blockDim.x * blockIdx.x + threadIdx.x;
+    int step = blockDim.x * gridDim.x;
+    const float4* a4 = (const float4*)A;
+    const float4* b4 = (const float4*)B;
+    float4* c4 = (float4*)C;
+    int N4 = N / 4;
+
+    for (int i = idx; i &lt; N4; i += step) {
+        float4 at = a4[i];
+        float4 bt = b4[i];
+        c4[i] = make_float4(at.x + bt.x, at.y + bt.y, at.z + bt.z, at.w + bt.w);
+    }
+
+    // 处理尾部剩余元素
+    int tail = 4 * N4;
+    for (int i = idx + tail; i &lt; N; i += step)
+        C[i] = A[i] + B[i];
+}
+</code></pre>
+<h4>性能提升</h4>
+<p>v1 中处理 4 个元素需要 4 次循环、4 次边界判断、4 次步长累加。v2 只需 1 次循环，大幅减轻 ALU 和指令发射器的负担。</p>
+<h4>性能对比</h4>
+<blockquote><p>N = (1 &lt;&lt; 28) + 3</p></blockquote>
+<div class="table-wrap"><table>
+<thead><tr><th>版本</th><th>执行总指令数</th><th>相对v0指令变化</th></tr></thead>
+<tbody>
+<tr><td>v0</td><td>268,435,456</td><td>100% (基准)</td></tr>
+<tr><td>v1</td><td>139,657,216</td><td>减少48%</td></tr>
+<tr><td>v2</td><td>48,758,784</td><td>减少82%</td></tr>
+</tbody></table></div>
+<blockquote><p>由于该核函数完全受访存带宽限制，总指令数降低对执行时间无明显提升。但对于计算密集型核函数，v2 预期能带来显著性能提升。</p></blockquote>
+<hr>
+<h3>小结</h3>
+<p>本题是 GPU 并行计算的入门级题目，关键要点：</p>
+<ul>
+<li><strong>索引计算</strong> — 掌握一维线程索引 mapping</li>
+<li><strong>边界检查</strong> — 防止越界访问</li>
+<li><strong>合并访问</strong> — 连续线程访问连续内存</li>
+<li><strong>跨步循环</strong> — 解耦网格配置与数据规模</li>
+<li><strong>向量化</strong> — 减少循环开销</li>
+</ul>
+<hr>
+    </article>
+    <footer class="footer">
+      <a href="../projects/leetgpu.html">返回 LeetGPU</a>
+    </footer>
+  </main>
+</body>
+</html>

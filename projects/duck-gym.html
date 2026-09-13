@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MDSim | MicroDuck Simulation · 叶科奇</title>
+  <meta name="description" content="MDSim（MicroDuck Simulation）：从刚体求解到 MicroDuck 的 PPO 运动控制。">
+  <link rel="stylesheet" href="../styles.css">
+  <link rel="canonical" href="https://yekq.top/projects/duck-gym.html">
+
+</head>
+<body>
+  <main class="page article-page">
+    <header class="site-header">
+      <div class="identity"><h1>MDSim</h1><p>MicroDuck Simulation · 从刚体求解到 PPO 运动控制</p></div>
+    </header>
+    <nav class="nav" aria-label="专题导航">
+      <a href="../projects/duck-gym.html">项目简介</a>
+      <a href="../duck-gym-pages/training.html">训练动画</a>
+      <a href="../duck-gym-pages/ppo-base.html">PPO 推导</a>
+      <a href="../duck-gym-pages/avbd.html">AVBD 求解</a>
+    </nav>
+    <hr aria-hidden="true" style="border:0; border-top:1px solid #d8d8d8; margin:16px 0 28px;">
+    <section aria-labelledby="overview">
+      <h2 id="overview">项目简介</h2>
+      <p>我希望把物理模拟与强化学习训练连成一条完整流程：从零实现 C++/CUDA 刚体引擎，接入 rsl-rl 的 PPO，并用 Pollen Robotics 的 MicroDuck 机器人检验动力学与控制效果。</p>
+      <p>引擎采用刚体 AVBD，支持 CPU 与 CUDA、单精度与双精度求解。GPU 上批量运行独立环境采集训练数据；本地 CPU 可以运行单环境推理，再通过 MuJoCo 回放实际连杆姿态与完整机器人网格。</p>
+      <p><a href="https://github.com/KeqiYe/duck_gym">GitHub 源码</a></p>
+    </section>
+
+    <section aria-labelledby="topics">
+      <h2 id="topics">项目专题</h2>
+      <h3><a href="../duck-gym-pages/training.html">训练动画</a></h3>
+      <p>MicroDuck 前进、后退、左移和右移的连续视频，以及 CPU/CUDA 四方向评估与训练配置。</p>
+      <h3><a href="../duck-gym-pages/ppo-base.html">PPO 推导</a></h3>
+      <p>从策略梯度出发，整理重要性采样、优势估计与 PPO 裁剪目标。</p>
+      <h3><a href="../duck-gym-pages/avbd.html">AVBD 求解方案</a></h3>
+      <p>刚体六维块、惯性预测、关节约束、接触摩擦，以及共享 CPU/CUDA 求解流程。</p>
+    </section>
+
+    <section aria-labelledby="credits">
+      <h2 id="credits">资产与开源组件</h2>
+      <p>机器人及外观资产来自 <a href="https://pollen-robotics.com/microduck/">Pollen Robotics MicroDuck</a>。</p>
+      <p>策略训练使用 <a href="https://github.com/leggedrobotics/rsl_rl">rsl-rl</a> 与 PyTorch；<a href="https://github.com/google-deepmind/mujoco">MuJoCo</a> 用于可视化。</p>
+    </section>
+    <footer class="footer"><a href="../projects/duck-gym.html">返回 MDSim</a> · <a href="../index.html#projects">所有项目</a></footer>
+  </main>
+</body>
+</html>

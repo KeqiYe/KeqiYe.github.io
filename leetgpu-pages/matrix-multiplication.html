@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>[矩阵乘法] LeetGPU 第二题详解 - 从朴素实现到 2D 寄存器粗化 | LeetGPU</title>
+  <link rel="stylesheet" href="../styles.css">
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']],
+        displayMath: [['$$', '$$'], ['\\[', '\\]']],
+        processEscapes: true
+      },
+      options: {
+        skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+      }
+    };
+  </script>
+  <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
+</head>
+<body>
+  <main class="page article-page">
+    <header class="site-header">
+      <div class="identity">
+        <h1>[矩阵乘法] LeetGPU 第二题详解 - 从朴素实现到 2D 寄存器粗化</h1>
+        <p>LeetGPU 题解</p>
+      </div>
+      <nav class="nav" aria-label="主导航">
+        <a href="../index.html">首页</a>
+        <a href="../projects/leetgpu.html">LeetGPU</a>
+      </nav>
+    </header>
+    <article>
+<h3>写在前面</h3>
+<p><strong>本文涉及的全部代码都可以在项目仓库 <a href="https://github.com/KeqiYe/LeetGPU">KeqiYe/LeetGPU</a> 中找到。</strong></p>
+<p>如果说向量加法是 CUDA 入门阶段最合适的第一题，那么矩阵乘法几乎就是顺理成章的第二题。前者让我们学会“如何把一个标量运算扩展到海量线程上”，后者则逼着我们真正开始面对 GPU 编程里更本质的问题：线程应该如何映射到数据、访存模式为什么会直接决定吞吐、共享内存到底是在解决什么问题，以及当一个 kernel 已经“算得对”之后，如何继续把它一点点推向更高的性能。</p>
+<p>矩阵乘法之所以经典，还有一个更现实的原因：它不是一道只存在于教程里的练习题。很多深度学习算子、线性代数库，最终都能追溯到 GEMM（General Matrix Multiplication）这样的核心计算模式。也正因为如此，矩阵乘法里的优化思路往往有很强的迁移价值。你今天在这里理解的访存合并、tiling、寄存器粗化，之后几乎一定会在卷积、注意力、张量变换，甚至很多看起来完全不同的 CUDA kernel 里再次遇到。</p>
+<p>这篇文章基于我当前的 LeetGPU 第二题实现来写。文章会沿着下面这条主线展开：</p>
+<ul>
+<li>从最朴素的实现出发，先建立一个“正确但很慢”的基准。</li>
+<li>调整线程映射方式，让 warp 的访存方向开始变得合理。</li>
+<li>引入共享内存分块，把“每次都去全局显存取数据”的模式改成“先搬一块，再反复复用”。</li>
+<li>继续做 1D 和 2D 的寄存器粗化，提高单线程的计算密度。</li>
+</ul>
+<p>为了让讨论更完整，文中会同时给出两组 benchmark：一组是规则尺寸 <code>1024 x 512 x 1024</code>，另一组是非 32 倍数尺寸 <code>1001 x 513 x 777</code>。前者便于观察纯粹的性能趋势，后者则更适合验证尾块处理和边界正确性是否已经真正做好。</p>
+<hr>
+<h3>题目描述</h3>
+<p>题目要求很直接：给定两个矩阵</p>
+<ul>
+<li><code>A</code>，形状为 <code>M x K</code></li>
+<li><code>B</code>，形状为 <code>K x N</code></li>
+</ul>
+<p>计算它们的乘积：</p>
+<div class="math-block">\[
+C = A \times B
+\]</div>
+<p>从元素视角来看，输出矩阵 <code>C</code> 中的每一个元素 <code>C[row][col]</code>，都需要做一遍长度为 <code>K</code> 的点积：</p>
+<div class="math-block">\[
+C_{row,col} = \sum_{i=0}^{K-1} A_{row,i} \cdot B_{i,col}
+\]</div>
+<p>因此，这道题本质上是在问：如何让成千上万个线程一起去并行完成这些点积计算，并且在这个过程中尽量减少无效访存、提高吞吐。</p>
+<h4>输入输出</h4>
+<ul>
+<li><strong>输入</strong>：设备端矩阵 <code>A</code>、<code>B</code>，以及矩阵尺寸 <code>M</code>、<code>N</code>、<code>K</code></li>
+<li><strong>输出</strong>：设备端矩阵 <code>C</code></li>
+</ul>
+<hr>
+<h3>测试环境与计时方式</h3>
+<p>本文中的性能数据不是凭感觉估计的，而是在实体机上真实运行得到。环境如下：</p>
+<ul>
+<li>GPU：<code>NVIDIA GeForce RTX 4090</code></li>
+<li>CUDA Toolkit：<code>12.6</code></li>
+<li>Driver：<code>575.64.03</code></li>
+<li>编译命令：<code>/usr/local/cuda-12.6/bin/nvcc mm.cu -lcublas -O3 -o mm</code></li>
+</ul>
+<p>程序的 benchmark 逻辑也比较规范，大致流程是：</p>
+<ul>
+<li>在 CPU 上先计算一份参考结果 <code>h_ref</code></li>
+<li>每个版本先 warmup 一次，避免把首次启动开销混进正式结果</li>
+<li>再重复运行 10 次，取平均耗时</li>
+<li>将 GPU 结果拷回主机，与 CPU 参考结果逐元素比较</li>
+</ul>
+<p>换句话说，后面每个版本的讨论都不是停留在“理论上应该更快”，而是同时满足两件事：</p>
+<ul>
+<li><strong>结果正确</strong></li>
+<li><strong>性能确实提升</strong></li>
+</ul>
+<hr>
+<h3>v0：最朴素的实现</h3>
+<p>先看第一版代码：</p>
+<pre><code class="language-cuda">
+__global__ void matmul_v0(const float *A, const float *B, float *C, int M, int N, int K)
+{
+    // v0 故意保留了“较差的线程映射”，作为后续优化的对照组
+    int row = blockIdx.x * blockDim.x + threadIdx.x;
+    int col = blockIdx.y * blockDim.y + threadIdx.y;
+    if (row &lt; M &amp;&amp; col &lt; N)
+    {
+        float sum = 0.0f;
+        for (int i = 0; i &lt; K; i++)
+        {
+            // 逐项完成 C[row, col] 的点积
+            sum += A[row * K + i] * B[i * N + col];
+        }
+        C[row * N + col] = sum;
+    }
+}
+</code></pre>
+<p>从逻辑上看，这个版本非常直观：每个线程负责输出矩阵中的一个元素，先定位 <code>(row, col)</code>，然后在 <code>K</code> 维上做一次最朴素的累加。它有一个很大的优点，就是几乎不需要任何 CUDA 背景知识也能读懂。如果只是为了先把题做出来，这种写法是很自然的起点。</p>
+<p>但只要稍微从 GPU 的视角看一眼，它的问题就会立刻暴露出来。这里把 <code>threadIdx.x</code> 映射到了 <code>row</code>，把 <code>threadIdx.y</code> 映射到了 <code>col</code>。这意味着同一个 warp 内的线程，并不是沿着输出矩阵 <code>C</code> 的一行横向展开，而更像是在列方向上分散。这样的直接后果是，访问矩阵 <code>B</code> 时，warp 内线程对 <code>col</code> 的分布不连续，全局显存读取很难形成理想的合并访存。</p>
+<p>更具体一点，内层循环每次都会访问：</p>
+<pre><code class="language-cuda">
+B[i * N + col]
+</code></pre>
+<p>如果同一个 warp 中的 <code>col</code> 不是连续递增的，那么这些读取就会显得零碎。对于矩阵乘法这种本来就非常吃带宽、吃访存模式的算子来说，这几乎等于一开始就把性能上限压得很低。</p>
+<h4>v0 的性能表现</h4>
+<p>在规则尺寸 <code>1024 x 512 x 1024</code> 下，<code>v0</code> 的表现是：</p>
+<ul>
+<li>平均耗时：<code>1.744 ms</code></li>
+<li>吞吐：<code>615.76 GFLOPS</code></li>
+<li>相对 cuBLAS：<code>2.32%</code></li>
+</ul>
+<p>在非整齐尺寸 <code>1001 x 513 x 777</code> 下，<code>v0</code> 的表现是：</p>
+<ul>
+<li>平均耗时：<code>0.406 ms</code></li>
+<li>吞吐：<code>1964.43 GFLOPS</code></li>
+<li>相对 cuBLAS：<code>12.15%</code></li>
+</ul>
+<p>它的性能明显偏低，说明仅仅把矩阵乘法并行化还远远不够，访存模式本身就足以把吞吐压到很低的水平。</p>
+<hr>
+<h3>v1：修正线程映射，让 warp 真正沿着行展开</h3>
+<p>第二版代码如下：</p>
+<pre><code class="language-cuda">
+__global__ void matmul_v1(const float *A, const float *B, float *C, int M, int N, int K)
+{
+    // 让 x 方向对应列，y 方向对应行，更符合行主序下的连续访问方向
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
+    int row = blockIdx.y * blockDim.y + threadIdx.y;
+    if (row &lt; M &amp;&amp; col &lt; N)
+    {
+        float sum = 0.0f;
+        for (int i = 0; i &lt; K; i++)
+        {
+            sum += A[row * K + i] * B[i * N + col];
+        }
+        C[row * N + col] = sum;
+    }
+}
+</code></pre>
+<p>和 <code>v0</code> 相比，这个版本做的事情几乎可以用“微不足道”来形容：它没有引入共享内存，没有改 block 规模，也没有减少任何运算量，只是把 <code>row</code> 和 <code>col</code> 的映射方式调换了一下。</p>
+<p>但恰恰是这个小改动，让同一个 warp 中的线程更自然地在输出矩阵的一行上横向展开。于是：</p>
+<ul>
+<li>对 <code>B[i * N + col]</code> 的读取更容易形成连续访问</li>
+<li>对 <code>C[row * N + col]</code> 的写回也变成连续写回</li>
+</ul>
+<p>这一步看似简单，实际上非常关键。因为矩阵乘法这种问题里，很多时候“线程到底在按行走还是按列走”，本身就是性能优化的一半。你甚至可以说，<code>v1</code> 的意义不在于它把 kernel 写得更复杂，而在于它第一次让线程布局真正顺着内存布局去走。</p>
+<h4>v1 的性能表现</h4>
+<p>在规则尺寸 <code>1024 x 512 x 1024</code> 下：</p>
+<ul>
+<li>平均耗时：<code>0.216 ms</code></li>
+<li>吞吐：<code>4973.53 GFLOPS</code></li>
+<li>相对 cuBLAS：<code>18.76%</code></li>
+</ul>
+<p>在非整齐尺寸 <code>1001 x 513 x 777</code> 下：</p>
+<ul>
+<li>平均耗时：<code>0.191 ms</code></li>
+<li>吞吐：<code>4186.53 GFLOPS</code></li>
+<li>相对 cuBLAS：<code>25.88%</code></li>
+</ul>
+<p>这一步最震撼的地方在于，<strong>它几乎没有增加实现复杂度，却把性能提升了一个数量级</strong>。这对 CUDA 初学者来说是一个非常重要的提醒：在还没有碰共享内存、张量核心、warp-level primitive 之前，先把线程映射方向摆正，往往比你想象中更重要。</p>
+<hr>
+<h3>v2：共享内存分块，把“重复读取”变成“块内复用”</h3>
+<p>第三个版本开始进入矩阵乘法优化里最经典的一步：shared memory tiling。</p>
+<p>完整代码如下：</p>
+<pre><code class="language-cuda">
+template &lt;int TILE_WIDTH&gt;
+__global__ void matmul_v2(const float *A, const float *B, float *C, int M, int N, int K)
+{
+    __shared__ float ads[TILE_WIDTH * TILE_WIDTH];
+    __shared__ float bds[TILE_WIDTH * TILE_WIDTH];
+
+    int bx = blockIdx.x;
+    int by = blockIdx.y;
+    int tx = threadIdx.x;
+    int ty = threadIdx.y;
+
+    int row = by * TILE_WIDTH + ty;
+    int col = bx * TILE_WIDTH + tx;
+
+    float sum = 0.0f;
+
+    for (int ph = 0; ph &lt; (K + TILE_WIDTH - 1) / TILE_WIDTH; ++ph)
+    {
+        // 把 A 的一个 tile 搬到共享内存，不足 tile 的部分补零
+        if (row &lt; M &amp;&amp; tx + ph * TILE_WIDTH &lt; K)
+            ads[ty * blockDim.x + tx] = A[row * K + ph * blockDim.x + tx];
+        else
+            ads[ty * blockDim.x + tx] = 0.0f;
+
+        // 把 B 的一个 tile 搬到共享内存，不足 tile 的部分同样补零
+        if (col &lt; N &amp;&amp; ty + ph * TILE_WIDTH &lt; K)
+            bds[ty * TILE_WIDTH + tx] = B[(ph * blockDim.y + threadIdx.y) * N + col];
+        else
+            bds[ty * TILE_WIDTH + tx] = 0.0f;
+
+        __syncthreads();
+
+        for (int k = 0; k &lt; TILE_WIDTH; ++k)
+        {
+            // 在共享内存上完成这一轮 tile 的乘加
+            sum += ads[ty * TILE_WIDTH + k] * bds[k * TILE_WIDTH + tx];
+        }
+
+        __syncthreads();
+    }
+
+    if (row &lt; M &amp;&amp; col &lt; N)
+    {
+        C[row * N + col] = sum;
+    }
+}
+</code></pre>
+<p>这一步的本质，是把“每次乘加都直接去全局显存取一对新数据”的模式，改成“先让整个 block 协同搬一小块数据到共享内存，再反复使用”。这样做的原因并不神秘：矩阵乘法天生会复用输入数据。同一个输出 tile 的计算中，<code>A</code> 的一段行片段和 <code>B</code> 的一段列片段都会被 block 内的多个线程反复访问。如果每个线程都各自去全局显存抓同一份数据，那显然浪费巨大。</p>
+<p><code>v2</code> 的做法很典型：</p>
+<ul>
+<li>每个 block 对应输出矩阵中的一个 tile。</li>
+<li>每一轮 <code>ph</code>（phase）加载 <code>A</code> 和 <code>B</code> 的一个子块进入共享内存。</li>
+<li>通过 <code>__syncthreads()</code> 保证块内线程都看到了完整 tile。</li>
+<li>再在共享内存上完成这一轮 tile 的乘加。</li>
+</ul>
+<p>因此，<code>v2</code> 优化的核心不是减少 FLOPs，而是提高数据复用率，降低全局显存压力。这版代码还有一个非常重要的工程细节：它在加载 <code>A</code> 和 <code>B</code> tile 时都做了显式的越界判断，不足一个 tile 的部分直接补零。这样避免了当矩阵维度不能整除block的大小的时候，共享内存中可能会存在的垃圾数据。</p>
+<h4>v2 的性能表现</h4>
+<p>在规则尺寸 <code>1024 x 512 x 1024</code> 下：</p>
+<ul>
+<li>平均耗时：<code>0.174 ms</code></li>
+<li>吞吐：<code>6156.44 GFLOPS</code></li>
+<li>相对 cuBLAS：<code>23.23%</code></li>
+</ul>
+<p>在非整齐尺寸 <code>1001 x 513 x 777</code> 下：</p>
+<ul>
+<li>平均耗时：<code>0.160 ms</code></li>
+<li>吞吐：<code>4985.70 GFLOPS</code></li>
+<li>相对 cuBLAS：<code>30.83%</code></li>
+</ul>
+<p>和 <code>v1</code> 相比，这一版的提升已经没有 <code>v0 -&gt; v1</code> 那么夸张，但它的意义并不因此降低。因为从这里开始，我们进入的已经不再是“把映射摆正”的阶段，而是开始真正用 GPU 体系结构的思维去改写数据流。</p>
+<hr>
+<h3>v3：1D 寄存器粗化，让一个线程一次算更多结果</h3>
+<p>共享内存 tiling 能解决块内数据复用的问题，但它仍然默认每个线程只负责很少的输出元素。下一步比较自然的优化，就是把一个线程的工作量再往上提一点，让它一次计算多个输出值，从而提高寄存器里数据的复用率。</p>
+<p>这就是 <code>v3</code> 的思路。完整代码如下：</p>
+<pre><code class="language-cuda">
+template &lt;int BM, int BN, int BK, int TN&gt;
+__global__ void matmul_v3_1d(const float *A, const float *B, float *C, int M, int N, int K)
+{
+    __shared__ float ads[BM * BK];
+    __shared__ float bds[BK * BN];
+
+    // 一个线程一次维护 TN 个输出元素
+    float accumulators[TN] = {0.0f};
+    float b_frag[TN];
+    float a_frag;
+
+    for (int ph = 0; ph &lt; (K + BK - 1) / BK; ph++)
+    {
+        int a_begin_row = BM * blockIdx.y;
+        int a_begin_col = ph * BK;
+        int tid = threadIdx.y * blockDim.x + threadIdx.x;
+
+        for (int i = 0; i &lt; BM * BK / (blockDim.x * blockDim.y); ++i)
+        {
+            int ads_row = (i * (blockDim.x * blockDim.y) + tid) / BK;
+            int ads_col = (i * (blockDim.x * blockDim.y) + tid) % BK;
+            if (a_begin_row + ads_row &lt; M &amp;&amp; a_begin_col + ads_col &lt; K)
+                ads[ads_row * BK + ads_col] = A[(a_begin_row + ads_row) * K + a_begin_col + ads_col];
+            else
+                ads[ads_row * BK + ads_col] = 0.0f;
+        }
+
+        int b_begin_col = BN * blockIdx.x;
+        int b_begin_row = ph * BK;
+        for (int i = 0; i &lt; BK * BN / (blockDim.x * blockDim.y); ++i)
+        {
+            int bds_row = (i * (blockDim.x * blockDim.y) + tid) / BN;
+            int bds_col = (i * (blockDim.x * blockDim.y) + tid) % BN;
+            if (b_begin_col + bds_col &lt; N &amp;&amp; b_begin_row + bds_row &lt; K)
+                bds[bds_row * BN + bds_col] = B[(b_begin_row + bds_row) * N + b_begin_col + bds_col];
+            else
+                bds[bds_row * BN + bds_col] = 0.0f;
+        }
+
+        __syncthreads();
+
+        int tx = threadIdx.x;
+        int ty = threadIdx.y;
+        for (int k = 0; k &lt; BK; k++)
+        {
+            // A 方向只取一个标量，B 方向取 TN 个值，形成 1D 粗化
+            a_frag = ads[ty * BK + k];
+            for (int bij = 0; bij &lt; TN; bij++)
+            {
+                b_frag[bij] = bds[k * BN + tx * TN + bij];
+            }
+            for (int compute = 0; compute &lt; TN; compute++)
+            {
+                accumulators[compute] += a_frag * b_frag[compute];
+            }
+        }
+
+        __syncthreads();
+    }
+
+    int global_col = (blockDim.x * blockIdx.x + threadIdx.x) * TN;
+    int global_row = blockDim.y * blockIdx.y + threadIdx.y;
+    for (int compute = 0; compute &lt; TN; compute++)
+    {
+        // 修复后的尾块写回逻辑，保证非整齐尺寸也能正确落盘
+        if (global_row &lt; M &amp;&amp; global_col + compute &lt; N)
+            C[global_row * N + global_col + compute] = accumulators[compute];
+    }
+}
+</code></pre>
+<p>这版最核心的变化，是让一个线程在列方向上同时负责 <code>TN = 4</code> 个输出元素。这样做的直接收益是：线程一旦把 <code>a_frag</code> 从共享内存读进寄存器，就可以立刻拿它和 4 个不同的 <code>b_frag</code> 做乘加。换句话说，<strong>同一个 <code>A</code> 元素的寄存器驻留价值被提高了</strong>。</p>
+<p>从直觉上看，<code>v2</code> 更像是在优化“一个 block 怎么更高效地共享数据”，而 <code>v3</code> 开始进一步优化“一个线程怎么更高效地消费这些数据”。</p>
+<p>这里还有一个非常关键的修正，就是写回阶段的边界判断：</p>
+<pre><code class="language-cuda">
+if (global_row &lt; M &amp;&amp; global_col + compute &lt; N)
+</code></pre>
+<p>这行判断的意义在于，当矩阵宽度 <code>N</code> 不是 <code>TN</code> 的整数倍时，最后一个线程组负责的 4 个输出位置里，可能只有前 1 个、2 个或 3 个是真正有效的。如果仍然只判断 <code>global_col &lt; N</code>，那么写尾部时就很容易越界或者把错误值写到不该写的位置。</p>
+<h4>v3 的性能表现</h4>
+<p>在规则尺寸 <code>1024 x 512 x 1024</code> 下：</p>
+<ul>
+<li>平均耗时：<code>0.098 ms</code></li>
+<li>吞吐：<code>11001.81 GFLOPS</code></li>
+<li>相对 cuBLAS：<code>41.51%</code></li>
+</ul>
+<p>在非整齐尺寸 <code>1001 x 513 x 777</code> 下：</p>
+<ul>
+<li>平均耗时：<code>0.097 ms</code></li>
+<li>吞吐：<code>8236.99 GFLOPS</code></li>
+<li>相对 cuBLAS：<code>50.93%</code></li>
+</ul>
+<p>从结果上看，<code>v3</code> 是这条优化链里的另一个明显台阶。到了这一版，我们已经不只是“把访存做对”，而是开始显著提高单线程的算术强度了。</p>
+<hr>
+<h3>v4：2D 寄存器粗化，把单线程计算粒度继续做大</h3>
+<p>如果说 <code>v3</code> 是“一个线程沿着一个方向多算几个元素”，那么 <code>v4</code> 就更进一步：它直接让每个线程维护一个 <code>TM x TN</code> 的小块，也就是一个二维局部输出 tile。</p>
+<p>完整代码如下：</p>
+<pre><code class="language-cuda">
+template &lt;int BM, int BN, int BK, int TM, int TN&gt;
+__global__ void matmul_v4_2d(const float *A, const float *B, float *C, int M, int N, int K)
+{
+    int bx = blockIdx.x;
+    int by = blockIdx.y;
+    int tx = threadIdx.x;
+    int ty = threadIdx.y;
+
+    __shared__ float ads[BM * BK];
+    __shared__ float bds[BK * BN];
+
+    // 每个线程维护一个 TM x TN 的局部输出小块
+    float a_frag[TM];
+    float b_frag[TN];
+    float acc[TM * TN] = {0.0};
+
+    for (int ph = 0; ph &lt; ((K + BK - 1) / BK); ph++)
+    {
+        int a_begin_row = by * BM;
+        int a_begin_col = ph * BK;
+        for (int i = 0; i &lt; (BM * BK) / (blockDim.x * blockDim.y); i++)
+        {
+            int idx_1d = i * (blockDim.x * blockDim.y) + blockDim.x * ty + tx;
+            int ads_row = idx_1d / BK;
+            int ads_col = idx_1d % BK;
+            if (ads_row + a_begin_row &lt; M &amp;&amp; a_begin_col + ads_col &lt; K)
+                ads[ads_row * BK + ads_col] = A[(ads_row + a_begin_row) * K + a_begin_col + ads_col];
+            else
+                ads[ads_row * BK + ads_col] = 0.0f;
+        }
+
+        int b_begin_row = ph * BK;
+        int b_begin_col = bx * BN;
+        for (int i = 0; i &lt; (BN * BK) / (blockDim.x * blockDim.y); i++)
+        {
+            int idx_1d = i * (blockDim.x * blockDim.y) + blockDim.x * ty + tx;
+            int bds_row = idx_1d / BN;
+            int bds_col = idx_1d % BN;
+            if (bds_row + b_begin_row &lt; K &amp;&amp; bds_col + b_begin_col &lt; N)
+                bds[bds_row * BN + bds_col] = B[(bds_row + b_begin_row) * N + bds_col + b_begin_col];
+            else
+                bds[bds_row * BN + bds_col] = 0.0f;
+        }
+
+        __syncthreads();
+
+        for (int p = 0; p &lt; BK; p++)
+        {
+            // 从共享内存取出一列 A 片段和一行 B 片段，放进寄存器
+            int ads_col = p;
+            for (int i = 0; i &lt; TM; i++)
+            {
+                int ads_row = i + ty * TM;
+                a_frag[i] = ads[ads_row * BK + ads_col];
+            }
+
+            int bds_row = p;
+            for (int i = 0; i &lt; TN; i++)
+            {
+                int bds_col = i + tx * TN;
+                b_frag[i] = bds[bds_row * BN + bds_col];
+            }
+
+            for (int i = 0; i &lt; TM; i++)
+            {
+                float a = a_frag[i];
+                for (int j = 0; j &lt; TN; j++)
+                {
+                    // 在寄存器里完成一个小矩形块的累加
+                    acc[i * TN + j] += a * b_frag[j];
+                }
+            }
+        }
+
+        __syncthreads();
+    }
+
+    for (int i = 0; i &lt; TM; i++)
+    {
+        int c_row = blockIdx.y * TM * blockDim.y + threadIdx.y * TM + i;
+        for (int j = 0; j &lt; TN; j++)
+        {
+            int c_col = blockIdx.x * blockDim.x * TN + threadIdx.x * TN + j;
+            if (c_row &lt; M &amp;&amp; c_col &lt; N)
+                C[c_row * N + c_col] = acc[i * TN + j];
+        }
+    }
+}
+</code></pre>
+<p>这版代码里，每个线程不再只维护一串列方向结果，而是维护一个 <code>TM x TN = 4 x 4</code> 的小矩形块。它的好处在于，线程从共享内存读出的 <code>a_frag</code> 和 <code>b_frag</code>，可以在寄存器里被更多次地交叉组合使用。于是：</p>
+<ul>
+<li>数据复用进一步提高</li>
+<li>单线程计算密度进一步提高</li>
+<li>kernel 的结构更接近高性能 GEMM 的典型形态</li>
+</ul>
+<p>和 <code>v3</code> 相比，<code>v4</code> 不只是“算更多元素”，而是把“一个线程内部的小矩阵乘法”也做了出来。这种二维粗化思路在很多高性能手写 GEMM kernel 中都非常常见。</p>
+<p>写回阶段，这版代码对每个 <code>(i, j)</code> 都单独计算 <code>c_row</code> 和 <code>c_col</code>，再分别做边界检查，因此尾块处理也比较自然，不需要额外的专门 hack。</p>
+<h4>v4 的性能表现</h4>
+<p>在规则尺寸 <code>1024 x 512 x 1024</code> 下：</p>
+<ul>
+<li>平均耗时：<code>0.058 ms</code></li>
+<li>吞吐：<code>18368.88 GFLOPS</code></li>
+<li>相对 cuBLAS：<code>69.30%</code></li>
+</ul>
+<p>在非整齐尺寸 <code>1001 x 513 x 777</code> 下：</p>
+<ul>
+<li>平均耗时：<code>0.058 ms</code></li>
+<li>吞吐：<code>13848.77 GFLOPS</code></li>
+<li>相对 cuBLAS：<code>85.62%</code></li>
+</ul>
+<p>从纯性能角度看，这已经是当前自定义 kernel 里最强的一版。它离 cuBLAS 当然还有差距，但对一份教学型手写实现来说，能够稳定到这个水平，我觉得已经说明这条优化路线非常有效了。</p>
+<hr>
+<h3>cuBLAS 参考实现</h3>
+<p>这里附上调用 cuBLAS的代码：</p>
+<pre><code class="language-cuda">
+stat = cublasSgemm(handle,
+                   // 列主序接口下用 B^T A^T 计算出行主序想要的结果
+                   CUBLAS_OP_N, CUBLAS_OP_N,
+                   N, M, K,
+                   &amp;alpha,
+                   d_B, N,
+                   d_A, K,
+                   &amp;beta,
+                   d_C, N);
+</code></pre>
+<p>这里把参数顺序写反是因为 cuBLAS 默认使用列主序，而我们这里的矩阵是按行主序放在内存里的。为了不在调用前显式转置矩阵，代码采用了一个非常常见的技巧：利用</p>
+<div class="math-block">\[
+(AB)^T = B^T A^T
+\]</div>
+<p>这个关系，把“行主序下的 <code>A <em> B</code>”映射成“列主序下的 <code>B^T </em> A^T</code>”来算。最终虽然 cuBLAS 内部按列主序解释数据，但我们拿回来的结果，刚好就是希望得到的行主序矩阵 <code>C</code>。</p>
+<hr>
+<h3>两组 benchmark 汇总</h3>
+<p>为了避免把性能讨论拆得太散，这里把两组 benchmark 集中放在一起。</p>
+<h4>规则尺寸：<code>1024 x 512 x 1024</code></h4>
+<div class="table-wrap"><table>
+<thead><tr><th>版本</th><th>状态</th><th>平均耗时 (ms)</th><th>性能 (GFLOPS)</th><th>相对 cuBLAS</th></tr></thead>
+<tbody>
+<tr><td>v0</td><td>PASS</td><td>1.744</td><td>615.76</td><td>2.32%</td></tr>
+<tr><td>v1</td><td>PASS</td><td>0.216</td><td>4973.53</td><td>18.76%</td></tr>
+<tr><td>v2</td><td>PASS</td><td>0.174</td><td>6156.44</td><td>23.23%</td></tr>
+<tr><td>v3</td><td>PASS</td><td>0.098</td><td>11001.81</td><td>41.51%</td></tr>
+<tr><td>v4</td><td>PASS</td><td>0.058</td><td>18368.88</td><td>69.30%</td></tr>
+<tr><td>cuBLAS</td><td>PASS</td><td>0.041</td><td>26506.38</td><td>100%</td></tr>
+</tbody></table></div>
+<h4>非整齐尺寸：<code>1001 x 513 x 777</code></h4>
+<div class="table-wrap"><table>
+<thead><tr><th>版本</th><th>状态</th><th>平均耗时 (ms)</th><th>性能 (GFLOPS)</th><th>相对 cuBLAS</th></tr></thead>
+<tbody>
+<tr><td>v0</td><td>PASS</td><td>0.406</td><td>1964.43</td><td>12.15%</td></tr>
+<tr><td>v1</td><td>PASS</td><td>0.191</td><td>4186.53</td><td>25.88%</td></tr>
+<tr><td>v2</td><td>PASS</td><td>0.160</td><td>4985.70</td><td>30.83%</td></tr>
+<tr><td>v3</td><td>PASS</td><td>0.097</td><td>8236.99</td><td>50.93%</td></tr>
+<tr><td>v4</td><td>PASS</td><td>0.058</td><td>13848.77</td><td>85.62%</td></tr>
+<tr><td>cuBLAS</td><td>PASS</td><td>0.049</td><td>16174.26</td><td>100%</td></tr>
+</tbody></table></div>
+<hr>
+<h3>这道题真正值得带走的东西</h3>
+<p>如果只把这题理解成“矩阵乘法怎么提速”，那其实还不够。对我来说，这道题更重要的价值在于它把 CUDA 优化里几个非常核心的层次关系展示得很清楚。</p>
+<p><strong>线程映射是基础中的基础</strong>。 很多初学者一开始会把注意力全放在 shared memory、tensor core、寄存器粗化这些更“高级”的词上，但如果 warp 的访问方向一开始就是错的，那么后面的所有优化都只能在一个已经歪掉的地基上修补。<code>v0 -&gt; v1</code> 的结果恰好说明了这个问题：只改映射方式，性能就能暴涨。</p>
+<p><strong>shared memory 的意义不是“看上去更高级”，而是数据复用</strong> 只有当一块数据会被 block 内多个线程反复使用时，shared memory 才真正值得引入。矩阵乘法正好天然满足这个条件，所以 tiling 才会这么有效。</p>
+<p><strong>寄存器粗化本质上是在提高单线程计算密度</strong> 不论是 <code>v3</code> 的一维粗化，还是 <code>v4</code> 的二维粗化，本质上都是在想办法让已经加载进寄存器的数据，多参与几次乘加。对高性能 kernel 来说，这种“把数据榨干”的思路往往非常关键。</p>
+<p><strong>边界正确性必须单独验证</strong>。 如果只测 <code>1024 x 512 x 1024</code>，你很容易误以为一个 kernel 已经“完全正确”。但一旦换成 <code>1001 x 513 x 777</code> 这种不整齐尺寸，很多隐藏 bug 才会真正暴露出来。</p>
+<hr>
+    </article>
+    <footer class="footer">
+      <a href="../projects/leetgpu.html">返回 LeetGPU</a>
+    </footer>
+  </main>
+</body>
+</html>

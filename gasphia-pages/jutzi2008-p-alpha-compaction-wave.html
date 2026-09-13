@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Jutzi 2008 一维 p-alpha 压实波验证 - GASPHiA 测试算例 | GASPHiA</title>
+  <link rel="stylesheet" href="../styles.css">
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']],
+        displayMath: [['$$', '$$'], ['\\[', '\\]']],
+        processEscapes: true
+      },
+      options: {
+        skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+      }
+    };
+  </script>
+  <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
+</head>
+<body>
+  <main class="page article-page">
+    <header class="site-header">
+      <div class="identity">
+        <h1>Jutzi 2008 一维 p-alpha 压实波验证 - GASPHiA 测试算例</h1>
+        <p>GASPHiA 技术细节</p>
+      </div>
+      <nav class="nav" aria-label="主导航">
+        <a href="../index.html">首页</a>
+        <a href="../projects/gasphia.html">GASPHiA</a>
+        <a href="../projects/simulations.html">模拟视频</a>
+      </nav>
+    </header>
+    <article>
+<h2>Jutzi 2008 一维 p-alpha 压实波验证</h2>
+<h3>概述</h3>
+<p>本算例复现 Jutzi et al. (2008) 第 5.1 节的一维多孔铝压实波测试，在固定时刻对比以下物理量在 GASPHiA、论文 SPH 曲线与解析解之间的一致性：</p>
+<ul>
+<li>压力分布</li>
+<li>膨胀度 <code>alpha</code> 分布</li>
+</ul>
+<p>该类测试用于考察 p-alpha 模型在<strong>波前结构、压实区厚度、波后压实程度</strong>方面的表现。</p>
+<p>本次运行以 <code>shock_00350.h5</code> 作为对照帧。提取结果：</p>
+<ul>
+<li>材料 0 粒子数：<code>400</code></li>
+<li>压力范围：约 <code>1.07e-01 Pa</code> ~ <code>5.07e+09 Pa</code></li>
+<li>膨胀度范围：<code>1.0</code> ~ <code>1.275</code></li>
+</ul>
+<p>压实波已将材料从初始多孔态推进至近乎完全压实的区域。</p>
+<figure><img class="media" src="../media/blog/GASPHiA/jutzi2008-p-alpha-compaction-wave/jutzi2008_compaction_wave.png" alt="Jutzi 2008 压实波验证图" loading="lazy"></figure>
+<p>---</p>
+<h3>验证目标</h3>
+<p>本算例的物理图景如下：右侧移动活塞推动压实波穿过一根初始存在孔隙的多孔铝柱。随着波向前传播，材料从初始膨胀度</p>
+<div class="math-block">\[
+\alpha_0 = 1.275
+\]</div>
+<p>逐渐向更致密状态过渡。</p>
+<p>---</p>
+<h3>运行方式</h3>
+<p>测试目录：</p>
+<pre><code class="language-bash">
+GASPHiA-Tests/Jutzi2008_Section5_1_PAlphaCompactionWave
+</code></pre>
+<p>执行以下命令启动：</p>
+<pre><code class="language-bash">
+./run_all.sh --source-dir /path/to/GASPHiA --cuda 0
+</code></pre>
+<p>默认流程依次执行：</p>
+<ul>
+<li>编译并运行 <code>input/gen_input_1d.cpp</code></li>
+<li>使用当前目录下的 <code>para.cuh</code> 编译 GASPHiA</li>
+<li>运行 <code>compaction_wave.ini</code></li>
+<li>读取 <code>output/shock_00350.h5</code></li>
+<li>输出压力 / 膨胀度对比图</li>
+</ul>
+<p>需额外注意：本算例的 <code>para.cuh</code> 中预留了一个用于复现实验路径的宏</p>
+<pre><code class="language-cpp">
+#define JUTZI2008_5_1_reproduce_need 1
+</code></pre>
+<p>---</p>
+<h3>结果解读</h3>
+<p>图形分为上下两部分：</p>
+<ul>
+<li>上图：压力剖面</li>
+<li>下图：膨胀度 <code>alpha</code> 剖面</li>
+</ul>
+<p>每部分均同时绘制三条曲线：</p>
+<ul>
+<li>GASPHiA 计算结果</li>
+<li>论文 SPH 曲线</li>
+<li>解析参考曲线</li>
+</ul>
+<p>---</p>
+<h3>实际运行数据</h3>
+<p>后处理提取的关键指标如下：</p>
+<div class="table-wrap"><table>
+<thead><tr><th>指标</th><th>数值</th></tr></thead>
+<tbody>
+<tr><td>对照帧</td><td><code>shock_00350.h5</code></td></tr>
+<tr><td>材料 0 粒子数</td><td><code>400</code></td></tr>
+<tr><td>压力最小值</td><td><code>1.07e-01 Pa</code></td></tr>
+<tr><td>压力最大值</td><td><code>5.07e+09 Pa</code></td></tr>
+<tr><td>膨胀度最小值</td><td><code>1.0000</code></td></tr>
+<tr><td>膨胀度最大值</td><td><code>1.2750</code></td></tr>
+</tbody></table></div>
+<p>这些数值从两个角度印证了模拟的有效性：</p>
+<p>一方面，输出中的 <code>alpha</code> 已覆盖从初始孔隙态到完全压实态的整个范围；另一方面，压力峰值已进入 <code>GPa</code> 量级，说明压实波强度足够，已形成真实压实结构。</p>
+<p>---</p>
+    </article>
+    <footer class="footer">
+      <a href="../projects/gasphia.html">返回 GASPHiA</a>
+    </footer>
+  </main>
+</body>
+</html>

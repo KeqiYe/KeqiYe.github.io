@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>刚体 AVBD 求解方案 | MDSim · 叶科奇</title>
+  <meta name="description" content="六维块、增广约束、接触摩擦与 CPU/CUDA 实现">
+  <link rel="stylesheet" href="../styles.css">
+  <link rel="canonical" href="https://yekq.top/duck-gym-pages/avbd.html">
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']],
+        displayMath: [['$$', '$$'], ['\\[', '\\]']],
+        processEscapes: true
+      },
+      options: {
+        skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+      }
+    };
+  </script>
+  <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
+</head>
+<body>
+  <main class="page article-page">
+    <header class="site-header">
+      <div class="identity"><h1>刚体 AVBD 求解方案</h1><p>六维块、增广约束、接触摩擦与 CPU/CUDA 实现</p></div>
+    </header>
+    <nav class="nav" aria-label="专题导航">
+      <a href="../projects/duck-gym.html">项目简介</a>
+      <a href="../duck-gym-pages/training.html">训练动画</a>
+      <a href="../duck-gym-pages/ppo-base.html">PPO 推导</a>
+      <a href="../duck-gym-pages/avbd.html">AVBD 求解</a>
+    </nav>
+    <hr aria-hidden="true" style="border:0; border-top:1px solid #d8d8d8; margin:16px 0 28px;">
+    <p class="article-meta">本文整理 MDSim 当前共享 CPU/CUDA 核心的数学结构与实现选择。训练视频和 PPO 推导分别见上方专题入口。</p>
+
+    <section aria-labelledby="state">
+      <h2 id="state">1. 最大坐标与六维刚体块</h2>
+      <p>每个连杆独立保存质心位置、单位四元数、世界系线速度与角速度。局部求解变量由平移增量和旋转向量组成：</p>
+      <div class="math-block equation-scroll">\[
+        \delta z_i=\begin{bmatrix}\delta x_i\\\delta\theta_i\end{bmatrix}\in\mathbb R^6.
+      \]</div>
+      <p>四元数用四个数存储姿态，但旋转只有三个自由度。MicroDuck 的 15 个动态刚体共有 90 个速度变量；14 个 hinge 各约束五个自由度，剩余 <code>15 × 6 − 14 × 5 = 20</code> 个物理自由度，其中包含浮动基座的六个自由度。</p>
+      <p>最大坐标通过关节约束维系整条机器人结构。局部更新时固定其他刚体，只解当前刚体的六维系统。</p>
+    </section>
+
+    <section aria-labelledby="prediction">
+      <h2 id="prediction">2. 位姿预测与惯性项</h2>
+      <p>设物理时间步为 \(h\)，\(g\) 为重力加速度，\(f_i\) 为施加在质心的外力，平移预测为：</p>
+      <div class="math-block equation-scroll">\[
+        x_i^p=x_i^n+h v_i^n+h^2(g+f_i/m_i).
+      \]</div>
+      <p>旋转先预测角速度，处理陀螺项，再通过旋转向量的四元数指数映射得到预测姿态 \(q_i^p\)。在一步内冻结步初世界惯性 \(I_{i,0}\)，使用旋转误差 \(\theta_i=\operatorname{Log}(q_i(q_i^p)^{-1})\) 构造惯性项：</p>
+      <div class="math-block equation-scroll">\[
+        E_i^{\mathrm{inertia}}=
+        \frac{m_i}{2h^2}\|x_i-x_i^p\|^2
+        +\frac{1}{2h^2}\theta_i^T I_{i,0}\theta_i.
+      \]</div>
+      <p>旋转部分用 SO(3) 的 log Jacobian 线性化。关节电机、黏性阻尼与 armature 在局部求解中加入，不能把全部关节力矩先当作互不耦合的自由刚体外力。</p>
+    </section>
+
+    <section aria-labelledby="augmented">
+      <h2 id="augmented">3. 增广约束与局部迭代</h2>
+      <p>对等式约束 \(C_j\)，先采用步初残差稳定化 \(\widetilde C_j=C_j-\alpha C_j^0\)。固定乘子与惩罚系数时，局部目标的结构可写为：</p>
+      <div class="math-block equation-scroll">\[
+        \begin{aligned}
+        \mathcal L &= E_{\mathrm{inertia}}+E_{\mathrm{motor}}+E_{\mathrm{other}}\\
+        &\quad+\sum_j\left[\lambda_j^T\widetilde C_j
+        +\tfrac12\widetilde C_j^T P_j\widetilde C_j\right].
+        \end{aligned}
+      \]</div>
+      <p>\(P_j\) 为正的对角惩罚矩阵；\(E_{\mathrm{other}}\) 概括阻尼与 armature 等离散项。这个表达式说明等式约束的结构；限位、接触和干摩擦还需要有界投影。</p>
+      <div class="math-block equation-scroll">\[
+        H_{ii}\delta z_i=-g_i,\qquad
+        x_i\leftarrow x_i+\delta x_i,\qquad
+        q_i\leftarrow\operatorname{Exp}(\delta\theta_i)q_i.
+      \]</div>
+      <p>这里 \(\operatorname{Exp}\) 把旋转向量映射为单位四元数。局部矩阵包含惯性、约束的 Gauss–Newton 项及几何刚度的正对角近似，使用带数值保护的 Cholesky 求解，并限制单次平移与旋转更新幅度。</p>
+      <p>一轮刚体块更新后，再更新乘子和惩罚系数。等式约束的一维分量示意为：</p>
+      <div class="math-block equation-scroll">\[
+        \lambda\leftarrow\lambda+\rho\widetilde C,\qquad
+        \rho\leftarrow\min(\rho+\beta|\widetilde C|,\rho_{\max}).
+      \]</div>
+      <p>跨物理步复用有效约束缓存：乘子乘以 \(\alpha\gamma\)，惩罚系数乘以 \(\gamma\) 并限制范围。对于单边和有界约束，惩罚增长还取决于约束是否激活或饱和。缓存、稳定化、惩罚增长与局部近似共同决定实际算法。</p>
+    </section>
+
+    <section aria-labelledby="joints">
+      <h2 id="joints">4. 关节与执行器</h2>
+      <p>hinge 用三个位置条件保持两侧锚点重合，再用两个轴向条件保持转轴对齐，留下绕轴转动。若局部锚点为 \(r_A,r_B\)，位置残差为：</p>
+      <div class="math-block equation-scroll">\[
+        C_x=x_A+R_A r_A-x_B-R_B r_B.
+      \]</div>
+      <p>关节角上下限作为单边约束；阻尼和 armature 使用相对角增量离散；干摩擦使用限制在摩擦力矩预算内的乘子。相邻刚体接受相反的电机作用。</p>
+      <p>训练路径中的 BAM 执行器逐物理步输出力矩、干摩擦和黏性阻尼。原生 RNEA 计算广义偏置负载，接触与限位力沿关节投影，为执行器计算提供输入。PPO 给出关节目标，实际运动由执行器和约束求解产生。</p>
+    </section>
+
+    <section aria-labelledby="contact">
+      <h2 id="contact">5. 接触与库仑摩擦</h2>
+      <p>地面接触保留分散支撑点；刚体间凸接触使用 MPR 窄相检测。当前双体接触每对凸体生成一个接触点，法向在当前物理步内冻结，局部接触点与切向基进入约束求解。</p>
+      <p>本实现采用法向间隙 \(C_n\ge0\)、法向乘子 \(\lambda_n\le0\) 的符号约定。单边稳定化只扣除步初已有穿透，随后将试探乘子投影到允许区间：</p>
+      <div class="math-block equation-scroll">\[
+        \begin{aligned}
+        \widetilde C_n&=C_n-\alpha\min(C_n^0,0),\\
+        \lambda_n^+&=\min(\lambda_n+\rho_n\widetilde C_n,0).
+        \end{aligned}
+      \]</div>
+      <p>切向试探值 \(t=\lambda_t+P_t C_t\) 受法向载荷限制，投影到库仑圆盘：</p>
+      <div class="math-block equation-scroll">\[
+        \lambda_t^+=t\min\left(1,
+        \frac{\mu(-\lambda_n^+)}{\|t\|}\right),\qquad \|t\|>0.
+      \]</div>
+      <p>当 \(t=0\) 时切向乘子保持为零。法向乘子的负号来自约束约定，输出物理接触力时按法向和切向基转换；两侧刚体同时接受力和力矩。当前乘子按力或关节力矩使用，接触冲量由逐步的力乘时间步累计。</p>
+      <p>地面静摩擦锚点按几何特征缓存，双体接触在法向和接触位置足够接近时投影复用旧乘子。接触生成会影响支撑力矩和切换时序，增加求解轮数无法补救漏检或不充分的接触表示。</p>
+    </section>
+
+    <section aria-labelledby="step">
+      <h2 id="step">6. 一个物理步如何执行</h2>
+      <ol>
+        <li>读取控制目标，更新执行器力矩、摩擦与阻尼参数。</li>
+        <li>生成地面和自身碰撞候选，匹配有效缓存，并检查刚体着色是否仍无冲突。</li>
+        <li>保存步初状态，衰减乘子和惩罚系数，预测位姿。</li>
+        <li>按颜色更新六维刚体块，在颜色之间同步，再更新约束乘子与惩罚。</li>
+        <li>检查局部更新和约束残差；达到条件或耗尽预算后结束迭代。</li>
+        <li>恢复速度，输出关节、接触和诊断状态。</li>
+      </ol>
+      <div class="math-block equation-scroll">\[
+        v_i^{n+1}=\frac{x_i^{n+1}-x_i^n}{h},\qquad
+        \omega_i^{n+1}=\frac{\operatorname{Log}(q_i^{n+1}(q_i^n)^{-1})}{h}.
+      \]</div>
+      <p>CPU 和 CUDA 共享标量数学与模型格式。CUDA 优先并行不同环境，环境内部按约束图着色调度刚体块；新增自碰撞连接同色刚体时重新分配颜色。每个环境独立维护状态、接触、缓存与重置信息。</p>
+    </section>
+
+    <section aria-labelledby="validation">
+      <h2 id="validation">7. 收敛与数值验证</h2>
+      <p>小的位姿更新量不足以证明约束已经解好。当前停止检查还包含稳定化约束残差，以及关节干摩擦的投影残差：</p>
+      <div class="math-block equation-scroll">\[
+        r_f=\frac{\left|\lambda_f-\operatorname{clip}
+        (\lambda_f+\rho_f\Delta\phi,-\tau_f,\tau_f)\right|}{\rho_f}.
+      \]</div>
+      <p>\(\tau_f\) 是干摩擦力矩预算，\(\Delta\phi\) 是当前物理步的相对关节角变化。锚点误差、轴向误差、穿透和耗尽预算步数分别记录；停止判据仍不构成完整 KKT 收敛证明。</p>
+      <p>验证包括 CPU/CUDA 同精度对照、FP32/FP64 对照、步长细化、独立碰撞检查和与 MuJoCo 的轨迹比较。已经观察到小步长下 FP32 位移差分误差被放大，以及动态支撑中的引擎差异；这些问题需要单独处理。</p>
+      <p>本实现采用 AVBD 的增广约束与调度思路，使用自己的 SO(3) 离散与预测。当前双体接触还没有完整接触流形、滚动/扭转摩擦和连续碰撞检测；有限迭代和冻结接触几何仍可能产生穿透。</p>
+    </section>
+
+    <section aria-labelledby="implementation">
+      <h2 id="implementation">实现位置</h2>
+      <ul>
+        <li><code>src/cuda/kernel.inl</code>：共享刚体块更新、关节、接触、摩擦和时间推进。</li>
+        <li><code>src/cuda/convex.inl</code>：CPU/CUDA 凸体 MPR 检测。</li>
+        <li><code>python/duck_gym/actuator.py</code>：BAM 执行器方程。</li>
+        <li><code>docs/TECHNICAL_PLAN.md</code>：数学约定、接口与实现限制。</li>
+      </ul>
+      <p><a href="https://github.com/KeqiYe/duck_gym">查看 MDSim 仓库</a></p>
+    </section>
+
+    <footer class="footer"><a href="../projects/duck-gym.html">返回 MDSim</a> · <a href="../index.html#projects">所有项目</a></footer>
+  </main>
+</body>
+</html>
