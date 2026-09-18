@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>实习成果展示 | 叶科奇</title>
+  <meta name="description" content="叶科奇实习期间完成的电缆动力学模拟 Demo 展示。">
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .internship-demo-list {
+      display: grid;
+      gap: 30px;
+    }
+
+    .internship-demo-list figure {
+      padding-bottom: 28px;
+      border-bottom: 1px solid #dedede;
+    }
+
+    .internship-demo-list figure:last-child {
+      padding-bottom: 0;
+      border-bottom: 0;
+    }
+
+    .internship-demo-list video {
+      background: #050505;
+    }
+
+    .internship-demo-list figcaption {
+      margin-top: 10px;
+      font-size: 1rem;
+    }
+  </style>
+</head>
+
+<body>
+  <main class="page">
+    <header class="site-header">
+      <div class="identity">
+        <h1>实习成果展示</h1>
+        <p>电缆动力学模拟 Demo</p>
+      </div>
+      <nav class="nav" aria-label="页面导航">
+        <a href="index.html">返回主页</a>
+      </nav>
+    </header>
+
+    <section>
+      <h2>模拟展示</h2>
+      <p>
+        本页集中展示我在实习期间完成的电缆动力学模拟 Demo，包含机械臂操作柔性电缆、
+        多根电缆堆积以及线束拖拽等场景。
+      </p>
+    </section>
+
+    <section class="internship-demo-list" aria-label="实习模拟视频">
+      <figure>
+        <video controls playsinline preload="metadata" loop
+          poster="media/images/internship/piper-cable-30deg-poster.jpg">
+          <source src="media/videos/internship/piper-cable-30deg-4k.mp4" type="video/mp4">
+          您的浏览器不支持视频播放，请<a href="media/videos/internship/piper-cable-30deg-4k.mp4">下载 MP4</a>观看。
+        </video>
+        <figcaption><strong>Piper 机械臂电缆模拟（30°）。</strong> 展示机械臂操作柔性电缆时的动态响应。</figcaption>
+      </figure>
+
+      <figure>
+        <video controls playsinline preload="metadata" loop
+          poster="media/images/internship/dexsim-cable-pile-poster.jpg">
+          <source src="media/videos/internship/dexsim-cable-pile-4k60.mp4" type="video/mp4">
+          您的浏览器不支持视频播放，请<a href="media/videos/internship/dexsim-cable-pile-4k60.mp4">下载 MP4</a>观看。
+        </video>
+        <figcaption><strong>电缆堆积模拟。</strong> 展示柔性电缆在堆叠过程中的接触与形态变化。</figcaption>
+      </figure>
+
+      <figure>
+        <video controls playsinline preload="metadata" loop
+          poster="media/images/internship/cable-bundle-drag-poster.jpg">
+          <source src="media/videos/internship/cable-bundle-drag-4k.mp4" type="video/mp4">
+          您的浏览器不支持视频播放，请<a href="media/videos/internship/cable-bundle-drag-4k.mp4">下载 MP4</a>观看。
+        </video>
+        <figcaption><strong>线束拖拽模拟。</strong> 展示成束电缆在拖拽过程中的整体运动与相互接触。</figcaption>
+      </figure>
+    </section>
+
+    <footer class="footer">
+      <a href="index.html">返回主页</a>
+    </footer>
+  </main>
+</body>
+
+</html>

@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>模拟视频 | 叶科奇</title>
+  <meta name="description" content="GASPHiA、DART、星系引力干涉与冲击损伤模拟视频。">
+  <link rel="stylesheet" href="../styles.css">
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']],
+        displayMath: [['$$', '$$'], ['\\[', '\\]']],
+        processEscapes: true
+      },
+      options: {
+        skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+      }
+    };
+  </script>
+  <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
+</head>
+<body>
+  <main class="page">
+    <header class="site-header">
+      <div class="identity">
+        <h1>模拟视频</h1>
+        <p>SPH 冲击动力学 · 纯引力与暗物质星系模拟</p>
+      </div>
+      <nav class="nav" aria-label="主导航">
+        <a href="../index.html">首页</a>
+        <a href="../index.html#projects">项目树</a>
+        <a href="shallow-water.html">浅水波模拟</a>
+      </nav>
+    </header>
+
+    <section id="rubber-ring">
+      <h2>橡胶环对撞</h2>
+      <p>
+        橡胶环对撞用于检验 SPH 固体力学模拟中的拉伸不稳定性。人工应力能够抑制 SPH 固有的拉伸不稳定性，抑制非物理断裂发生。
+      </p>
+      <div class="media-grid">
+        <figure>
+          <img class="media" src="../media/videos/simulations/rubber-ring-collision-with-artificial-stress.gif" alt="包含人工应力的橡胶环对撞" loading="lazy">
+          <figcaption><strong>包含人工应力的橡胶环对撞。</strong> 人工应力抑制拉伸不稳定性，计算结果稳定。</figcaption>
+        </figure>
+        <figure>
+          <img class="media" src="../media/videos/simulations/rubber-ring-collision-without-artificial-stress.gif" alt="不含人工应力的橡胶环对撞" loading="lazy">
+          <figcaption><strong>不含人工应力的橡胶环对撞。</strong> 未加入人工应力时，SPH 拉伸不稳定性导致橡胶环出现非物理破碎。</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <section id="dart">
+      <h2>DART 碎石堆小行星撞击</h2>
+      <p>
+       以 NASA 的 DART 双小行星重定向测试为背景，通过 SPH 撞击模拟反推撞击效果，SPH 粒子 1100 万个。
+        包含巨石与分化层的碎石堆小行星结构。
+      </p>
+      <div class="media-grid">
+        <figure>
+          <video controls playsinline preload="metadata" poster="../media/images/simulations/dart-rubble-pile-impact-materials.jpg">
+            <source src="../media/videos/simulations/dart-rubble-pile-impact-materials.mp4" type="video/mp4">
+          </video>
+          <figcaption><strong>DART 碎石堆小行星撞击。</strong> 碎石堆表面的巨石和分化层具有不同力学性质，撞击后产生差异化溅射线。</figcaption>
+        </figure>
+        <figure>
+          <video controls playsinline preload="metadata" poster="../media/images/simulations/dart-rubble-pile-impact-overview.jpg">
+            <source src="../media/videos/simulations/dart-rubble-pile-impact-overview.mp4" type="video/mp4">
+          </video>
+          <figcaption><strong>DART 碰撞全貌动画。</strong> 从整体视角展示撞击扰动、碎片云展开与目标小行星形变。</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <section id="galaxy">
+      <h2>星系引力干涉模拟</h2>
+      <p>
+        模拟由恒星与暗物质晕组成的星系间引力干涉产生的潮汐尾结构，粒子个数 500 万个。
+      </p>
+      <div class="media-grid">
+        <figure>
+          <video controls playsinline preload="metadata" poster="../media/images/simulations/binary-galaxy-tidal-tail.jpg">
+            <source src="../media/videos/simulations/binary-galaxy-tidal-tail.mp4" type="video/mp4">
+          </video>
+          <figcaption><strong>两个星系干涉。</strong> 纯引力与暗物质晕共同演化形成潮汐尾。</figcaption>
+        </figure>
+        <figure>
+          <video controls playsinline preload="metadata" poster="../media/images/simulations/five-galaxy-tidal-tail.jpg">
+            <source src="../media/videos/simulations/five-galaxy-tidal-tail.mp4" type="video/mp4">
+          </video>
+          <figcaption><strong>五个星系干涉。</strong> 多星系相互作用下的潮汐尾结构。</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <section id="impact">
+      <h2>冲击与损伤</h2>
+      <p>
+        模拟超高速撞击高孔隙度浮石，检验代码多物理模型相互耦合下的鲁棒性，SPH 粒子 120 万个。
+      </p>
+      <div class="media-grid">
+        <figure>
+          <video controls playsinline preload="metadata" poster="../media/images/simulations/high-porosity-pumice-impact.jpg">
+            <source src="../media/videos/simulations/high-porosity-pumice-impact.mp4" type="video/mp4">
+          </video>
+          <figcaption><strong>高孔隙度浮石撞击。</strong> 高孔隙度靶体在高速撞击下的压实、损伤扩展与碎片喷射过程。</figcaption>
+        </figure>
+        <figure>
+          <video controls playsinline preload="metadata" poster="../media/images/simulations/clear-damage-particles.jpg">
+            <source src="../media/videos/simulations/clear-damage-particles.mp4" type="video/mp4">
+          </video>
+          <figcaption><strong>清除损伤粒子的动画结果。</strong></figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <a href="../index.html#projects">返回项目树</a>
+    </footer>
+  </main>
+</body>
+</html>

@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>铝材料 Mie-Gruneisen Hugoniot 验证 - GASPHiA 测试算例 | GASPHiA</title>
+  <link rel="stylesheet" href="../styles.css">
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']],
+        displayMath: [['$$', '$$'], ['\\[', '\\]']],
+        processEscapes: true
+      },
+      options: {
+        skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+      }
+    };
+  </script>
+  <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
+</head>
+<body>
+  <main class="page article-page">
+    <header class="site-header">
+      <div class="identity">
+        <h1>铝材料 Mie-Gruneisen Hugoniot 验证 - GASPHiA 测试算例</h1>
+        <p>GASPHiA 技术细节</p>
+      </div>
+      <nav class="nav" aria-label="主导航">
+        <a href="../index.html">首页</a>
+        <a href="../projects/gasphia.html">GASPHiA</a>
+        <a href="../projects/simulations.html">模拟视频</a>
+      </nav>
+    </header>
+    <article>
+<h2>铝材料 Mie-Gruneisen Hugoniot 验证</h2>
+<h3>概述</h3>
+<p>本算例验证 GASPHiA 中 <strong>Mie-Gruneisen 状态方程</strong>对铝材料冲击响应实现的正确性。方法为：在一维杆件右端施加刚性活塞，扫描多组活塞速度 <code>U_p</code>，然后从模拟结果中提取</p>
+<ul>
+<li>冲击波速 <code>U_s</code></li>
+<li>波后压力平台 <code>P</code></li>
+</ul>
+<p>与理论 Hugoniot 关系</p>
+<div class="math-block">\[
+U_s = c_0 + sU_p, \qquad P = \rho_0 U_s U_p
+\]</div>
+<p>进行对比。</p>
+<p>算例实际扫描了 <code>500, 1000, 2000, 3000, 5000 m/s</code> 五组速度，结果整体稳定：</p>
+<ul>
+<li><code>U_s</code> 相对理论误差约在 <code>0.07% - 1.60%</code></li>
+<li><code>P</code> 相对理论误差约在 <code>0.30% - 1.15%</code></li>
+</ul>
+<p>---</p>
+<h3>验证目标</h3>
+<p>与弹性单轴应变波算例不同，本算例的验证重点已从线弹性波速和偏应力平台转向<strong>冲击压缩后的热力学响应</strong>。对于给定的材料模型，冲击波前后的状态必须落在对应的 Hugoniot 曲线上，才能保证热力学一致性。</p>
+<p>本算例采用一维铝靶和右侧移动刚性活塞，通过不同活塞速度生成不同强度的冲击波。对每个速度 case，后处理步骤为：</p>
+<ul>
+<li>从多帧输出中拟合冲击波前位置，得到数值波速 <code>U_s</code></li>
+<li>在稳定波后平台上对压力和粒子速度取平均，得到数值 <code>P</code> 和 <code>U_p</code></li>
+</ul>
+<p>---</p>
+<h3>理论关系</h3>
+<p>本算例采用的铝材料 Mie-Gruneisen Hugoniot 线性关系为：</p>
+<div class="math-block">\[
+U_s = c_0 + sU_p
+\]</div>
+<div class="math-block">\[
+P = \rho_0 U_s U_p
+\]</div>
+<p>参数取值为：</p>
+<ul>
+<li>初始密度：<code>\rho_0 = 2700 kg/m^3</code></li>
+<li>体积声速：<code>c_0 = 5328 m/s</code></li>
+<li>Hugoniot 线性斜率：<code>s = 1.338</code></li>
+</ul>
+<p>在这个验证框架下，数值结果应该回答两个问题：</p>
+<ul>
+<li>拟合得到的 <code>U_s</code> 是否沿着理论直线 <code>U_s = c_0 + sU_p</code> 排列</li>
+<li>提取出来的波后压力 <code>P</code> 是否沿着理论曲线 <code>P = \rho_0 U_s U_p</code> 排列</li>
+</ul>
+<p>只要两者均成立，即可确认 EOS 的基本 Hugoniot 响应是可靠的。</p>
+<p>---</p>
+<h3>运行方式</h3>
+<p>测试目录：</p>
+<pre><code class="language-bash">
+GASPHiA-Tests/AluminumMieGruneisenHugoniot
+</code></pre>
+<p>执行以下命令启动：</p>
+<pre><code class="language-bash">
+./run_all.sh --source-dir /path/to/GASPHiA --cuda 0
+</code></pre>
+<p>脚本自动完成以下步骤：</p>
+<ul>
+<li>编译输入生成器 <code>gen_input_hugoniot</code></li>
+<li>使用本目录的 <code>para.cuh</code> 编译 GASPHiA</li>
+<li>依次运行 <code>500, 1000, 2000, 3000, 5000 m/s</code> 五组活塞速度</li>
+<li>将每组输出归档到 <code>output_sweep/output_V*/</code></li>
+<li>提取 <code>U_s</code>、<code>U_p</code> 和 <code>P</code> 并生成 Hugoniot 对比图</li>
+</ul>
+<p>与其他验证算例一致，本算例通过 <code>PARA_CUH</code> 引用测试目录自有的编译参数，不修改主源码树中的参数文件。</p>
+<p>---</p>
+<h3>结果解读</h3>
+<h4><code>U_s - U_p</code> 关系</h4>
+<figure><img class="media" src="../media/blog/GASPHiA/aluminum-mie-gruneisen-hugoniot/Hugoniot_Us_Up.png" alt="Hugoniot Us-Up 验证图" loading="lazy"></figure>
+<p>该图的核心信息是：模拟提取的冲击波速点基本沿理论直线分布，未出现系统性偏离。对于冲击波问题，这是判断 EOS 波速响应是否正确的基本验证关。</p>
+<h4><code>P - U_p</code> 关系</h4>
+<figure><img class="media" src="../media/blog/GASPHiA/aluminum-mie-gruneisen-hugoniot/Hugoniot_P_Up.png" alt="Hugoniot P-Up 验证图" loading="lazy"></figure>
+<p>该图展示的是波后压力平台。相较于波头位置，波后压力对 EOS 的热力学输出更加敏感。图中模拟点与理论曲线吻合良好，表明波后压力提取与 EOS 响应之间的一致性较高。</p>
+<p>---</p>
+<h3>实际运行数据</h3>
+<p>本次速度扫描结果如下。</p>
+<div class="table-wrap"><table>
+<thead><tr><th>Case 活塞速度</th><th>数值 <code>Up</code></th><th>理论 <code>Us</code></th><th>数值 <code>Us</code></th><th><code>Us</code> 相对误差</th><th>理论 <code>P</code></th><th>数值 <code>P</code></th><th><code>P</code> 相对误差</th></tr></thead>
+<tbody>
+<tr><td><code>500 m/s</code></td><td><code>500.04 m/s</code></td><td><code>5997.00 m/s</code></td><td><code>6093.02 m/s</code></td><td><code>1.60%</code></td><td><code>8.096 GPa</code></td><td><code>8.032 GPa</code></td><td><code>-0.79%</code></td></tr>
+<tr><td><code>1000 m/s</code></td><td><code>1000.02 m/s</code></td><td><code>6666.00 m/s</code></td><td><code>6659.35 m/s</code></td><td><code>-0.10%</code></td><td><code>17.998 GPa</code></td><td><code>18.052 GPa</code></td><td><code>0.30%</code></td></tr>
+<tr><td><code>2000 m/s</code></td><td><code>1999.93 m/s</code></td><td><code>8004.00 m/s</code></td><td><code>7933.33 m/s</code></td><td><code>-0.88%</code></td><td><code>43.222 GPa</code></td><td><code>43.719 GPa</code></td><td><code>1.15%</code></td></tr>
+<tr><td><code>3000 m/s</code></td><td><code>2999.66 m/s</code></td><td><code>9342.00 m/s</code></td><td><code>9319.76 m/s</code></td><td><code>-0.24%</code></td><td><code>75.670 GPa</code></td><td><code>75.895 GPa</code></td><td><code>0.30%</code></td></tr>
+<tr><td><code>5000 m/s</code></td><td><code>4999.44 m/s</code></td><td><code>12018.00 m/s</code></td><td><code>12009.28 m/s</code></td><td><code>-0.07%</code></td><td><code>162.243 GPa</code></td><td><code>162.792 GPa</code></td><td><code>0.34%</code></td></tr>
+</tbody></table></div>
+<p>从上表可得出两点结论：</p>
+<p>其一，活塞速度平台提取稳定，数值 <code>Up</code> 与设置值非常接近，表明波后平台识别区域选取合理。其二，<code>Us</code> 和 <code>P</code> 两个核心量均未随冲击强度升高而明显发散，说明该版实现并非仅适用于某个低速 case，而是在整段速度范围内均保持了良好的一致性。</p>
+<p>---</p>
+    </article>
+    <footer class="footer">
+      <a href="../projects/gasphia.html">返回 GASPHiA</a>
+    </footer>
+  </main>
+</body>
+</html>
